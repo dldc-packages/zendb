@@ -1,0 +1,69 @@
+{
+  "name": "zensql",
+  "version": "0.0.0",
+  "description": "A local database",
+  "keywords": [],
+  "homepage": "https://github.com/etienne-dldc/zendb-node#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-dldc/zendb-node/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/etienne-dldc/zendb-node.git"
+  },
+  "license": "MIT",
+  "author": "Etienne Dldc <e.deladonchamps@gmail.com>",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf dist && tsup src/index.ts --format esm,cjs --dts",
+    "codecov": "codecov",
+    "lint": "prettier . --check && eslint . && tsc --noEmit",
+    "lint:fix": "prettier . --write . && eslint . --fix",
+    "release": "yarn build && np",
+    "test": "yarn lint && jest --coverage",
+    "test:run": "jest",
+    "test:watch": "jest --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "better-sqlite3": "^7.4.6",
+    "zod": "^3.11.6"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.4.2",
+    "@types/jest": "^27.4.0",
+    "@typescript-eslint/eslint-plugin": "^5.9.1",
+    "@typescript-eslint/parser": "^5.9.1",
+    "better-sqlite3": "^7.4.6",
+    "codecov": "^3.8.3",
+    "eslint": "^8.6.0",
+    "eslint-config-prettier": "^8.3.0",
+    "jest": "^27.4.7",
+    "jest-ts-tsx-resolver": "^1.0.0",
+    "np": "^7.6.0",
+    "prettier": "^2.5.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^27.1.2",
+    "tslib": "^2.3.1",
+    "tsup": "^5.11.11",
+    "typescript": "^4.5.4",
+    "zod": "^3.11.6"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
