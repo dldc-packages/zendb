@@ -1,6 +1,6 @@
 {
-  "name": "zensql",
-  "version": "1.0.0",
+  "name": "zendb",
+  "version": "0.0.0",
   "description": "A local database",
   "keywords": [],
   "homepage": "https://github.com/etienne-dldc/zendb-node#readme",
