@@ -47,7 +47,7 @@ export type TraverserResult<K, T> = { key: K; data: T } | null;
 export type Traverser<K, T> = () => TraverserResult<K, T>;
 
 export function traverserFromRowIterator<Key, DataIn, DataOut>(
-  iter: IterableIterator<[Key, DataIn]>,
+  iter: IterableIterator<{ key: Key; data: DataIn }>,
   transform: (data: DataIn) => DataOut
 ): Traverser<Key, DataOut> {
   let done = false;
@@ -57,11 +57,11 @@ export function traverserFromRowIterator<Key, DataIn, DataOut>(
     }
     const row = iter.next();
     if (!row.done) {
-      return { key: row.value[0], data: transform(row.value[1]) };
+      return { key: row.value.key, data: transform(row.value.data) };
     }
     done = true;
     if (row.value) {
-      return { key: row.value[0], data: transform(row.value[1]) };
+      return { key: row.value.key, data: transform(row.value.data) };
     }
     return null;
   };

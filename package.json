@@ -28,6 +28,7 @@
   ],
   "scripts": {
     "build": "rimraf dist && tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --watch",
     "codecov": "codecov",
     "lint": "prettier . --check && eslint . && tsc --noEmit",
     "lint:fix": "prettier . --write . && eslint . --fix",

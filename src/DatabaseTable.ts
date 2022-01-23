@@ -75,7 +75,7 @@ export class DatabaseTable<
   private getDeleteByKeyQuery(): DB.Statement {
     return this.getStatement('deleteByKey', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(`DELETE FROM ${sqlQuote(this.name)}`, `WHERE`, `key = $1`);
+      const query = join.space(`DELETE FROM ${sqlQuote(this.name)}`, `WHERE`, `key = ?`);
       return db.prepare(query);
     });
   }
@@ -110,10 +110,10 @@ export class DatabaseTable<
         `VALUES`,
         `(`,
         join.comma(
-          `$1`, // key
-          `$2`, // data
+          `?`, // key
+          `?`, // data
           // rest is indexes
-          ...this.tableConfig.indexes.map((_index, i) => `$${3 + i}`) // indexes
+          ...this.tableConfig.indexes.map(() => `?`) // indexes
         ),
         `)`
       );
@@ -135,7 +135,7 @@ export class DatabaseTable<
       const query = join.space(
         `SELECT key, data FROM ${sqlQuote(this.name)}`,
         `WHERE`,
-        `key = $1`,
+        `key = ?`,
         `LIMIT 1`
       );
       return db.prepare(query);
@@ -159,12 +159,12 @@ export class DatabaseTable<
 
   private deleteByKey(key: Key) {
     const serializedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
-    this.getDeleteByKeyQuery().run([serializedKey]);
+    this.getDeleteByKeyQuery().run(serializedKey);
   }
 
   private insertInternal(data: unknown): { newKey: Key } {
     const params = this.prepareData(data);
-    this.getInsertQuery().run([params.serailizedKey, params.data, ...params.indexes]);
+    this.getInsertQuery().run(params.serailizedKey, params.data, ...params.indexes);
     return { newKey: params.key };
   }
 
@@ -249,7 +249,7 @@ export class DatabaseTable<
   all(): PipeCollection<Key, Data> {
     const iter = this.getSelectAllQuery().iterate();
     return new PipeCollection(
-      traverserFromRowIterator<Key, string, Data>(iter as any, (data) => this.restore(data)),
+      traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
       this.pipeParent
     );
   }
@@ -257,7 +257,7 @@ export class DatabaseTable<
   findByKey(key: Key): PipeSingle<Key, Data, true> {
     const query = this.getFindByKeyQuery();
     const serializedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
-    const entry = query.get(serializedKey as any);
+    const entry = query.get(serializedKey);
     return new PipeSingle<Key, Data, true>(
       entry ? { key: entry.key as any, data: this.restore(entry.data as any) } : null,
       this.pipeParent
