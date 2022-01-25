@@ -30,27 +30,27 @@ export class BinaryExpr {
     return new BinaryExpr({ operator, left, right });
   }
 
-  static eq(left: Expr, right: Expr): BinaryExpr {
+  static equal(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '=', right);
   }
 
-  static neq(left: Expr, right: Expr): BinaryExpr {
+  static notEqual(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '!=', right);
   }
 
-  static lte(left: Expr, right: Expr): BinaryExpr {
+  static lessThanOrEqual(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '<=', right);
   }
 
-  static gte(left: Expr, right: Expr): BinaryExpr {
+  static greaterThanOrEqual(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '>=', right);
   }
 
-  static lt(left: Expr, right: Expr): BinaryExpr {
+  static lessThan(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '<', right);
   }
 
-  static gt(left: Expr, right: Expr): BinaryExpr {
+  static greaterThan(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, '>', right);
   }
 

@@ -1,4 +1,4 @@
-import { Database, schema, Migrations, sql } from '../src';
+import { Database, schema, Migrations, sql, value } from '../src';
 import fse from 'fs-extra';
 import { nanoid } from 'nanoid';
 import { resolve } from 'path';
@@ -91,7 +91,7 @@ test('Run migration', () => {
 
   const findJohns = db.tables.users
     .prepare()
-    .where(({ indexes }) => sql.BinaryExpr.eq(indexes.name, sql.LiteralExpr.create('John')));
+    .where(({ indexes }) => sql.eq(indexes.name, sql.literal('John')));
 
   expect(db.tables.users.select(findJohns).valuesArray()).toEqual([
     { id: '1', name: 'John' },
@@ -99,4 +99,10 @@ test('Run migration', () => {
   ]);
 
   expect(db.tables.users.count(findJohns)).toEqual(2);
+
+  const findByName = db.tables.users
+    .prepare({ name: value.text() })
+    .where(({ indexes, params }) => sql.eq(indexes.name, params.name));
+
+  expect(db.tables.users.select(findByName, { name: 'Paul' }).keysArray()).toEqual(['2']);
 });

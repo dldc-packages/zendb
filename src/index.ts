@@ -3,6 +3,9 @@ export * from './Migrations';
 export * from './Select';
 export { sql, resolveStmt } from './sql';
 export { schema } from './schema';
+export { value } from './Values';
+
+export type { DataFromValue, DataFromValues, Value, ValueAny, ValuesAny } from './Values';
 
 export type {
   SelectStmtFrom,

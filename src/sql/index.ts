@@ -22,6 +22,16 @@ export const sql = {
   Table,
   UnaryExpr,
   Aggregate,
+  // shortcuts
+  eq: BinaryExpr.equal,
+  neq: BinaryExpr.notEqual,
+  gt: BinaryExpr.greaterThan,
+  gte: BinaryExpr.greaterThanOrEqual,
+  lt: BinaryExpr.lessThan,
+  lte: BinaryExpr.lessThanOrEqual,
+  and: BinaryExpr.and,
+  or: BinaryExpr.or,
+  literal: LiteralExpr.create,
 };
 
 export type {

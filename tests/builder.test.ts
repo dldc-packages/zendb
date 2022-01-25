@@ -38,9 +38,9 @@ test('resolve json_each', () => {
       from: [users, usersDataJson],
       select: [userId, userData],
       distinct: true,
-      where: sql.BinaryExpr.eq(usersDataJson.columns.value, numParam),
+      where: sql.eq(usersDataJson.columns.value, numParam),
       orderBy: [userId],
-      limit: { limit: sql.LiteralExpr.create(10), offset: sql.LiteralExpr.create(0) },
+      limit: { limit: sql.literal(10), offset: sql.literal(0) },
     })
   );
   expect(query).toBe(
