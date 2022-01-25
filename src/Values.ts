@@ -66,7 +66,7 @@ export const value = {
   },
 };
 
-export function createValue<Dt extends Datatype>(datatype: Dt): Value<Dt, false, null> {
+function createValue<Dt extends Datatype>(datatype: Dt): Value<Dt, false, null> {
   return create(datatype, false, null);
   function create<
     Dt extends Datatype,

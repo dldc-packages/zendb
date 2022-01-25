@@ -8,6 +8,12 @@ export type DatatypeJson<Value> = {
   schema: zod.Schema<Value>;
 };
 
+// Specific datatypes to allow easy query on array
+export type DatatypeJsonArray<Value extends Array<any>> = {
+  kind: 'jsonArray';
+  schema: zod.Schema<Value>;
+};
+
 export type DatatypeNumber = {
   kind: 'number';
   schema: null | zod.Schema<number>;
@@ -40,9 +46,12 @@ export type DatatypeMap = {
   text: DatatypeText;
   date: DatatypeDate;
   json: DatatypeJson<unknown>;
+  jsonArray: DatatypeJsonArray<Array<unknown>>;
 };
 
 export type DatatypeParsed<T extends Datatype> = T extends DatatypeJson<infer Value>
+  ? Value
+  : T extends DatatypeJsonArray<infer Value>
   ? Value
   : {
       number: number;
@@ -51,6 +60,7 @@ export type DatatypeParsed<T extends Datatype> = T extends DatatypeJson<infer Va
       text: string;
       date: DateValue;
       json: never;
+      jsonArray: never;
     }[T['kind']];
 
 export type DatatypeSerialized<T extends Datatype> = {
@@ -60,6 +70,7 @@ export type DatatypeSerialized<T extends Datatype> = {
   text: string;
   date: number;
   json: string;
+  jsonArray: string;
 }[T['kind']];
 
 export type Datatype = DatatypeMap[keyof DatatypeMap];
@@ -67,6 +78,9 @@ export type Datatype = DatatypeMap[keyof DatatypeMap];
 export const datatype = {
   json<Value>(schema: zod.Schema<Value>): DatatypeJson<Value> {
     return { kind: 'json', schema };
+  },
+  jsonArray<Value extends Array<any>>(schema: zod.Schema<Value>): DatatypeJsonArray<Value> {
+    return { kind: 'jsonArray', schema };
   },
   text(schema: zod.Schema<string> | null = null): DatatypeText {
     return { kind: 'text', schema };
@@ -135,6 +149,11 @@ const datatypeTransform: {
     validate: (dt, val) => dt.schema.parse(val),
     serialize: (_dt, val) => JSON.stringify(val),
   },
+  jsonArray: {
+    parse: (dt, val) => dt.schema.parse(JSON.parse(val)),
+    validate: (dt, val) => dt.schema.parse(val),
+    serialize: (_dt, val) => JSON.stringify(val),
+  },
 };
 
 export function serializeDatatype<D extends Datatype>(dt: D, value: unknown): unknown {
@@ -150,11 +169,17 @@ export function serializeDatatype<D extends Datatype>(dt: D, value: unknown): un
   if (dt.kind === 'number') {
     return datatypeTransform.number.serialize(dt, datatypeTransform.number.validate(dt, value));
   }
+  if (dt.kind === 'text') {
+    return datatypeTransform.text.serialize(dt, datatypeTransform.text.validate(dt, value));
+  }
   if (dt.kind === 'json') {
     return datatypeTransform.json.serialize(dt, datatypeTransform.json.validate(dt, value));
   }
-  if (dt.kind === 'text') {
-    return datatypeTransform.text.serialize(dt, datatypeTransform.text.validate(dt, value));
+  if (dt.kind === 'jsonArray') {
+    return datatypeTransform.jsonArray.serialize(
+      dt,
+      datatypeTransform.jsonArray.validate(dt, value)
+    );
   }
   return expectNever(dt);
 }
@@ -172,18 +197,22 @@ export function parseDatatype<D extends Datatype>(dt: D, value: DatatypeSerializ
   if (dt.kind === 'number') {
     return datatypeTransform.number.parse(dt, value as any);
   }
+  if (dt.kind === 'text') {
+    return datatypeTransform.text.parse(dt, value as any);
+  }
   if (dt.kind === 'json') {
     return datatypeTransform.json.parse(dt, value as any);
   }
-  if (dt.kind === 'text') {
-    return datatypeTransform.text.parse(dt, value as any);
+  if (dt.kind === 'jsonArray') {
+    return datatypeTransform.jsonArray.parse(dt, value as any);
   }
   return expectNever(dt);
 }
 
 export function printDatatype(datatype: Datatype): string {
   return {
-    json: 'TEXT',
+    json: 'JSON',
+    jsonArray: 'JSON',
     text: 'TEXT',
     number: 'FLOAT',
     integer: 'INTEGER',

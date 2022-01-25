@@ -1,10 +1,10 @@
+import DB from 'better-sqlite3';
 import { PipeCollection, PipeParent, PipeSingle } from './Pipe';
-import { IndexesAny, SchemaAny, TableResolved } from './Schema';
 import { Select } from './Select';
 import { join, notNil, PRIV, sqlQuote, traverserFromRowIterator } from './Utils';
+import { SchemaAny, SchemaIndexesAny, SchemaTableResolved, serializeColumnData } from './schema';
 import { DataFromValues, serializeValues, ValuesAny } from './Values';
-import { serializeColumn } from './Column';
-import DB from 'better-sqlite3';
+import { sql } from '.';
 
 type QueriesCache = {
   insert: DB.Statement | null;
@@ -14,20 +14,24 @@ type QueriesCache = {
   findByKey: DB.Statement | null;
 };
 
-export type DatabaseTableAny = DatabaseTable<string | number | symbol, any, any, IndexesAny<any>>;
+export type DatabaseTableAny = DatabaseTable<
+  string | number | symbol,
+  any,
+  any,
+  SchemaIndexesAny<any>
+>;
 
 export class DatabaseTable<
   Name extends string | number | symbol,
   Key,
   Data,
-  Indexes extends IndexesAny<Data>
+  Indexes extends SchemaIndexesAny<Data>
 > {
   readonly name: Name;
   readonly schema: SchemaAny;
-  readonly [PRIV]: { close: () => void };
 
   private readonly getDb: () => DB.Database;
-  private readonly tableConfig: TableResolved;
+  private readonly tableConfig: SchemaTableResolved;
   private readonly pipeParent: PipeParent<Key>;
 
   private readonly cache: QueriesCache = {
@@ -48,18 +52,6 @@ export class DatabaseTable<
       insert: this.insertInternal.bind(this),
       updateByKey: this.updateByKey.bind(this),
     };
-    this[PRIV] = {
-      close: this.close.bind(this),
-    };
-  }
-
-  private close() {
-    // Object.entries(this.cache).forEach(([name, stmt]) => {
-    //   if (stmt !== null) {
-    //     stmt.finalize();
-    //     (this.cache as any)[name] = null;
-    //   }
-    // });
   }
 
   private getStatement<Name extends keyof QueriesCache>(
@@ -149,16 +141,16 @@ export class DatabaseTable<
     indexes: Array<unknown>;
   } {
     const key = this.tableConfig.key.fn(data);
-    const serailizedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
+    const serailizedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
     const indexes = this.tableConfig.indexes.map((index) => {
-      return serializeColumn(index.column, index.fn(data), index.name);
+      return serializeColumnData(index.column, index.fn(data), index.name);
     });
     const dataSer = JSON.stringify(this.schema.sanitize(data));
     return { key: key, serailizedKey, data: dataSer, indexes };
   }
 
   private deleteByKey(key: Key) {
-    const serializedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
+    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
     this.getDeleteByKeyQuery().run(serializedKey);
   }
 
@@ -170,7 +162,7 @@ export class DatabaseTable<
 
   private updateByKey(key: Key, data: unknown): { updatedKey: Key } {
     const prepared = this.prepareData(data);
-    const serializedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
+    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
     const query = this.getUpdateByKeyQuery();
     const params: Record<string, unknown> = {
       internal_current_key: serializedKey,
@@ -193,14 +185,14 @@ export class DatabaseTable<
     return new PipeSingle({ key: newKey, data }, this.pipeParent);
   }
 
-  prepare(): Select<Name, Key, Data, Indexes, null>;
-  prepare<Params extends ValuesAny>(params: Params): Select<Name, Key, Data, Indexes, Params>;
-  prepare<Params extends ValuesAny>(
-    params?: Params
-  ): Select<Name, Key, Data, Indexes, Params | null> {
+  prepare(): Select<Key, Data, Indexes, null>;
+  prepare<Params extends ValuesAny>(params: Params): Select<Key, Data, Indexes, Params>;
+  prepare<Params extends ValuesAny>(params?: Params): Select<Key, Data, Indexes, Params | null> {
+    const tableName = this.name as string;
+    const sqlTable = sql.Table.create(tableName);
     return new Select({
-      table: this.name,
-      schema: this.schema,
+      sqlTable,
+      table: notNil(this.schema.tables.find((table) => table.name === tableName)),
       params: params ?? null,
       where: null,
       limit: null,
@@ -208,13 +200,13 @@ export class DatabaseTable<
     });
   }
 
-  count(query: Select<Name, Key, Data, Indexes, null>): number;
+  count(query: Select<Key, Data, Indexes, null>): number;
   count<Params extends ValuesAny>(
-    query: Select<Name, Key, Data, Indexes, Params>,
+    query: Select<Key, Data, Indexes, Params>,
     params: DataFromValues<Params>
   ): number;
   count<Params extends ValuesAny | null>(
-    query: Select<Name, Key, Data, Indexes, Params>,
+    query: Select<Key, Data, Indexes, Params>,
     params?: Params extends ValuesAny ? DataFromValues<Params> : null
   ): number {
     const db = this.getDb();
@@ -225,13 +217,13 @@ export class DatabaseTable<
     return preparedQuery.get(paramsSerialized as any).count;
   }
 
-  select(query: Select<Name, Key, Data, Indexes, null>): PipeCollection<Key, Data>;
+  select(query: Select<Key, Data, Indexes, null>): PipeCollection<Key, Data>;
   select<Params extends ValuesAny>(
-    query: Select<Name, Key, Data, Indexes, Params>,
+    query: Select<Key, Data, Indexes, Params>,
     params: DataFromValues<Params>
   ): PipeCollection<Key, Data>;
   select<Params extends ValuesAny | null>(
-    query: Select<Name, Key, Data, Indexes, Params>,
+    query: Select<Key, Data, Indexes, Params>,
     params?: Params extends ValuesAny ? DataFromValues<Params> : null
   ): PipeCollection<Key, Data> {
     const db = this.getDb();
@@ -256,7 +248,7 @@ export class DatabaseTable<
 
   findByKey(key: Key): PipeSingle<Key, Data, true> {
     const query = this.getFindByKeyQuery();
-    const serializedKey = serializeColumn(this.tableConfig.key.column, key, 'key');
+    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
     const entry = query.get(serializedKey);
     return new PipeSingle<Key, Data, true>(
       entry ? { key: entry.key as any, data: this.restore(entry.data as any) } : null,

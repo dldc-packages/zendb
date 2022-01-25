@@ -1,8 +1,8 @@
-import { DatabaseTable, DatabaseTableAny } from './DatabaseTable';
-import { printDatatype } from './Datatype';
-import { SchemaAny } from './Schema';
+import { DatabaseTable } from './DatabaseTable';
+import { SchemaAny } from './schema';
 import { PRIV, join, sqlQuote, fingerprintString } from './Utils';
 import DB from 'better-sqlite3';
+import { printDatatype } from './Datatype';
 
 export class Database<Schema extends SchemaAny> {
   private db: DB.Database | null = null;
@@ -19,7 +19,7 @@ export class Database<Schema extends SchemaAny> {
     >;
   };
 
-  constructor(schema: Schema, id: number) {
+  constructor(schema: Schema, id: number = 0) {
     this.schemaQueries = this.schemaToQueries(schema);
     this.schema = schema;
     this.fingerpring = fingerprintString(
@@ -51,9 +51,6 @@ export class Database<Schema extends SchemaAny> {
   }
 
   close() {
-    Object.values<DatabaseTableAny>(this.tables).forEach((table) => {
-      table[PRIV].close();
-    });
     if (this.db) {
       this.db.close();
       this.db = null;

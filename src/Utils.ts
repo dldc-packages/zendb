@@ -107,3 +107,18 @@ export function fingerprintString(str: string, max: number): number {
   }
   return result;
 }
+
+export function mapMaybe<T, O>(val: T | null | undefined, mapper: (val: T) => O): O | null {
+  if (val === null || val === undefined) {
+    return null;
+  }
+  return mapper(val);
+}
+
+export function transformSet<I, O>(input: Set<I>, transform: (val: I) => O): Set<O> {
+  const res = new Set<O>();
+  input.forEach((item) => {
+    res.add(transform(item));
+  });
+  return res;
+}
