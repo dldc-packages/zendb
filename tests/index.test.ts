@@ -12,7 +12,7 @@ let restoreConsole: null | RestoreConsole = null;
 
 beforeEach(() => {
   fse.ensureDir('tests/tmp');
-  restoreConsole = mockConsole(['log', 'warn', 'error', 'info']);
+  restoreConsole = mockConsole(['log', 'warn', 'info']);
 });
 
 afterEach(() => {
@@ -82,6 +82,8 @@ test('Run migration', () => {
     ['-> CREATE TABLE `users`(key TEXT PRIMARY KEY NOT NULL, data JSON, `name` TEXT NOT NULL);'],
   ]);
 
+  expect(db.tables.users.findByKey('1').value()).toEqual({ id: '1', name: 'John' });
+
   expect(db.tables.users.all().valuesArray()).toEqual([
     { id: '1', name: 'John' },
     { id: '2', name: 'Paul' },
@@ -105,4 +107,56 @@ test('Run migration', () => {
     .where(({ indexes, params }) => sql.eq(indexes.name, params.name));
 
   expect(db.tables.users.select(findByName, { name: 'Paul' }).keysArray()).toEqual(['2']);
+});
+
+test('Update key', () => {
+  const v1 = schema.create({
+    tables: {
+      users: schema
+        .table<{ id: string; name: string }>()
+        .key(schema.column.text(), (user) => user.id),
+    },
+  });
+
+  const migrations = Migrations.create({
+    id: 'init',
+    description: 'Initial migration',
+    schema: v1,
+    migrate: (_, db) => {
+      db.tables.users.insert({ id: '1', name: 'John' });
+    },
+  });
+
+  const db = migrations.applySync({
+    databasePath: tempFile('_data.db'),
+    migrationDatabasePath: tempFile('_data-migration.db'),
+  });
+
+  expect(db.tables.users.findByKey('1').value()).toEqual({ id: '1', name: 'John' });
+
+  expect(
+    db.tables.users
+      .findByKey('1')
+      .update((prev) => ({ ...prev, name: 'Paul' }))
+      .value()
+  ).toEqual({
+    id: '1',
+    name: 'Paul',
+  });
+
+  expect(
+    db.tables.users
+      .findByKey('1')
+      .update((prev) => ({ ...prev, id: '2' }))
+      .value()
+  ).toEqual({
+    id: '2',
+    name: 'Paul',
+  });
+
+  expect(db.tables.users.findByKey('2').value()).toEqual({ id: '2', name: 'Paul' });
+
+  expect(db.tables.users.findByKey('2').delete().value()).toEqual({ id: '2', name: 'Paul' });
+
+  expect(db.tables.users.countAll()).toEqual(0);
 });

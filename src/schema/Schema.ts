@@ -41,10 +41,6 @@ export function schema<Tables extends SchemaTablesAny>({
           if (nameLower === 'data') {
             throw new Error(`Index name 'data' is reserved`);
           }
-          if (nameLower === 'internal_current_key') {
-            // Reserved because we use this name in the UPDATE query
-            throw new Error(`Index name 'internal_current_key' is reserved`);
-          }
           if (indexesNames.has(nameLower)) {
             throw new Error(`Duplicate index name '${nameLower}'`);
           }

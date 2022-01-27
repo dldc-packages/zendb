@@ -3,12 +3,13 @@ import { Column } from './Column';
 
 type TableInternal = Readonly<{
   name: string;
+  strict: boolean;
   alias: null | { original: Table; alias: string };
 }>;
 
 export class Table {
   static create(name: string): Table {
-    return new Table({ name, alias: null });
+    return new Table({ name, alias: null, strict: false });
   }
 
   readonly [PRIV]: TableInternal;
@@ -19,6 +20,10 @@ export class Table {
 
   public column(name: string): Column {
     return Column.create(this, name);
+  }
+
+  public strict(): Table {
+    return new Table({ ...this[PRIV], strict: true });
   }
 
   public as(alias: string): Table {

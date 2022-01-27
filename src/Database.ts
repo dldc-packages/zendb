@@ -13,7 +13,7 @@ export class Database<Schema extends SchemaAny> {
   readonly tables: {
     [K in keyof Schema[PRIV]]: DatabaseTable<
       K,
-      Schema[PRIV][K][PRIV]['key'],
+      Schema[PRIV][K][PRIV]['keyType'],
       Schema[PRIV][K][PRIV]['data'],
       Schema[PRIV][K][PRIV]['indexes']
     >;

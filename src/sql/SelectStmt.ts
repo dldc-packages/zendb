@@ -10,7 +10,7 @@ export type SelectStmtLimit = { limit: Expr; offset: Expr | null } | null;
 
 type SelectStmtInternal = Readonly<{
   distinct: boolean;
-  select: Array<Column | Aggregate>;
+  columns: Array<Column | Aggregate>;
   from: Array<Table | JsonTable>;
   where: Expr | null;
   orderBy: Array<Expr> | null;
@@ -19,7 +19,7 @@ type SelectStmtInternal = Readonly<{
 }>;
 
 export type SelectStmtOptions = {
-  select: Array<Column | Aggregate>;
+  columns: Array<Column | Aggregate>;
   from: SelectStmtFrom;
   where?: Expr | null;
   orderBy?: Array<Expr> | null;
@@ -29,7 +29,7 @@ export type SelectStmtOptions = {
 
 export class SelectStmt {
   static create({
-    select,
+    columns,
     from,
     limit = null,
     orderBy = null,
@@ -38,7 +38,7 @@ export class SelectStmt {
   }: SelectStmtOptions): SelectStmt {
     return new SelectStmt({
       distinct,
-      select,
+      columns,
       from: Array.isArray(from) ? from : [from],
       where,
       orderBy,

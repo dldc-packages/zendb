@@ -92,7 +92,7 @@ export class Select<
       const data = sqlTable.column('data');
       const resolved = resolveStmt(
         sql.SelectStmt.create({
-          select: [key, data],
+          columns: [key, data],
           from: sqlTable,
           where,
           limit,
@@ -109,7 +109,7 @@ export class Select<
       const key = sqlTable.column('key');
       const resolved = resolveStmt(
         sql.SelectStmt.create({
-          select: [sql.Aggregate.count(key).as('count')],
+          columns: [sql.Aggregate.count(key).as('count')],
           from: sqlTable,
           where,
           limit,

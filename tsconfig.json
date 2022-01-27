@@ -12,6 +12,7 @@
     "strict": true,
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
+    "downlevelIteration": true,
     "alwaysStrict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

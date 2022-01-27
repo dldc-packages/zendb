@@ -6,27 +6,33 @@ import {
   DatatypeBoolean,
   DatatypeDate,
   DatatypeInteger,
-  DatatypeJson,
   DatatypeNumber,
   DatatypeParsed,
   DatatypeText,
+  DatatypeJsonArray,
   serializeDatatype,
 } from '../Datatype';
 
 export type DefaultValueBase = (() => any) | null;
+
+type SchemaColumnInternal<
+  Dt extends Datatype,
+  Nullable extends boolean,
+  DefaultValue extends DefaultValueBase
+> = Readonly<{
+  datatype: Dt;
+  nullable: Nullable;
+  defaultValue: DefaultValue;
+  primary: boolean;
+  unique: boolean;
+}>;
 
 export interface SchemaColumn<
   Dt extends Datatype,
   Nullable extends boolean,
   DefaultValue extends DefaultValueBase
 > {
-  [PRIV]: {
-    datatype: Dt;
-    nullable: Nullable;
-    defaultValue: DefaultValue;
-    primary: boolean;
-    unique: boolean;
-  };
+  [PRIV]: SchemaColumnInternal<Dt, Nullable, DefaultValue>;
   primary(): SchemaColumn<Dt, Nullable, DefaultValue>;
   unique(): SchemaColumn<Dt, Nullable, DefaultValue>;
   nullable(): SchemaColumn<Dt, true, DefaultValue>;
@@ -57,8 +63,10 @@ export type SchemaColumnResolved = {
 };
 
 export const column = {
-  json<Inner>(schema: zod.Schema<Inner>): SchemaColumn<DatatypeJson<Inner>, false, null> {
-    return createColumn(datatype.json(schema));
+  list<Inner extends Array<any>>(
+    schema: zod.Schema<Inner>
+  ): SchemaColumn<DatatypeJsonArray<Inner>, false, null> {
+    return createColumn(datatype.jsonArray(schema));
   },
   text(schema: zod.Schema<string> | null = null): SchemaColumn<DatatypeText, false, null> {
     return createColumn(datatype.text(schema));
@@ -78,37 +86,27 @@ export const column = {
 };
 
 function createColumn<Dt extends Datatype>(datatype: Dt): SchemaColumn<Dt, false, null> {
-  return create(datatype, false, null, false, false);
+  return create({ datatype, nullable: false, defaultValue: null, primary: false, unique: false });
   function create<
     Dt extends Datatype,
     Nullable extends boolean,
     DefaultValue extends DefaultValueBase
   >(
-    datatype: Dt,
-    nullable: Nullable,
-    defaultValue: DefaultValue,
-    primary: boolean,
-    unique: boolean
+    internal: SchemaColumnInternal<Dt, Nullable, DefaultValue>
   ): SchemaColumn<Dt, Nullable, DefaultValue> {
     return {
-      [PRIV]: {
-        datatype,
-        nullable,
-        defaultValue,
-        primary,
-        unique,
-      },
+      [PRIV]: internal,
       nullable() {
-        return create(datatype, true, defaultValue, primary, unique);
+        return create({ ...internal, nullable: true });
       },
       defaultValue(defaultValue) {
-        return create(datatype, nullable, defaultValue, primary, unique);
+        return create({ ...internal, defaultValue });
       },
       primary() {
-        return create(datatype, nullable, defaultValue, true, unique);
+        return create({ ...internal, primary: true });
       },
       unique() {
-        return create(datatype, nullable, defaultValue, primary, true);
+        return create({ ...internal, unique: true });
       },
     };
   }

@@ -7,7 +7,7 @@ test('resolve simple select', () => {
   const { query } = resolveStmt(
     sql.SelectStmt.create({
       from: users,
-      select: [userId],
+      columns: [userId],
     })
   );
   expect(query).toBe('SELECT `users`.`id` FROM `users`');
@@ -20,7 +20,7 @@ test('resolve simple select with alias', () => {
   const { query } = resolveStmt(
     sql.SelectStmt.create({
       from: users,
-      select: [userId],
+      columns: [userId],
     })
   );
   expect(query).toBe('SELECT `u`.`id` AS `userId` FROM `users` AS `u`');
@@ -36,7 +36,7 @@ test('resolve json_each', () => {
   const { query } = resolveStmt(
     sql.SelectStmt.create({
       from: [users, usersDataJson],
-      select: [userId, userData],
+      columns: [userId, userData],
       distinct: true,
       where: sql.eq(usersDataJson.columns.value, numParam),
       orderBy: [userId],
@@ -56,11 +56,41 @@ test('aggregate select', () => {
   const { query } = resolveStmt(
     sql.SelectStmt.create({
       from: [users],
-      select: [userIdCount],
+      columns: [userIdCount],
       orderBy: [userIdCount],
     })
   );
   expect(query).toBe(
     'SELECT COUNT(`u`.`id`) AS `userIdCount` FROM `users` AS `u` ORDER BY `userIdCount`'
   );
+});
+
+test('insert', () => {
+  const users = sql.Table.create('users').as('u');
+  const userId = users.column('id');
+  const userName = users.column('name');
+
+  const { query } = resolveStmt(
+    sql.InsertStmt.create({
+      into: users,
+      columns: [userId, userName],
+      values: [[sql.literal(1), sql.literal('Paul')]],
+    })
+  );
+  expect(query).toBe("INSERT INTO `users` AS `u` (`id`, `name`) VALUES (1, 'Paul')");
+});
+
+test('update', () => {
+  const users = sql.Table.create('users').as('u');
+  const userId = users.column('id');
+  const userName = users.column('name');
+
+  const { query } = resolveStmt(
+    sql.UpdateStmt.create({
+      table: users,
+    })
+      .set(userId, sql.literal(1))
+      .set(userName, sql.Param.createNamed('name'))
+  );
+  expect(query).toBe('UPDATE `users` AS `u` SET `id` = 1, `name` = :name');
 });

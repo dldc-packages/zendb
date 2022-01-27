@@ -4,7 +4,7 @@ import {
   SchemaColumnAny,
   SchemaColumnResolved,
 } from './SchemaColumn';
-import { Datatype } from '../Datatype';
+import { Datatype, DatatypeParsed } from '../Datatype';
 import { PRIV } from '../Utils';
 
 export type SchemaIndexFn<Data, T> = (data: Data) => T;
@@ -54,6 +54,7 @@ export type PartialSchemaTable<Data> = {
 export type SchemaTable<Data, KeyDt extends Datatype, Indexes extends SchemaIndexesAny<Data>> = {
   [PRIV]: {
     data: Data;
+    keyType: DatatypeParsed<KeyDt>;
     key: SchemaTableKey<Data, KeyDt>;
     indexes: Indexes;
   };
@@ -83,6 +84,7 @@ export function table<Data>(): PartialSchemaTable<Data> {
     return {
       [PRIV]: {
         data: null as any,
+        keyType: null as any,
         key,
         indexes,
       },

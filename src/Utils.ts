@@ -25,7 +25,7 @@ export function expectNever(val: never): never {
 
 type Parts = Array<string | null | undefined>;
 
-function joiner(glue: string, ...parts: Parts): string {
+export function joiner(glue: string, ...parts: Parts): string {
   return parts.filter(Boolean).join(glue);
 }
 
@@ -34,6 +34,10 @@ export const join = {
   comma: (...parts: Parts): string => joiner(', ', ...parts),
   all: (...parts: Parts): string => joiner('', ...parts),
 };
+
+export function parent(content: string): string {
+  return `(${content})`;
+}
 
 export function notNil<T>(val: T | null | undefined): T {
   if (val === null || val === undefined) {
@@ -121,4 +125,25 @@ export function transformSet<I, O>(input: Set<I>, transform: (val: I) => O): Set
     res.add(transform(item));
   });
   return res;
+}
+
+export type NonEmptyList<T> = { head: T; tail: Array<T> };
+
+export function nonEmptyList<T>(head: T, ...tail: Array<T>): NonEmptyList<T> {
+  return { head, tail };
+}
+
+export type Variants<T extends Record<string, any>> = {
+  [K in keyof T]: T[K] & { variant: K };
+}[keyof T];
+
+export function mapVariants<T extends { variant: string }, Res>(
+  variant: T,
+  mapper: { [K in T['variant']]: (val: Extract<T, { variant: K }>) => Res }
+): Res {
+  return (mapper as any)[(variant as any).variant](variant);
+}
+
+export function mapUnionString<T extends string, Res>(val: T, mapper: { [K in T]: Res }): Res {
+  return mapper[val];
 }

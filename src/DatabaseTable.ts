@@ -1,10 +1,10 @@
 import DB from 'better-sqlite3';
 import { PipeCollection, PipeParent, PipeSingle } from './Pipe';
 import { Select } from './Select';
-import { join, notNil, PRIV, sqlQuote, traverserFromRowIterator } from './Utils';
+import { notNil, PRIV, traverserFromRowIterator } from './Utils';
 import { SchemaAny, SchemaIndexesAny, SchemaTableResolved, serializeColumnData } from './schema';
 import { DataFromValues, serializeValues, ValuesAny } from './Values';
-import { sql } from '.';
+import { resolveStmt, sql, Table } from './sql';
 
 type QueriesCache = {
   insert: DB.Statement | null;
@@ -12,6 +12,7 @@ type QueriesCache = {
   updateByKey: DB.Statement | null;
   selectAll: DB.Statement | null;
   findByKey: DB.Statement | null;
+  countAll: DB.Statement | null;
 };
 
 export type DatabaseTableAny = DatabaseTable<
@@ -33,6 +34,7 @@ export class DatabaseTable<
   private readonly getDb: () => DB.Database;
   private readonly tableConfig: SchemaTableResolved;
   private readonly pipeParent: PipeParent<Key>;
+  private readonly sqlTable: Table;
 
   private readonly cache: QueriesCache = {
     insert: null,
@@ -40,6 +42,7 @@ export class DatabaseTable<
     updateByKey: null,
     selectAll: null,
     findByKey: null,
+    countAll: null,
   };
 
   constructor(name: Name, schema: SchemaAny, getDb: () => DB.Database) {
@@ -52,6 +55,7 @@ export class DatabaseTable<
       insert: this.insertInternal.bind(this),
       updateByKey: this.updateByKey.bind(this),
     };
+    this.sqlTable = sql.Table.create(name as string);
   }
 
   private getStatement<Name extends keyof QueriesCache>(
@@ -67,70 +71,99 @@ export class DatabaseTable<
   private getDeleteByKeyQuery(): DB.Statement {
     return this.getStatement('deleteByKey', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(`DELETE FROM ${sqlQuote(this.name)}`, `WHERE`, `key = ?`);
-      return db.prepare(query);
+      const key = this.sqlTable.column('key');
+      const resolved = resolveStmt(
+        sql.DeleteStmt.create({
+          from: this.sqlTable,
+          where: sql.eq(key, sql.Param.createAnonymous()),
+        })
+      );
+      return db.prepare(resolved.query);
     });
   }
 
   private getUpdateByKeyQuery(): DB.Statement {
     return this.getStatement('updateByKey', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(
-        `UPDATE ${sqlQuote(this.name)}`,
-        `SET`,
-        join.comma(
-          `key = :key`, // key
-          `data = :data`,
-          // rest is indexes
-          ...this.tableConfig.indexes.map((index) => `${sqlQuote(index.name)} = :${index.name}`)
-        ),
-        `WHERE`,
-        `key = :internal_current_key`
+      const key = this.sqlTable.column('key');
+      const resolved = resolveStmt(
+        sql.UpdateStmt.create({
+          table: this.sqlTable,
+          set: [
+            [key, sql.Param.createAnonymous()],
+            [this.sqlTable.column('data'), sql.Param.createAnonymous()],
+            ...this.tableConfig.indexes.map(
+              (index) => [this.sqlTable.column(index.name), sql.Param.createAnonymous()] as const
+            ),
+          ],
+          where: sql.eq(key, sql.Param.createNamed('key')),
+        })
       );
-      return db.prepare(query);
+      return db.prepare(resolved.query);
     });
   }
 
   private getInsertQuery(): DB.Statement {
     return this.getStatement('insert', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(
-        `INSERT INTO ${sqlQuote(this.name)}`,
-        `(`,
-        join.comma('key', 'data', ...this.tableConfig.indexes.map((index) => sqlQuote(index.name))),
-        `)`,
-        `VALUES`,
-        `(`,
-        join.comma(
-          `?`, // key
-          `?`, // data
-          // rest is indexes
-          ...this.tableConfig.indexes.map(() => `?`) // indexes
-        ),
-        `)`
+      const key = this.sqlTable.column('key');
+      const data = this.sqlTable.column('data');
+      const indexes = this.tableConfig.indexes.map((index) => this.sqlTable.column(index.name));
+      const columns = [key, data, ...indexes] as const;
+      const resolved = resolveStmt(
+        sql.InsertStmt.create({
+          into: this.sqlTable,
+          columns: [...columns],
+          values: [columns.map(() => sql.Param.createAnonymous())],
+        })
       );
-      return db.prepare(query);
+      return db.prepare(resolved.query);
     });
   }
 
   private getSelectAllQuery(): DB.Statement {
     return this.getStatement('selectAll', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(`SELECT key, data FROM ${sqlQuote(this.name)}`, `ORDER BY key ASC`);
-      return db.prepare(query);
+      const key = this.sqlTable.column('key');
+      const data = this.sqlTable.column('data');
+      const resolved = resolveStmt(
+        sql.SelectStmt.create({
+          columns: [key, data],
+          from: this.sqlTable,
+          orderBy: [key],
+        })
+      );
+      return db.prepare(resolved.query);
     });
   }
 
   private getFindByKeyQuery(): DB.Statement {
     return this.getStatement('findByKey', (): DB.Statement => {
       const db = this.getDb();
-      const query = join.space(
-        `SELECT key, data FROM ${sqlQuote(this.name)}`,
-        `WHERE`,
-        `key = ?`,
-        `LIMIT 1`
+      const key = this.sqlTable.column('key');
+      const data = this.sqlTable.column('data');
+      const resolved = resolveStmt(
+        sql.SelectStmt.create({
+          columns: [key, data],
+          from: this.sqlTable,
+          where: sql.eq(key, sql.Param.createAnonymous()),
+        }).limit(sql.literal(1))
       );
-      return db.prepare(query);
+      return db.prepare(resolved.query);
+    });
+  }
+
+  private getCountAllQuery(): DB.Statement {
+    return this.getStatement('countAll', (): DB.Statement => {
+      const db = this.getDb();
+      const key = this.sqlTable.column('key');
+      const resolved = resolveStmt(
+        sql.SelectStmt.create({
+          columns: [sql.Aggregate.count(key).as('count')],
+          from: this.sqlTable,
+        })
+      );
+      return db.prepare(resolved.query);
     });
   }
 
@@ -164,15 +197,13 @@ export class DatabaseTable<
     const prepared = this.prepareData(data);
     const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
     const query = this.getUpdateByKeyQuery();
-    const params: Record<string, unknown> = {
-      internal_current_key: serializedKey,
-      key: prepared.serailizedKey,
-      data: prepared.data,
-    };
-    this.tableConfig.indexes.forEach((index, i) => {
-      params[index.name] = prepared.indexes[i];
-    });
-    query.run(params as any);
+    const params: Array<any> = [
+      prepared.serailizedKey,
+      prepared.data,
+      ...prepared.indexes,
+      { key: serializedKey },
+    ];
+    query.run(...params);
     return { updatedKey: prepared.key };
   }
 
@@ -188,16 +219,19 @@ export class DatabaseTable<
   prepare(): Select<Key, Data, Indexes, null>;
   prepare<Params extends ValuesAny>(params: Params): Select<Key, Data, Indexes, Params>;
   prepare<Params extends ValuesAny>(params?: Params): Select<Key, Data, Indexes, Params | null> {
-    const tableName = this.name as string;
-    const sqlTable = sql.Table.create(tableName);
     return new Select({
-      sqlTable,
-      table: notNil(this.schema.tables.find((table) => table.name === tableName)),
+      sqlTable: this.sqlTable,
+      table: this.tableConfig,
       params: params ?? null,
       where: null,
       limit: null,
       orderBy: null,
     });
+  }
+
+  countAll(): number {
+    const res = this.getCountAllQuery().get();
+    return res.count;
   }
 
   count(query: Select<Key, Data, Indexes, null>): number;
