@@ -1,8 +1,9 @@
-import { Database, schema, Migrations, sql, value } from '../src';
+import { Database, schema, Migrations, sql, table } from '../src';
 import fse from 'fs-extra';
 import { nanoid } from 'nanoid';
 import { resolve } from 'path';
 import mockConsole, { RestoreConsole } from 'jest-mock-console';
+import * as z from 'zod';
 
 function tempFile(suffix: string): string {
   return resolve('tests/tmp', nanoid() + suffix);
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 test('Run database', () => {
-  const v1 = schema.create({
+  const v1 = schema({
     tables: {},
   });
 
@@ -34,12 +35,11 @@ test('Run database', () => {
 });
 
 test('Run database with tables', () => {
-  const v1 = schema.create({
+  const v1 = schema({
     tables: {
-      users: schema
-        .table<{ id: string; name: string }>()
-        .key(schema.column.text(), (user) => user.id)
-        .index('name', schema.column.text(), (user) => user.name),
+      users: table<{ id: string; name: string }>()
+        .key(sql.Value.text(), (user) => user.id)
+        .index('name', sql.Value.text(), (user) => user.name),
     },
   });
 
@@ -50,12 +50,11 @@ test('Run database with tables', () => {
 });
 
 test('Run migration', () => {
-  const v1 = schema.create({
+  const v1 = schema({
     tables: {
-      users: schema
-        .table<{ id: string; name: string }>()
-        .key(schema.column.text(), (user) => user.id)
-        .index('name', schema.column.text(), (user) => user.name),
+      users: table<{ id: string; name: string }>()
+        .key(sql.Value.text(), (user) => user.id)
+        .index('name', sql.Value.text(), (user) => user.name),
     },
   });
 
@@ -103,18 +102,16 @@ test('Run migration', () => {
   expect(db.tables.users.count(findJohns)).toEqual(2);
 
   const findByName = db.tables.users
-    .prepare({ name: value.text() })
+    .prepare({ name: sql.Value.text() })
     .where(({ indexes, params }) => sql.eq(indexes.name, params.name));
 
   expect(db.tables.users.select(findByName, { name: 'Paul' }).keysArray()).toEqual(['2']);
 });
 
 test('Update key', () => {
-  const v1 = schema.create({
+  const v1 = schema({
     tables: {
-      users: schema
-        .table<{ id: string; name: string }>()
-        .key(schema.column.text(), (user) => user.id),
+      users: table<{ id: string; name: string }>().key(sql.Value.text(), (user) => user.id),
     },
   });
 
@@ -159,4 +156,47 @@ test('Update key', () => {
   expect(db.tables.users.findByKey('2').delete().value()).toEqual({ id: '2', name: 'Paul' });
 
   expect(db.tables.users.countAll()).toEqual(0);
+});
+
+test('list index', () => {
+  const v1 = schema({
+    tables: {
+      users: table<{ id: string; name: string; tags: Array<string> }>()
+        .key(sql.Value.text(), (user) => user.id)
+        .index('tags', sql.Value.list(z.string()), (user) => user.tags),
+    },
+  });
+
+  const migrations = Migrations.create({
+    id: 'init',
+    description: 'Initial migration',
+    schema: v1,
+    migrate: (_, db) => {
+      db.tables.users.insert({ id: '1', name: 'John', tags: ['foo', 'bar', 'baz'] });
+      db.tables.users.insert({ id: '2', name: 'John', tags: ['bar', 'baz'] });
+      db.tables.users.insert({ id: '3', name: 'John', tags: [] });
+      db.tables.users.insert({ id: '4', name: 'John', tags: ['foo', 'baz'] });
+    },
+  });
+
+  const db = migrations.applySync({
+    databasePath: tempFile('_data.db'),
+    migrationDatabasePath: tempFile('_data-migration.db'),
+  });
+
+  expect(db).toBeDefined();
+
+  const selectByTag = db.tables.users
+    .prepare({ tag: sql.Value.text() })
+    .where(({ indexes, params }) => sql.eq(indexes.tags, params.tag));
+
+  const result = db.tables.users.select(selectByTag, { tag: 'foo' }).valuesArray();
+  expect(result).toEqual([
+    { id: '1', name: 'John', tags: ['foo', 'bar', 'baz'] },
+    { id: '4', name: 'John', tags: ['foo', 'baz'] },
+  ]);
+
+  expect(db.tables.users.count(selectByTag, { tag: 'foo' })).toEqual(2);
+  expect(db.tables.users.count(selectByTag, { tag: 'baz' })).toEqual(3);
+  expect(db.tables.users.count(selectByTag, { tag: 'yolo' })).toEqual(0);
 });

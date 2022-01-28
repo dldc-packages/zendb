@@ -1,7 +1,7 @@
-import { PRIV } from '../Utils';
+import { PRIV } from '../../Utils';
 import { Table } from './Table';
 import { JsonTable } from './JsonTable';
-import { Expr } from './Expr';
+import { Expr } from './index';
 import { Column } from './Column';
 import { Aggregate } from './Aggregate';
 

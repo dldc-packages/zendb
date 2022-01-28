@@ -1,10 +1,10 @@
 import DB from 'better-sqlite3';
 import { PipeCollection, PipeParent, PipeSingle } from './Pipe';
-import { Select } from './Select';
+import { PreparedQuery } from './PreparedQuery';
 import { notNil, PRIV, traverserFromRowIterator } from './Utils';
-import { SchemaAny, SchemaIndexesAny, SchemaTableResolved, serializeColumnData } from './schema';
-import { DataFromValues, serializeValues, ValuesAny } from './Values';
-import { resolveStmt, sql, Table } from './sql';
+import { SchemaAny } from './Schema';
+import { resolveStmt, sql, Table, ValuesAny, ValuesParsed } from './sql';
+import { SchemaIndexesAny, SchemaTableInternalAny } from './SchemaTable';
 
 type QueriesCache = {
   insert: DB.Statement | null;
@@ -32,7 +32,7 @@ export class DatabaseTable<
   readonly schema: SchemaAny;
 
   private readonly getDb: () => DB.Database;
-  private readonly tableConfig: SchemaTableResolved;
+  private readonly tableConfig: SchemaTableInternalAny;
   private readonly pipeParent: PipeParent<Key>;
   private readonly sqlTable: Table;
 
@@ -49,7 +49,7 @@ export class DatabaseTable<
     this.name = name;
     this.schema = schema;
     this.getDb = getDb;
-    this.tableConfig = notNil(schema.tables.find((table) => table.name === name));
+    this.tableConfig = notNil(schema.tables[name as string])[PRIV];
     this.pipeParent = {
       deleteByKey: this.deleteByKey.bind(this),
       insert: this.insertInternal.bind(this),
@@ -173,17 +173,17 @@ export class DatabaseTable<
     data: string;
     indexes: Array<unknown>;
   } {
-    const key = this.tableConfig.key.fn(data);
-    const serailizedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
+    const key = this.tableConfig.keyFn(data) as any;
+    const serailizedKey = sql.Value.serialize(this.tableConfig.keyValue, key, 'key');
     const indexes = this.tableConfig.indexes.map((index) => {
-      return serializeColumnData(index.column, index.fn(data), index.name);
+      return sql.Value.serialize(index.value, index.fn(data), index.name);
     });
     const dataSer = JSON.stringify(this.schema.sanitize(data));
     return { key: key, serailizedKey, data: dataSer, indexes };
   }
 
   private deleteByKey(key: Key) {
-    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
+    const serializedKey = sql.Value.serialize(this.tableConfig.keyValue, key, 'key');
     this.getDeleteByKeyQuery().run(serializedKey);
   }
 
@@ -195,7 +195,7 @@ export class DatabaseTable<
 
   private updateByKey(key: Key, data: unknown): { updatedKey: Key } {
     const prepared = this.prepareData(data);
-    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
+    const serializedKey = sql.Value.serialize(this.tableConfig.keyValue, key, 'key');
     const query = this.getUpdateByKeyQuery();
     const params: Array<any> = [
       prepared.serailizedKey,
@@ -216,10 +216,10 @@ export class DatabaseTable<
     return new PipeSingle({ key: newKey, data }, this.pipeParent);
   }
 
-  prepare(): Select<Key, Data, Indexes, null>;
-  prepare<Params extends ValuesAny>(params: Params): Select<Key, Data, Indexes, Params>;
-  prepare<Params extends ValuesAny>(params?: Params): Select<Key, Data, Indexes, Params | null> {
-    return new Select({
+  prepare(): PreparedQuery<Key, Data, Indexes, null>;
+  prepare<Params extends ValuesAny>(params: Params): PreparedQuery<Key, Data, Indexes, Params>;
+  prepare<Params extends ValuesAny>(params?: Params): PreparedQuery<Key, Data, Indexes, Params | null> {
+    return PreparedQuery.create({
       sqlTable: this.sqlTable,
       table: this.tableConfig,
       params: params ?? null,
@@ -234,37 +234,37 @@ export class DatabaseTable<
     return res.count;
   }
 
-  count(query: Select<Key, Data, Indexes, null>): number;
+  count(query: PreparedQuery<Key, Data, Indexes, null>): number;
   count<Params extends ValuesAny>(
-    query: Select<Key, Data, Indexes, Params>,
-    params: DataFromValues<Params>
+    query: PreparedQuery<Key, Data, Indexes, Params>,
+    params: ValuesParsed<Params>
   ): number;
   count<Params extends ValuesAny | null>(
-    query: Select<Key, Data, Indexes, Params>,
-    params?: Params extends ValuesAny ? DataFromValues<Params> : null
+    query: PreparedQuery<Key, Data, Indexes, Params>,
+    params?: Params extends ValuesAny ? ValuesParsed<Params> : null
   ): number {
     const db = this.getDb();
     const preparedQuery = query[PRIV].getCountQuery(db);
     const paramsValues = query[PRIV].params;
     const paramsSerialized =
-      paramsValues === null ? {} : serializeValues(paramsValues, params as any);
+      paramsValues === null ? {} : sql.Value.serializeValues(paramsValues, params as any);
     return preparedQuery.get(paramsSerialized as any).count;
   }
 
-  select(query: Select<Key, Data, Indexes, null>): PipeCollection<Key, Data>;
+  select(query: PreparedQuery<Key, Data, Indexes, null>): PipeCollection<Key, Data>;
   select<Params extends ValuesAny>(
-    query: Select<Key, Data, Indexes, Params>,
-    params: DataFromValues<Params>
+    query: PreparedQuery<Key, Data, Indexes, Params>,
+    params: ValuesParsed<Params>
   ): PipeCollection<Key, Data>;
   select<Params extends ValuesAny | null>(
-    query: Select<Key, Data, Indexes, Params>,
-    params?: Params extends ValuesAny ? DataFromValues<Params> : null
+    query: PreparedQuery<Key, Data, Indexes, Params>,
+    params?: Params extends ValuesAny ? ValuesParsed<Params> : null
   ): PipeCollection<Key, Data> {
     const db = this.getDb();
     const preparedQuery = query[PRIV].getSelectQuery(db);
     const paramsValues = query[PRIV].params;
     const paramsSerialized =
-      paramsValues === null ? {} : serializeValues(paramsValues, params as any);
+      paramsValues === null ? {} : sql.Value.serializeValues(paramsValues, params as any);
     const iter = preparedQuery.iterate(paramsSerialized as any);
     return new PipeCollection(
       traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
@@ -282,7 +282,7 @@ export class DatabaseTable<
 
   findByKey(key: Key): PipeSingle<Key, Data, true> {
     const query = this.getFindByKeyQuery();
-    const serializedKey = serializeColumnData(this.tableConfig.key.column, key, 'key');
+    const serializedKey = sql.Value.serialize(this.tableConfig.keyValue, key, 'key');
     const entry = query.get(serializedKey);
     return new PipeSingle<Key, Data, true>(
       entry ? { key: entry.key as any, data: this.restore(entry.data as any) } : null,

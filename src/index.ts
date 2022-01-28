@@ -1,49 +1,11 @@
-export * from './Database';
-export * from './Migrations';
-export * from './Select';
-export { sql, resolveStmt } from './sql';
-export { schema } from './schema';
-export { value } from './Values';
+import { Migrations } from './Migrations';
+import { Database } from './Database';
+import { schema } from './Schema';
+import { SchemaTable } from './SchemaTable';
+export * from './sql';
 
-export type { DataFromValue, DataFromValues, Value, ValueAny, ValuesAny } from './Values';
+const table = SchemaTable.create;
 
-export type {
-  SelectStmtFrom,
-  SelectStmtLimit,
-  SelectStmtOptions,
-  BinaryOperator,
-  Expr,
-  BinaryExpr,
-  Column,
-  InsertStmt,
-  JsonTable,
-  LiteralExpr,
-  Param,
-  SelectStmt,
-  Table,
-  UnaryExpr,
-  Aggregate,
-} from './sql';
-export type {
-  DataFromSchemaColumn,
-  DataFromSchemaColumns,
-  DefaultValueBase,
-  PartialSchemaTable,
-  Schema,
-  SchemaAny,
-  SchemaColumn,
-  SchemaColumnAny,
-  SchemaColumnResolved,
-  SchemaColumnsAny,
-  SchemaIndex,
-  SchemaIndexAny,
-  SchemaIndexFn,
-  SchemaIndexResolved,
-  SchemaIndexesAny,
-  SchemaOptions,
-  SchemaTable,
-  SchemaTableAny,
-  SchemaTableKey,
-  SchemaTableResolved,
-  SchemaTablesAny,
-} from './schema';
+export { Migrations, Database, schema, table };
+
+export type { Schema, SchemaAny } from './Schema';

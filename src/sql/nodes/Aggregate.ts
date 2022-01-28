@@ -1,9 +1,10 @@
-import { PRIV } from '../Utils';
+import { PRIV } from '../../Utils';
 import { Column } from './Column';
 
 type AggregateFnName = 'Count' | 'Sum' | 'Min' | 'Max';
 
 type AggregateInternal = Readonly<{
+  distinct: boolean;
   fn: AggregateFnName;
   column: Column;
   alias: null | { original: Aggregate; alias: string };
@@ -11,7 +12,7 @@ type AggregateInternal = Readonly<{
 
 export class Aggregate {
   static create(fn: AggregateFnName, column: Column): Aggregate {
-    return new Aggregate({ fn, column, alias: null });
+    return new Aggregate({ fn, column, distinct: false, alias: null });
   }
 
   static count(column: Column): Aggregate {
@@ -43,6 +44,13 @@ export class Aggregate {
     return new Aggregate({
       ...this[PRIV],
       alias: { original: this, alias },
+    });
+  }
+
+  public distinct() {
+    return new Aggregate({
+      ...this[PRIV],
+      distinct: true,
     });
   }
 }

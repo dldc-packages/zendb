@@ -147,3 +147,15 @@ export function mapVariants<T extends { variant: string }, Res>(
 export function mapUnionString<T extends string, Res>(val: T, mapper: { [K in T]: Res }): Res {
   return mapper[val];
 }
+
+export function mergeSets<T>(...sets: Array<Set<T> | null>): Set<T> {
+  const merged = new Set<T>();
+  sets.forEach((set) => {
+    if (set) {
+      set.forEach((item) => {
+        merged.add(item);
+      });
+    }
+  });
+  return merged;
+}

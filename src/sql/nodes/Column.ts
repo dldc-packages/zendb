@@ -1,4 +1,4 @@
-import { PRIV } from '../Utils';
+import { PRIV } from '../../Utils';
 import { JsonTable } from './JsonTable';
 import { Table } from './Table';
 

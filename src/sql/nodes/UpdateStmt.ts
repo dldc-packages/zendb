@@ -1,6 +1,6 @@
-import { PRIV } from '../Utils';
+import { PRIV } from '../../Utils';
 import { Column } from './Column';
-import { Expr } from './Expr';
+import { Expr } from './index';
 import { Table } from './Table';
 
 type UpdateStmtInternal = Readonly<{

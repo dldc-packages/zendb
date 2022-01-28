@@ -1,4 +1,4 @@
-import { PRIV } from '../Utils';
+import { PRIV } from '../../Utils';
 import { Column } from './Column';
 
 type TableInternal = Readonly<{

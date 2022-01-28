@@ -1,8 +1,9 @@
 import { DatabaseTable } from './DatabaseTable';
 import { SchemaAny } from './schema';
-import { PRIV, join, sqlQuote, fingerprintString } from './Utils';
+import { PRIV, fingerprintString, mapObject } from './Utils';
 import DB from 'better-sqlite3';
-import { printDatatype } from './Datatype';
+import { resolveStmt, sql } from './sql';
+import * as z from 'zod';
 
 export class Database<Schema extends SchemaAny> {
   private db: DB.Database | null = null;
@@ -11,16 +12,16 @@ export class Database<Schema extends SchemaAny> {
   readonly schema: Schema;
   readonly fingerpring: number;
   readonly tables: {
-    [K in keyof Schema[PRIV]]: DatabaseTable<
+    [K in keyof Schema['tables']]: DatabaseTable<
       K,
-      Schema[PRIV][K][PRIV]['keyType'],
-      Schema[PRIV][K][PRIV]['data'],
-      Schema[PRIV][K][PRIV]['indexes']
+      Schema['tables'][K][PRIV]['_keyType'],
+      Schema['tables'][K][PRIV]['_data'],
+      Schema['tables'][K][PRIV]['indexes']
     >;
   };
 
   constructor(schema: Schema, id: number = 0) {
-    this.schemaQueries = this.schemaToQueries(schema);
+    this.schemaQueries = schemaToQueries(schema);
     this.schema = schema;
     this.fingerpring = fingerprintString(
       // add id to allow same schema in multiple mutations (different hash)
@@ -28,11 +29,9 @@ export class Database<Schema extends SchemaAny> {
       Math.pow(2, 30)
     );
     const getDb = this.ensureConnected.bind(this);
-    this.tables = Object.fromEntries(
-      schema.tables.map((table): [string, DatabaseTable<string, any, any, any>] => {
-        return [table.name, new DatabaseTable(table.name, schema, getDb)];
-      })
-    ) as any;
+    this.tables = mapObject(schema.tables, (tableName) => {
+      return new DatabaseTable(tableName, schema, getDb);
+    });
   }
 
   connect(path: string) {
@@ -76,29 +75,47 @@ export class Database<Schema extends SchemaAny> {
     }
     return this.db;
   }
+}
 
-  private schemaToQueries(schema: SchemaAny): Array<string> {
-    const { tables } = schema;
-    return tables.map((table) => {
-      return join.all(
-        `CREATE TABLE ${sqlQuote(table.name)}`,
-        `(`,
-        join.comma(
-          `key ${printDatatype(table.key.column.datatype)} PRIMARY KEY NOT NULL`,
-          `data JSON`,
-          ...table.indexes.map(({ name, column: { datatype, nullable, primary, unique } }) => {
-            const notNull = nullable === false;
-            return join.space(
-              sqlQuote(name),
-              printDatatype(datatype),
-              primary ? 'PRIMARY KEY' : null,
-              notNull ? 'NOT NULL' : null,
-              unique ? 'UNIQUE' : null
-            );
-          })
-        ),
-        ');'
-      );
-    });
-  }
+function schemaToQueries(schema: SchemaAny): Array<string> {
+  const { tables } = schema;
+  const queries = Object.entries(tables).map(([tableName, table]) => {
+    const { indexes, keyValue } = table[PRIV];
+    const tableRef = sql.Table.create(tableName);
+    const resolved = resolveStmt(
+      sql.CreateTableStmt.create({
+        table: tableRef,
+        columns: [
+          sql.ColumnDef.create('key', keyValue),
+          sql.ColumnDef.create('data', sql.Value.json(z.any())),
+          ...indexes.map((index) => sql.ColumnDef.create(index.name, index.value)),
+        ],
+        strict: true,
+      })
+    );
+    return resolved.query;
+  });
+  return queries;
+
+  // return tables.map((table) => {
+  //   return join.all(
+  //     `CREATE TABLE ${sqlQuote(table.name)}`,
+  //     `(`,
+  //     join.comma(
+  //       `key ${printDatatype(table.key.column.datatype)} PRIMARY KEY NOT NULL`,
+  //       `data JSON`,
+  //       ...table.indexes.map(({ name, column: { datatype, nullable, primary, unique } }) => {
+  //         const notNull = nullable === false;
+  //         return join.space(
+  //           sqlQuote(name),
+  //           printDatatype(datatype),
+  //           primary ? 'PRIMARY KEY' : null,
+  //           notNull ? 'NOT NULL' : null,
+  //           unique ? 'UNIQUE' : null
+  //         );
+  //       })
+  //     ),
+  //     ');'
+  //   );
+  // });
 }

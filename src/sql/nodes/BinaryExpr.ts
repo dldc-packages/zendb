@@ -1,5 +1,5 @@
-import { PRIV } from '../Utils';
-import { Expr } from './Expr';
+import { Expr } from './index';
+import { PRIV } from '../../Utils';
 
 type BinaryExprInteral = Readonly<{
   left: Expr;

@@ -1,5 +1,5 @@
-import { PRIV } from '../Utils';
-import { Expr } from './Expr';
+import { PRIV } from '../../Utils';
+import { Expr } from './index';
 import { Table } from './Table';
 
 type DeleteStmtInternal = Readonly<{
