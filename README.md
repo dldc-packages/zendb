@@ -1,1 +1,1 @@
-# ZendDB [![Build Status](https://travis-ci.com/etienne-dldc/zendb-node.svg?branch=master)](https://travis-ci.com/etienne-dldc/zendb-node) [![codecov](https://codecov.io/gh/etienne-dldc/zendb-node/branch/master/graph/badge.svg)](https://codecov.io/gh/etienne-dldc/zendb-node)
+# ZendDB [![Build Status](https://app.travis-ci.com/etienne-dldc/react-formi.svg)](https://travis-ci.com/etienne-dldc/zendb-node)
