@@ -1,5 +1,5 @@
 import { Database } from './Database';
-import { SchemaAny } from './schema';
+import { SchemaAny } from './Schema';
 import DB from 'better-sqlite3';
 import fs from 'fs';
 

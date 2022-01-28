@@ -1,5 +1,5 @@
 import { DatabaseTable } from './DatabaseTable';
-import { SchemaAny } from './schema';
+import { SchemaAny } from './Schema';
 import { PRIV, fingerprintString, mapObject } from './Utils';
 import DB from 'better-sqlite3';
 import { sql } from './sql';
