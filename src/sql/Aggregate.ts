@@ -1,4 +1,4 @@
-import { PRIV } from '../../Utils';
+import { join, mapMaybe, PRIV, sqlQuote } from '../Utils';
 import { Column } from './Column';
 
 type AggregateFnName = 'Count' | 'Sum' | 'Min' | 'Max';
@@ -29,6 +29,24 @@ export class Aggregate {
 
   static max(column: Column): Aggregate {
     return Aggregate.create('Max', column);
+  }
+
+  static printSelect(node: Aggregate): string {
+    const { alias, column, fn, distinct } = node[PRIV];
+    const fnName = { Count: 'COUNT', Sum: 'SUM', Min: 'MIN', Max: 'MAX' }[fn];
+    return join.all(
+      fnName,
+      '(',
+      join.space(distinct ? 'DISTINCT' : null, Column.printRef(column)),
+      ')',
+      mapMaybe(alias, ({ alias }) => ` AS ${sqlQuote(alias)}`)
+    );
+  }
+
+  static printRef(node: Aggregate): string {
+    const { alias, column, fn } = node[PRIV];
+    const fnName = { Count: 'COUNT', Sum: 'SUM', Min: 'MIN', Max: 'MAX' }[fn];
+    return alias ? sqlQuote(alias.alias) : `${fnName}(${Column.printRef(column)})`;
   }
 
   readonly [PRIV]: AggregateInternal;

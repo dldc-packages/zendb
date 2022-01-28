@@ -1,5 +1,5 @@
-import { Expr } from './index';
-import { PRIV } from '../../Utils';
+import { PRIV } from '../Utils';
+import { Expr } from './Expr';
 
 type BinaryExprInteral = Readonly<{
   left: Expr;
@@ -60,6 +60,11 @@ export class BinaryExpr {
 
   static or(left: Expr, right: Expr): BinaryExpr {
     return BinaryExpr.create(left, 'OR', right);
+  }
+
+  static print(node: BinaryExpr): string {
+    const { left, right, operator } = node[PRIV];
+    return `(${Expr.print(left)} ${operator} ${Expr.print(right)})`;
   }
 
   readonly [PRIV]: BinaryExprInteral;

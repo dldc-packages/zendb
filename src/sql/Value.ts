@@ -1,5 +1,5 @@
 import * as zod from 'zod';
-import { mapObject, PRIV } from '../../Utils';
+import { mapObject, PRIV } from '../Utils';
 import { Datatype, DatatypeAny, DatatypeParsed } from './Datatype';
 
 export type DefaultValueBase = (() => any) | null;
@@ -126,6 +126,10 @@ export class Value<
     return mapObject(values, (key, value) => {
       return Value.parse(value, data[key], key);
     }) as any;
+  }
+
+  static print<Value extends ValueAny>(_value: Value): string {
+    throw new Error('Not implemented');
   }
 
   readonly [PRIV]: ValueInternal<Dt, Nullable, DefaultValue>;

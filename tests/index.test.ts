@@ -92,7 +92,7 @@ test('Run migration', () => {
 
   const findJohns = db.tables.users
     .prepare()
-    .where(({ indexes }) => sql.eq(indexes.name, sql.literal('John')));
+    .where(({ indexes }) => sql.Expr.eq(indexes.name, sql.Expr.literal('John')));
 
   expect(db.tables.users.select(findJohns).valuesArray()).toEqual([
     { id: '1', name: 'John' },
@@ -103,7 +103,7 @@ test('Run migration', () => {
 
   const findByName = db.tables.users
     .prepare({ name: sql.Value.text() })
-    .where(({ indexes, params }) => sql.eq(indexes.name, params.name));
+    .where(({ indexes, params }) => sql.Expr.eq(indexes.name, params.name));
 
   expect(db.tables.users.select(findByName, { name: 'Paul' }).keysArray()).toEqual(['2']);
 });
@@ -188,7 +188,7 @@ test('list index', () => {
 
   const selectByTag = db.tables.users
     .prepare({ tag: sql.Value.text() })
-    .where(({ indexes, params }) => sql.eq(indexes.tags, params.tag));
+    .where(({ indexes, params }) => sql.Expr.eq(indexes.tags, params.tag));
 
   const result = db.tables.users.select(selectByTag, { tag: 'foo' }).valuesArray();
   expect(result).toEqual([

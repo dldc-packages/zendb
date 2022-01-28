@@ -1,6 +1,6 @@
-import { PRIV } from '../../Utils';
+import { join, mapMaybe, PRIV } from '../Utils';
 import { Column } from './Column';
-import { Expr } from './index';
+import { Expr } from './Expr';
 import { Table } from './Table';
 
 type UpdateStmtInternal = Readonly<{
@@ -18,6 +18,19 @@ type UpdateStmtOptions = {
 export class UpdateStmt {
   static create({ table, set = [], where = null }: UpdateStmtOptions): UpdateStmt {
     return new UpdateStmt({ table, set, where });
+  }
+
+  static print(node: UpdateStmt): string {
+    const { table, set, where } = node[PRIV];
+    return join.space(
+      'UPDATE',
+      Table.printFrom(table),
+      'SET',
+      join.comma(
+        ...set.map(([col, val]) => join.space(Column.printName(col), '=', Expr.print(val)))
+      ),
+      mapMaybe(where, (w) => `WHERE ${Expr.print(w)}`)
+    );
   }
 
   readonly [PRIV]: UpdateStmtInternal;

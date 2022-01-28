@@ -1,6 +1,6 @@
-import { PRIV } from '../../Utils';
+import { join, mapMaybe, parent, PRIV } from '../Utils';
 import { Column } from './Column';
-import { Expr } from './index';
+import { Expr } from './Expr';
 import { Table } from './Table';
 
 type InsertStmtInternal = Readonly<{
@@ -18,6 +18,18 @@ type InsertStmtOptions = {
 export class InsertStmt {
   static create({ into, columns = null, values }: InsertStmtOptions): InsertStmt {
     return new InsertStmt({ into, columns, values });
+  }
+
+  static print(node: InsertStmt): string {
+    const { into, columns, values } = node[PRIV];
+    return join.space(
+      'INSERT INTO',
+      Table.printFrom(into),
+      // printNode(into, 'full'),
+      mapMaybe(columns, (c) => parent(join.comma(...c.map((c) => Column.printName(c))))),
+      'VALUES',
+      join.comma(...values.map((row) => parent(join.comma(...row.map((cell) => Expr.print(cell))))))
+    );
   }
 
   readonly [PRIV]: InsertStmtInternal;

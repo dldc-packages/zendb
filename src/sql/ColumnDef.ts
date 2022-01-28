@@ -1,5 +1,5 @@
-import { PRIV } from '../../Utils';
-import { ValueAny } from './Value';
+import { join, PRIV, sqlQuote } from '../Utils';
+import { ValueAny, Value } from './Value';
 
 type ColumnDefInternal = {
   name: string;
@@ -12,6 +12,11 @@ export class ColumnDef {
       name,
       value,
     });
+  }
+
+  static print(node: ColumnDef): string {
+    const { name, value } = node[PRIV];
+    return join.space(sqlQuote(name), Value.print(value));
   }
 
   readonly [PRIV]: ColumnDefInternal;

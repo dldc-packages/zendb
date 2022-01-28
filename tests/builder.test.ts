@@ -1,10 +1,10 @@
-import { resolveStmt, sql } from '../src';
+import { sql } from '../src';
 
 test('resolve simple select', () => {
   const users = sql.Table.create('users');
   const userId = users.column('id');
 
-  const { query } = resolveStmt(
+  const query = sql.SelectStmt.print(
     sql.SelectStmt.create({
       from: users,
       columns: [userId],
@@ -17,7 +17,7 @@ test('resolve simple select with alias', () => {
   const users = sql.Table.create('users').as('u');
   const userId = users.column('id').as('userId');
 
-  const { query } = resolveStmt(
+  const query = sql.SelectStmt.print(
     sql.SelectStmt.create({
       from: users,
       columns: [userId],
@@ -33,14 +33,14 @@ test('resolve json_each', () => {
   const usersDataJson = sql.JsonTable.each(userData).as('usersData');
   const numParam = sql.Param.createNamed('num');
 
-  const { query } = resolveStmt(
+  const query = sql.SelectStmt.print(
     sql.SelectStmt.create({
       from: [users, usersDataJson],
       columns: [userId, userData],
       distinct: true,
-      where: sql.eq(usersDataJson.columns.value, numParam),
+      where: sql.Expr.eq(usersDataJson.columns.value, numParam),
       orderBy: [userId],
-      limit: { limit: sql.literal(10), offset: sql.literal(0) },
+      limit: { limit: sql.Expr.literal(10), offset: sql.Expr.literal(0) },
     })
   );
   expect(query).toBe(
@@ -53,7 +53,7 @@ test('aggregate select', () => {
   const userId = users.column('id');
   const userIdCount = sql.Aggregate.count(userId).as('userIdCount');
 
-  const { query } = resolveStmt(
+  const query = sql.SelectStmt.print(
     sql.SelectStmt.create({
       from: [users],
       columns: [userIdCount],
@@ -70,11 +70,11 @@ test('insert', () => {
   const userId = users.column('id');
   const userName = users.column('name');
 
-  const { query } = resolveStmt(
+  const query = sql.InsertStmt.print(
     sql.InsertStmt.create({
       into: users,
       columns: [userId, userName],
-      values: [[sql.literal(1), sql.literal('Paul')]],
+      values: [[sql.Expr.literal(1), sql.Expr.literal('Paul')]],
     })
   );
   expect(query).toBe("INSERT INTO `users` AS `u` (`id`, `name`) VALUES (1, 'Paul')");
@@ -85,11 +85,11 @@ test('update', () => {
   const userId = users.column('id');
   const userName = users.column('name');
 
-  const { query } = resolveStmt(
+  const query = sql.UpdateStmt.print(
     sql.UpdateStmt.create({
       table: users,
     })
-      .set(userId, sql.literal(1))
+      .set(userId, sql.Expr.literal(1))
       .set(userName, sql.Param.createNamed('name'))
   );
   expect(query).toBe('UPDATE `users` AS `u` SET `id` = 1, `name` = :name');

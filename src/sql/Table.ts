@@ -1,4 +1,4 @@
-import { PRIV } from '../../Utils';
+import { join, mapMaybe, PRIV, sqlQuote } from '../Utils';
 import { Column } from './Column';
 
 type TableInternal = Readonly<{
@@ -10,6 +10,19 @@ type TableInternal = Readonly<{
 export class Table {
   static create(name: string): Table {
     return new Table({ name, alias: null, strict: false });
+  }
+
+  static printFrom(node: Table): string {
+    const { alias, name } = node[PRIV];
+    return join.all(
+      sqlQuote(name),
+      mapMaybe(alias, ({ alias }) => ` AS ${sqlQuote(alias)}`)
+    );
+  }
+
+  static printRef(node: Table): string {
+    const { alias, name } = node[PRIV];
+    return sqlQuote(alias ? alias.alias : name);
   }
 
   readonly [PRIV]: TableInternal;

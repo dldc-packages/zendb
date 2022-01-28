@@ -1,17 +1,6 @@
 import { PRIV, mapObject, mergeSets, mapMaybe } from './Utils';
 import DB from 'better-sqlite3';
-import {
-  Expr,
-  resolveStmt,
-  sql,
-  Param,
-  Column,
-  Table,
-  JsonTable,
-  printNode,
-  ValuesAny,
-  extractColumns,
-} from './sql';
+import { Expr, sql, Param, Column, Table, JsonTable, ValuesAny } from './sql';
 import { SchemaIndexesAny, SchemaTableInternalAny } from './SchemaTable';
 
 export type PreparedQueryInternalData<Params extends ValuesAny | null> = {
@@ -151,16 +140,19 @@ export class PreparedQuery<
     return this.getQuery('select', () => {
       const { where, limit, orderBy, sqlTable } = this[PRIV];
       const columns = mergeSets(
-        extractColumns(where),
-        mapMaybe(orderBy, (exprs) => mergeSets(...exprs.map(extractColumns))),
+        mapMaybe(where, (w) => sql.Expr.extractColumns(w)),
+        mapMaybe(orderBy, (exprs) => mergeSets(...exprs.map((e) => sql.Expr.extractColumns(e)))),
         mapMaybe(limit, ({ limit, offset }) =>
-          mergeSets(extractColumns(limit), extractColumns(offset))
+          mergeSets(
+            sql.Expr.extractColumns(limit),
+            mapMaybe(offset, (o) => sql.Expr.extractColumns(o))
+          )
         )
       );
       const tables = extractJsonTable(columns, sqlTable);
       const key = sqlTable.column('key');
       const data = sqlTable.column('data');
-      const resolved = resolveStmt(
+      const query = sql.SelectStmt.print(
         sql.SelectStmt.create({
           distinct: tables.size > 1,
           columns: [key, data],
@@ -170,7 +162,7 @@ export class PreparedQuery<
           orderBy,
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -178,15 +170,18 @@ export class PreparedQuery<
     return this.getQuery('count', () => {
       const { where, limit, orderBy, sqlTable } = this[PRIV];
       const columns = mergeSets(
-        extractColumns(where),
-        mapMaybe(orderBy, (exprs) => mergeSets(...exprs.map(extractColumns))),
+        mapMaybe(where, (w) => sql.Expr.extractColumns(w)),
+        mapMaybe(orderBy, (exprs) => mergeSets(...exprs.map((e) => sql.Expr.extractColumns(e)))),
         mapMaybe(limit, ({ limit, offset }) =>
-          mergeSets(extractColumns(limit), extractColumns(offset))
+          mergeSets(
+            sql.Expr.extractColumns(limit),
+            mapMaybe(offset, (o) => sql.Expr.extractColumns(o))
+          )
         )
       );
       const tables = extractJsonTable(columns, sqlTable);
       const key = sqlTable.column('key');
-      const resolved = resolveStmt(
+      const query = sql.SelectStmt.print(
         sql.SelectStmt.create({
           columns: [sql.Aggregate.count(key).distinct().as('count')],
           from: Array.from(tables),
@@ -195,7 +190,7 @@ export class PreparedQuery<
           orderBy,
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -255,7 +250,7 @@ function extractJsonTable(columns: Set<Column>, mainTable: Table): Set<Table | J
         return;
       }
     }
-    throw new Error(`Invalid column ${printNode(column, 'ref')}`);
+    throw new Error(`Invalid column ${sql.Column.printSelect(column)}`);
   });
   return tables;
 }

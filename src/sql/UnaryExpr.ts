@@ -1,5 +1,5 @@
-import { PRIV } from '../../Utils';
-import { Expr } from './index';
+import { PRIV } from '../Utils';
+import { Expr } from './Expr';
 
 type UnaryExprInteral = Readonly<{
   operator: UnaryOperator;
@@ -11,6 +11,11 @@ export type UnaryOperator = 'NOT' | '~' | '+' | '-';
 export class UnaryExpr {
   static create(operator: UnaryOperator, expr: Expr): UnaryExpr {
     return new UnaryExpr({ operator, expr });
+  }
+
+  static print(node: UnaryExpr): string {
+    const { expr, operator } = node[PRIV];
+    return `(${operator} ${Expr.print(expr)})`;
   }
 
   static not(expr: Expr): UnaryExpr {

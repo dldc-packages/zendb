@@ -1,4 +1,4 @@
-import { PRIV } from '../../Utils';
+import { join, parent, PRIV } from '../Utils';
 import { Table } from './Table';
 import { ColumnDef } from './ColumnDef';
 
@@ -24,6 +24,17 @@ export class CreateTableStmt {
     strict = false,
   }: CreateTableOptions): CreateTableStmt {
     return new CreateTableStmt({ table, columns, ifNotExists, strict });
+  }
+
+  static print(node: CreateTableStmt): string {
+    const { table, columns, ifNotExists, strict } = node[PRIV];
+    return join.space(
+      'CREATE TABLE',
+      Table.printFrom(table),
+      ifNotExists ? 'IF NOT EXISTS' : null,
+      parent(join.comma(...columns.map((c) => ColumnDef.print(c)))),
+      strict ? 'STRICT' : null
+    );
   }
 
   readonly [PRIV]: CreateTableStmtInternal;

@@ -1,4 +1,4 @@
-import { PRIV } from '../../Utils';
+import { expectNever, PRIV } from '../Utils';
 
 type ParamInternal =
   | Readonly<{
@@ -16,6 +16,17 @@ export class Param {
 
   static createNamed(name: string): Param {
     return new Param({ kind: 'Named', name });
+  }
+
+  static print(node: Param) {
+    const internal = node[PRIV];
+    if (internal.kind === 'Anonymous') {
+      return `?`;
+    }
+    if (internal.kind === 'Named') {
+      return `:${internal.name}`;
+    }
+    return expectNever(internal);
   }
 
   readonly [PRIV]: ParamInternal;

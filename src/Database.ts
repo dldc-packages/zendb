@@ -2,7 +2,7 @@ import { DatabaseTable } from './DatabaseTable';
 import { SchemaAny } from './schema';
 import { PRIV, fingerprintString, mapObject } from './Utils';
 import DB from 'better-sqlite3';
-import { resolveStmt, sql } from './sql';
+import { sql } from './sql';
 import * as z from 'zod';
 
 export class Database<Schema extends SchemaAny> {
@@ -82,7 +82,7 @@ function schemaToQueries(schema: SchemaAny): Array<string> {
   const queries = Object.entries(tables).map(([tableName, table]) => {
     const { indexes, keyValue } = table[PRIV];
     const tableRef = sql.Table.create(tableName);
-    const resolved = resolveStmt(
+    return sql.CreateTableStmt.print(
       sql.CreateTableStmt.create({
         table: tableRef,
         columns: [
@@ -93,7 +93,6 @@ function schemaToQueries(schema: SchemaAny): Array<string> {
         strict: true,
       })
     );
-    return resolved.query;
   });
   return queries;
 

@@ -3,7 +3,7 @@ import { PipeCollection, PipeParent, PipeSingle } from './Pipe';
 import { PreparedQuery } from './PreparedQuery';
 import { notNil, PRIV, traverserFromRowIterator } from './Utils';
 import { SchemaAny } from './Schema';
-import { resolveStmt, sql, Table, ValuesAny, ValuesParsed } from './sql';
+import { sql, Table, ValuesAny, ValuesParsed } from './sql';
 import { SchemaIndexesAny, SchemaTableInternalAny } from './SchemaTable';
 
 type QueriesCache = {
@@ -72,13 +72,13 @@ export class DatabaseTable<
     return this.getStatement('deleteByKey', (): DB.Statement => {
       const db = this.getDb();
       const key = this.sqlTable.column('key');
-      const resolved = resolveStmt(
+      const query = sql.DeleteStmt.print(
         sql.DeleteStmt.create({
           from: this.sqlTable,
-          where: sql.eq(key, sql.Param.createAnonymous()),
+          where: sql.Expr.eq(key, sql.Param.createAnonymous()),
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -86,7 +86,7 @@ export class DatabaseTable<
     return this.getStatement('updateByKey', (): DB.Statement => {
       const db = this.getDb();
       const key = this.sqlTable.column('key');
-      const resolved = resolveStmt(
+      const query = sql.UpdateStmt.print(
         sql.UpdateStmt.create({
           table: this.sqlTable,
           set: [
@@ -96,10 +96,10 @@ export class DatabaseTable<
               (index) => [this.sqlTable.column(index.name), sql.Param.createAnonymous()] as const
             ),
           ],
-          where: sql.eq(key, sql.Param.createNamed('key')),
+          where: sql.Expr.eq(key, sql.Param.createNamed('key')),
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -110,14 +110,14 @@ export class DatabaseTable<
       const data = this.sqlTable.column('data');
       const indexes = this.tableConfig.indexes.map((index) => this.sqlTable.column(index.name));
       const columns = [key, data, ...indexes] as const;
-      const resolved = resolveStmt(
+      const query = sql.InsertStmt.print(
         sql.InsertStmt.create({
           into: this.sqlTable,
           columns: [...columns],
           values: [columns.map(() => sql.Param.createAnonymous())],
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -126,14 +126,14 @@ export class DatabaseTable<
       const db = this.getDb();
       const key = this.sqlTable.column('key');
       const data = this.sqlTable.column('data');
-      const resolved = resolveStmt(
+      const query = sql.SelectStmt.print(
         sql.SelectStmt.create({
           columns: [key, data],
           from: this.sqlTable,
           orderBy: [key],
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -142,14 +142,14 @@ export class DatabaseTable<
       const db = this.getDb();
       const key = this.sqlTable.column('key');
       const data = this.sqlTable.column('data');
-      const resolved = resolveStmt(
+      const query = sql.SelectStmt.print(
         sql.SelectStmt.create({
           columns: [key, data],
           from: this.sqlTable,
-          where: sql.eq(key, sql.Param.createAnonymous()),
-        }).limit(sql.literal(1))
+          where: sql.Expr.eq(key, sql.Param.createAnonymous()),
+        }).limit(sql.Expr.literal(1))
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -157,13 +157,13 @@ export class DatabaseTable<
     return this.getStatement('countAll', (): DB.Statement => {
       const db = this.getDb();
       const key = this.sqlTable.column('key');
-      const resolved = resolveStmt(
+      const query = sql.SelectStmt.print(
         sql.SelectStmt.create({
           columns: [sql.Aggregate.count(key).as('count')],
           from: this.sqlTable,
         })
       );
-      return db.prepare(resolved.query);
+      return db.prepare(query);
     });
   }
 
@@ -218,7 +218,9 @@ export class DatabaseTable<
 
   prepare(): PreparedQuery<Key, Data, Indexes, null>;
   prepare<Params extends ValuesAny>(params: Params): PreparedQuery<Key, Data, Indexes, Params>;
-  prepare<Params extends ValuesAny>(params?: Params): PreparedQuery<Key, Data, Indexes, Params | null> {
+  prepare<Params extends ValuesAny>(
+    params?: Params
+  ): PreparedQuery<Key, Data, Indexes, Params | null> {
     return PreparedQuery.create({
       sqlTable: this.sqlTable,
       table: this.tableConfig,

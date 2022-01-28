@@ -1,5 +1,5 @@
-import { PRIV } from '../../Utils';
-import { Expr } from './index';
+import { join, mapMaybe, PRIV } from '../Utils';
+import { Expr } from './Expr';
 import { Table } from './Table';
 
 type DeleteStmtInternal = Readonly<{
@@ -15,6 +15,15 @@ type DeleteStmtOptions = {
 export class DeleteStmt {
   static create({ from, where = null }: DeleteStmtOptions): DeleteStmt {
     return new DeleteStmt({ from, where });
+  }
+
+  static print(node: DeleteStmt): string {
+    const { from, where } = node[PRIV];
+    return join.space(
+      'DELETE FROM',
+      Table.printFrom(from),
+      mapMaybe(where, (w) => `WHERE ${Expr.print(w)}`)
+    );
   }
 
   readonly [PRIV]: DeleteStmtInternal;

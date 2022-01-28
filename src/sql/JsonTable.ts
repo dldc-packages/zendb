@@ -1,4 +1,4 @@
-import { PRIV } from '../../Utils';
+import { PRIV, sqlQuote } from '../Utils';
 import { Column } from './Column';
 
 type JsonTableInternal = Readonly<{
@@ -28,6 +28,29 @@ export class JsonTable {
 
   static each(column: Column, path: string | null = null): JsonTable {
     return new JsonTable({ mode: 'Each', sourceColumn: column, alias: null, path });
+  }
+
+  static printRef(node: JsonTable): string {
+    const { alias } = node[PRIV];
+    // const fnName = { Each: 'json_each', Tree: 'json_tree' }[mode];
+    return sqlQuote(alias ? alias.alias : 'json_each');
+    //   const { alias, mode, sourceColumn, path } = node[PRIV];
+    //   const fnName = { Each: 'json_each', Tree: 'json_tree' }[mode];
+    //   return mapPrintMode(printMode, {
+    //     full: () =>
+    //       join.all(
+    //         fnName,
+    //         '(',
+    //         printNode(sourceColumn, 'ref'),
+    //         mapMaybe(path, (p) => `, '${p}'`),
+    //         ')',
+    //         mapMaybe(alias, ({ alias }) => ` AS ${sqlQuote(alias)}`)
+    //       ),
+    //     ref: () => sqlQuote(alias ? alias.alias : 'json_each'),
+    //     name: () => {
+    //       throw new Error('Invalid print mode');
+    //     },
+    //   });
   }
 
   readonly [PRIV]: JsonTableInternal;
