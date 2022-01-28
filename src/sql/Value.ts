@@ -1,5 +1,5 @@
 import * as zod from 'zod';
-import { mapObject, PRIV } from '../Utils';
+import { join, mapObject, PRIV } from '../Utils';
 import { Datatype, DatatypeAny, DatatypeParsed } from './Datatype';
 
 export type DefaultValueBase = (() => any) | null;
@@ -128,8 +128,15 @@ export class Value<
     }) as any;
   }
 
-  static print<Value extends ValueAny>(_value: Value): string {
-    throw new Error('Not implemented');
+  static print<Value extends ValueAny>(value: Value): string {
+    const { datatype, nullable, primary, unique } = value[PRIV];
+    const notNull = nullable === false;
+    return join.space(
+      Datatype.print(datatype),
+      primary ? 'PRIMARY KEY' : null,
+      notNull ? 'NOT NULL' : null,
+      unique ? 'UNIQUE' : null
+    );
   }
 
   readonly [PRIV]: ValueInternal<Dt, Nullable, DefaultValue>;

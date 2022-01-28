@@ -77,8 +77,10 @@ test('Run migration', () => {
 
   expect((console.log as jest.Mock).mock.calls).toEqual([
     ['1 migrations to apply'],
-    ['Running migration init "Initial migration" (INIT -> 242)'],
-    ['-> CREATE TABLE `users`(key TEXT PRIMARY KEY NOT NULL, data JSON, `name` TEXT NOT NULL);'],
+    ['Running migration init "Initial migration" (INIT -> 232)'],
+    [
+      '-> CREATE TABLE `users` (`key` TEXT NOT NULL, `data` TEXT NOT NULL, `name` TEXT NOT NULL) STRICT',
+    ],
   ]);
 
   expect(db.tables.users.findByKey('1').value()).toEqual({ id: '1', name: 'John' });

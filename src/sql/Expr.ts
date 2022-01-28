@@ -4,7 +4,7 @@ import { LiteralExpr } from './LiteralExpr';
 import { Param } from './Param';
 import { Aggregate } from './Aggregate';
 import { BinaryExpr } from './BinaryExpr';
-import { expectNever } from '../Utils';
+import { expectNever, mergeSets, PRIV } from '../Utils';
 
 export type Expr = Aggregate | Column | BinaryExpr | UnaryExpr | LiteralExpr | Param;
 
@@ -46,10 +46,50 @@ function print(node: Expr): string {
   return expectNever(node);
 }
 
-function extractParams(_node: Expr): Set<Param> {
-  throw new Error('Not implemented');
+function extractParams(node: Expr): Set<Param> {
+  if (node instanceof Param) {
+    return new Set([node]);
+  }
+  if (node instanceof BinaryExpr) {
+    const { left, right } = node[PRIV];
+    return mergeSets(extractParams(left), extractParams(right));
+  }
+  if (node instanceof UnaryExpr) {
+    const { expr } = node[PRIV];
+    return extractParams(expr);
+  }
+  if (node instanceof Column) {
+    return new Set();
+  }
+  if (node instanceof Aggregate) {
+    return new Set();
+  }
+  if (node instanceof LiteralExpr) {
+    return new Set();
+  }
+  return expectNever(node);
 }
 
-function extractColumns(_node: Expr): Set<Column> {
-  throw new Error('Not implemented');
+function extractColumns(node: Expr): Set<Column> {
+  if (node instanceof Column) {
+    return new Set([node]);
+  }
+  if (node instanceof BinaryExpr) {
+    const { left, right } = node[PRIV];
+    return mergeSets(extractColumns(left), extractColumns(right));
+  }
+  if (node instanceof UnaryExpr) {
+    const { expr } = node[PRIV];
+    return extractColumns(expr);
+  }
+  if (node instanceof Aggregate) {
+    return new Set();
+  }
+  if (node instanceof LiteralExpr) {
+    return new Set();
+  }
+  if (node instanceof Param) {
+    return new Set();
+  }
+  return expectNever(node);
 }

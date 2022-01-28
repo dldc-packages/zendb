@@ -98,7 +98,7 @@ export class SelectStmt {
       join.comma(...columns.map((c) => printColumnOrAggregateSelect(c))),
       'FROM',
       join.comma(
-        ...from.map((t) => (t instanceof Table ? Table.printFrom(t) : JsonTable.printRef(t)))
+        ...from.map((t) => (t instanceof Table ? Table.printFrom(t) : JsonTable.printFrom(t)))
       ),
       mapMaybe(where, (w) => `WHERE ${Expr.print(w)}`),
       mapMaybe(orderBy, (o) => `ORDER BY ${join.comma(...o.map((expr) => Expr.print(expr)))}`),

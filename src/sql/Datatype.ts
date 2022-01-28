@@ -1,5 +1,5 @@
 import * as zod from 'zod';
-import { PRIV } from '../Utils';
+import { expectNever, PRIV } from '../Utils';
 
 export type DateValue = Date | number;
 
@@ -73,8 +73,72 @@ export class Datatype<K extends DatatypeKind, Value> {
     throw new Error('Not implemented');
   }
 
-  static serialize<Dt extends DatatypeAny>(_dt: Dt, _value: DatatypeParsed<Dt>): unknown {
-    throw new Error('Not implemented');
+  static serialize<Dt extends DatatypeAny>(dt: Dt, value: DatatypeParsed<Dt>): unknown {
+    const val = Datatype.validate(dt, value);
+    const internal = dt[PRIV];
+    if (internal.kind === 'integer') {
+      return val;
+    }
+    if (internal.kind === 'number') {
+      return val;
+    }
+    if (internal.kind === 'text') {
+      return val;
+    }
+    if (internal.kind === 'boolean') {
+      return val ? 1 : 0;
+    }
+    if (internal.kind === 'json') {
+      return JSON.stringify(val);
+    }
+    if (internal.kind === 'jsonArray') {
+      return JSON.stringify(val);
+    }
+    if (internal.kind === 'date') {
+      return typeof val === 'number' ? val : (val as Date).getTime() / 1000;
+    }
+    return expectNever(internal);
+  }
+
+  static validate<Dt extends DatatypeAny>(dt: Dt, value: DatatypeParsed<Dt>): DatatypeParsed<Dt> {
+    const internal = dt[PRIV];
+    if (internal.kind === 'integer') {
+      return (internal.schema ?? zod.number().int()).parse(value) as any;
+    }
+    if (internal.kind === 'number') {
+      return (internal.schema ?? zod.number()).parse(value) as any;
+    }
+    if (internal.kind === 'text') {
+      return (internal.schema ?? zod.string()).parse(value) as any;
+    }
+    if (internal.kind === 'boolean') {
+      return (internal.schema ?? zod.boolean()).parse(value) as any;
+    }
+    if (internal.kind === 'json') {
+      return internal.schema.parse(value) as any;
+    }
+    if (internal.kind === 'jsonArray') {
+      return internal.schema.parse(value) as any;
+    }
+    if (internal.kind === 'date') {
+      if (typeof value === 'number' || value instanceof Date) {
+        return value;
+      }
+      throw new Error(`Invalid date value: ${value}`);
+    }
+    return expectNever(internal);
+  }
+
+  static print<Dt extends DatatypeAny>(dt: Dt): string {
+    return {
+      json: 'TEXT', // JSON is not valid in STRICT mode
+      jsonArray: 'TEXT', // JSON is not valid in STRICT mode
+      text: 'TEXT',
+      number: 'FLOAT',
+      integer: 'INTEGER',
+      date: 'FLOAT', // storing as seconds since 1970-01-01
+      boolean: 'INTEGER',
+    }[dt[PRIV].kind];
   }
 
   readonly [PRIV]: Readonly<ExtractDatatypeInternal<K, Value>>;
@@ -83,102 +147,6 @@ export class Datatype<K extends DatatypeKind, Value> {
     this[PRIV] = internal;
   }
 }
-
-// export type DatatypeJson<Value> = {
-//   kind: 'json';
-//   schema: zod.Schema<Value>;
-// };
-
-// // Specific datatypes to allow easy query on array
-// export type DatatypeJsonArray<Value> = {
-//   kind: 'jsonArray';
-//   schema: zod.Schema<Array<Value>>;
-// };
-
-// export type DatatypeNumber = {
-//   kind: 'number';
-//   schema: null | zod.Schema<number>;
-// };
-
-// export type DatatypeInteger = {
-//   kind: 'integer';
-//   schema: null | zod.Schema<number>;
-// };
-
-// export type DatatypeText = {
-//   kind: 'text';
-//   schema: null | zod.Schema<string>;
-// };
-
-// export type DatatypeBoolean = {
-//   kind: 'boolean';
-//   schema: null | zod.Schema<boolean>;
-// };
-
-// // storing as seconds since 1970-01-01 (REAL)
-// export type DatatypeDate = {
-//   kind: 'date';
-// };
-
-// export type DatatypeMap = {
-//   number: DatatypeNumber;
-//   integer: DatatypeInteger;
-//   boolean: DatatypeBoolean;
-//   text: DatatypeText;
-//   date: DatatypeDate;
-//   json: DatatypeJson<unknown>;
-//   jsonArray: DatatypeJsonArray<unknown>;
-// };
-
-// export type DatatypeParsed<T extends Datatype> = T extends DatatypeJson<infer Value>
-//   ? Value
-//   : T extends DatatypeJsonArray<infer Value>
-//   ? Array<Value>
-//   : {
-//       number: number;
-//       integer: number;
-//       boolean: boolean;
-//       text: string;
-//       date: DateValue;
-//       json: never;
-//       jsonArray: never;
-//     }[T['kind']];
-
-// export type DatatypeSerialized<T extends Datatype> = {
-//   number: number;
-//   integer: number;
-//   boolean: number;
-//   text: string;
-//   date: number;
-//   json: string;
-//   jsonArray: string;
-// }[T['kind']];
-
-// export type Datatype = DatatypeMap[keyof DatatypeMap];
-
-// export const datatype = {
-//   json<Value>(schema: zod.Schema<Value>): DatatypeJson<Value> {
-//     return { kind: 'json', schema };
-//   },
-//   jsonArray<Value>(schema: zod.Schema<Value>): DatatypeJsonArray<Value> {
-//     return { kind: 'jsonArray', schema: zod.array(schema) };
-//   },
-//   text(schema: zod.Schema<string> | null = null): DatatypeText {
-//     return { kind: 'text', schema };
-//   },
-//   number(schema: zod.Schema<number> | null = null): DatatypeNumber {
-//     return { kind: 'number', schema };
-//   },
-//   integer(schema: zod.Schema<number> | null = null): DatatypeInteger {
-//     return { kind: 'integer', schema };
-//   },
-//   boolean(schema: zod.Schema<boolean> | null = null): DatatypeBoolean {
-//     return { kind: 'boolean', schema };
-//   },
-//   date(): DatatypeDate {
-//     return { kind: 'date' };
-//   },
-// };
 
 // const datatypeTransform: {
 //   [K in keyof DatatypeMap]: {
@@ -291,16 +259,4 @@ export class Datatype<K extends DatatypeKind, Value> {
 //     return datatypeTransform.jsonArray.parse(dt, value as any) as any;
 //   }
 //   return expectNever(dt);
-// }
-
-// export function printDatatype(datatype: Datatype): string {
-//   return {
-//     json: 'JSON',
-//     jsonArray: 'JSON',
-//     text: 'TEXT',
-//     number: 'FLOAT',
-//     integer: 'INTEGER',
-//     date: 'FLOAT',
-//     boolean: 'INTEGER',
-//   }[datatype.kind];
 // }

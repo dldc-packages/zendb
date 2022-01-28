@@ -1,4 +1,4 @@
-import { PRIV, sqlQuote } from '../Utils';
+import { join, mapMaybe, PRIV, sqlQuote } from '../Utils';
 import { Column } from './Column';
 
 type JsonTableInternal = Readonly<{
@@ -51,6 +51,19 @@ export class JsonTable {
     //       throw new Error('Invalid print mode');
     //     },
     //   });
+  }
+
+  static printFrom(node: JsonTable): string {
+    const { alias, mode, path, sourceColumn } = node[PRIV];
+    const fnName = { Each: 'json_each', Tree: 'json_tree' }[mode];
+    return join.all(
+      fnName,
+      '(',
+      Column.printRef(sourceColumn),
+      mapMaybe(path, (p) => `, '${p}'`),
+      ')',
+      mapMaybe(alias, ({ alias }) => ` AS ${sqlQuote(alias)}`)
+    );
   }
 
   readonly [PRIV]: JsonTableInternal;
