@@ -90,7 +90,7 @@ function schemaToQueries(schema: SchemaAny): Array<string> {
           sql.ColumnDef.create('data', sql.Value.json(z.any())),
           ...indexes.map((index) => sql.ColumnDef.create(index.name, index.value)),
         ],
-        strict: true,
+        strict: schema.strict,
       })
     );
   });
