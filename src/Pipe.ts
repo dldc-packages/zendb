@@ -42,6 +42,17 @@ export class PipeSingleReadonly<Key, Data, Maybe extends boolean> {
     return new PipeSingle<Key, Data, true>(null, this.parent);
   }
 
+  /**
+   * Make sure the Pipe contains a value
+   * Throw otherwise
+   */
+  exists(): PipeSingle<Key, Data, false> {
+    if (this.internal === null) {
+      throw new Error(`.exists() called on empty PipeSingle`);
+    }
+    return this as any;
+  }
+
   value(): Maybe extends true ? Data | null : Data {
     return (this.internal?.data ?? null) as any;
   }
@@ -73,9 +84,9 @@ export class PipeSingle<Key, Data, Maybe extends boolean> extends PipeSingleRead
   }
 
   /**
-   * Throw if the entry does not exists
+   * Update the value, throw if the entry does not exists
    */
-  update(update: Data | ((item: Data) => Data)): PipeSingle<Key, Data, Maybe> {
+  update(update: Data | ((item: Data) => Data)): PipeSingle<Key, Data, false> {
     if (this.internal === null) {
       throw new Error('Cannot update a non-existing entry');
     }
@@ -84,14 +95,17 @@ export class PipeSingle<Key, Data, Maybe extends boolean> extends PipeSingleRead
       return this as any;
     }
     const { updatedKey } = this.parent.updateByKey(this.internal.key, updated);
-    return new PipeSingle<Key, Data, Maybe>({ key: updatedKey, data: updated }, this.parent);
+    return new PipeSingle<Key, Data, false>({ key: updatedKey, data: updated }, this.parent);
   }
 
+  /**
+   * Like .update except that it will not throw if the entry does not exists
+   */
   updateIfExists(update: Data | ((item: Data) => Data)): PipeSingle<Key, Data, Maybe> {
     if (this.internal === null) {
       return this as any;
     }
-    return this.update(update);
+    return this.update(update) as any;
   }
 
   /**
@@ -119,6 +133,7 @@ export class PipeCollectionReadonly<Key, Data> {
 
   /**
    * Get all data then re-emit them
+   * We use this when we delete items since we need to keep values around
    */
   cache(): PipeCollection<Key, Data> {
     const all = this.entriesArray();
@@ -131,7 +146,7 @@ export class PipeCollectionReadonly<Key, Data> {
   }
 
   /**
-   * Get all data then re-emit them
+   * Same as .cache but returns a readonly collection
    */
   cacheReadonly(): PipeCollectionReadonly<Key, Data> {
     const all = this.entriesArray();
@@ -176,7 +191,9 @@ export class PipeCollectionReadonly<Key, Data> {
     }, this.parent);
   }
 
-  // throw if more count is not one
+  /**
+   * throw if count is not one
+   */
   one(): PipeSingle<Key, Data, false> {
     const first = this.traverser();
     if (first === null) {
@@ -189,7 +206,9 @@ export class PipeCollectionReadonly<Key, Data> {
     return new PipeSingle<Key, Data, false>(first, this.parent);
   }
 
-  // throw if count > 1
+  /**
+   * throw if count > 1
+   */
   maybeOne(): PipeSingle<Key, Data, true> {
     const first = this.traverser();
     if (first === null) {
@@ -202,7 +221,9 @@ export class PipeCollectionReadonly<Key, Data> {
     return new PipeSingle<Key, Data, true>(first, this.parent);
   }
 
-  // throw if count < 1
+  /**
+   * throw if count < 1
+   */
   first(): PipeSingle<Key, Data, false> {
     const first = this.traverser();
     if (first === null) {
@@ -211,7 +232,9 @@ export class PipeCollectionReadonly<Key, Data> {
     return new PipeSingle<Key, Data, false>(first, this.parent);
   }
 
-  // never throw
+  /**
+   * never throw
+   */
   maybeFirst(): PipeSingle<Key, Data, true> {
     const first = this.traverser();
     if (first === null) {

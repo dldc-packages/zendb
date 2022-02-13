@@ -15,6 +15,8 @@ type QueriesCache = {
   countAll: DB.Statement | null;
 };
 
+type IndexQueriesCache<IndexName extends string> = { [K in IndexName]?: DB.Statement | undefined };
+
 export type DatabaseTableAny = DatabaseTable<
   string | number | symbol,
   any,
@@ -44,6 +46,7 @@ export class DatabaseTable<
     findByKey: null,
     countAll: null,
   };
+  private readonly indexQueriesCache: IndexQueriesCache<Indexes[number]['name']> = {};
 
   constructor(name: Name, schema: SchemaAny, getDb: () => DB.Database) {
     this.name = name;
@@ -66,6 +69,38 @@ export class DatabaseTable<
       this.cache[name] = create();
     }
     return this.cache[name] as any;
+  }
+
+  private getIndexStatement<IndexName extends Indexes[number]['name']>(
+    name: IndexName,
+    create: () => DB.Statement
+  ): DB.Statement {
+    const current = this.indexQueriesCache[name];
+    if (current === undefined) {
+      const query = create();
+      this.indexQueriesCache[name] = query;
+      return query;
+    }
+    return current;
+  }
+
+  private getFindByIndexQuery<IndexName extends Indexes[number]['name']>(
+    index: IndexName
+  ): DB.Statement {
+    return this.getIndexStatement(index, (): DB.Statement => {
+      const db = this.getDb();
+      const key = this.sqlTable.column('key');
+      const data = this.sqlTable.column('data');
+      const indexColumn = this.sqlTable.column(index);
+      const query = sql.SelectStmt.print(
+        sql.SelectStmt.create({
+          columns: [key, data],
+          from: this.sqlTable,
+          where: sql.Expr.eq(indexColumn, sql.Param.createAnonymous()),
+        })
+      );
+      return db.prepare(query);
+    });
   }
 
   private getDeleteByKeyQuery(): DB.Statement {
@@ -268,6 +303,20 @@ export class DatabaseTable<
     const paramsSerialized =
       paramsValues === null ? {} : sql.Value.serializeValues(paramsValues, params as any);
     const iter = preparedQuery.iterate(paramsSerialized as any);
+    return new PipeCollection(
+      traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
+      this.pipeParent
+    );
+  }
+
+  findByIndex<IndexName extends Indexes[number]['name']>(
+    index: IndexName,
+    value: Extract<Indexes[number], { name: IndexName }>['_value']
+  ): PipeCollection<Key, Data> {
+    const indexConfig = notNil(this.tableConfig.indexes.find((i) => i.name === index));
+    const preparedQuery = this.getFindByIndexQuery(index);
+    const valueSerialized = sql.Value.serialize(indexConfig.value, value, indexConfig.name);
+    const iter = preparedQuery.iterate(valueSerialized);
     return new PipeCollection(
       traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
       this.pipeParent
