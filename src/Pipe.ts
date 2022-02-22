@@ -266,20 +266,10 @@ export class PipeCollectionReadonly<Key, Data> {
   keys(): Iterable<Key> {
     return traverserToIterable(this.traverser, (key) => key);
   }
-
-  /**
-   * Traverse all items (apply update / delete)
-   */
-  apply(): void {
-    let next = this.traverser();
-    while (next !== null) {
-      next = this.traverser();
-    }
-  }
 }
 
 export class PipeCollection<Key, Data> extends PipeCollectionReadonly<Key, Data> {
-  update(fn: (item: Data) => Data): PipeCollection<Key, Data> {
+  private updateInternal(fn: (item: Data) => Data): PipeCollection<Key, Data> {
     let done = false;
     return new PipeCollection<Key, Data>((): TraverserResult<Key, Data> => {
       if (done) {
@@ -299,11 +289,11 @@ export class PipeCollection<Key, Data> extends PipeCollectionReadonly<Key, Data>
     }, this.parent);
   }
 
-  updateAll(fn: (item: Data) => Data): PipeCollection<Key, Data> {
-    return this.update(fn).cache();
+  update(fn: (item: Data) => Data): PipeCollection<Key, Data> {
+    return this.cache().updateInternal(fn);
   }
 
-  delete(): PipeCollectionReadonly<Key, Data> {
+  private deleteInternal(): PipeCollectionReadonly<Key, Data> {
     let done = false;
     return new PipeCollectionReadonly<Key, Data>((): TraverserResult<Key, Data> => {
       if (done) {
@@ -319,7 +309,8 @@ export class PipeCollection<Key, Data> extends PipeCollectionReadonly<Key, Data>
     }, this.parent);
   }
 
-  deleteAll(): PipeCollectionReadonly<Key, Data> {
-    return this.delete().cacheReadonly();
+  delete(): PipeCollectionReadonly<Key, Data> {
+    // We need to cache the collection for the query to end
+    return this.cache().deleteInternal();
   }
 }
