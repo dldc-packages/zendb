@@ -134,9 +134,9 @@ export class Datatype<K extends DatatypeKind, Value> {
       json: 'TEXT', // JSON is not valid in STRICT mode
       jsonArray: 'TEXT', // JSON is not valid in STRICT mode
       text: 'TEXT',
-      number: 'FLOAT',
+      number: 'REAL',
       integer: 'INTEGER',
-      date: 'FLOAT', // storing as seconds since 1970-01-01
+      date: 'REAL', // storing as seconds since 1970-01-01
       boolean: 'INTEGER',
     }[dt[PRIV].kind];
   }
