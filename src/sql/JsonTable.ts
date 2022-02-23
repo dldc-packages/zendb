@@ -32,25 +32,7 @@ export class JsonTable {
 
   static printRef(node: JsonTable): string {
     const { alias } = node[PRIV];
-    // const fnName = { Each: 'json_each', Tree: 'json_tree' }[mode];
     return sqlQuote(alias ? alias.alias : 'json_each');
-    //   const { alias, mode, sourceColumn, path } = node[PRIV];
-    //   const fnName = { Each: 'json_each', Tree: 'json_tree' }[mode];
-    //   return mapPrintMode(printMode, {
-    //     full: () =>
-    //       join.all(
-    //         fnName,
-    //         '(',
-    //         printNode(sourceColumn, 'ref'),
-    //         mapMaybe(path, (p) => `, '${p}'`),
-    //         ')',
-    //         mapMaybe(alias, ({ alias }) => ` AS ${sqlQuote(alias)}`)
-    //       ),
-    //     ref: () => sqlQuote(alias ? alias.alias : 'json_each'),
-    //     name: () => {
-    //       throw new Error('Invalid print mode');
-    //     },
-    //   });
   }
 
   static printFrom(node: JsonTable): string {

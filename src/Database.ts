@@ -5,6 +5,19 @@ import DB from 'better-sqlite3';
 import { sql } from './sql';
 import * as z from 'zod';
 
+export type VariableArgFunction = (...params: any[]) => any;
+export type ArgumentTypes<F extends VariableArgFunction> = F extends (...args: infer A) => any
+  ? A
+  : never;
+
+export interface Transaction<F extends VariableArgFunction> {
+  (...params: ArgumentTypes<F>): ReturnType<F>;
+  default(...params: ArgumentTypes<F>): ReturnType<F>;
+  deferred(...params: ArgumentTypes<F>): ReturnType<F>;
+  immediate(...params: ArgumentTypes<F>): ReturnType<F>;
+  exclusive(...params: ArgumentTypes<F>): ReturnType<F>;
+}
+
 export class Database<Schema extends SchemaAny> {
   private db: DB.Database | null = null;
   private readonly schemaQueries: Array<string>;
@@ -39,6 +52,14 @@ export class Database<Schema extends SchemaAny> {
       throw new Error('Database already connected');
     }
     this.db = new DB(path);
+  }
+
+  transaction<F extends VariableArgFunction>(fn: F): Transaction<F> {
+    return this.ensureConnected().transaction(fn);
+  }
+
+  backup(destinationFile: string, options?: DB.BackupOptions) {
+    return this.ensureConnected().backup(destinationFile, options);
   }
 
   getUserVersion(): number {
@@ -95,26 +116,4 @@ function schemaToQueries(schema: SchemaAny): Array<string> {
     );
   });
   return queries;
-
-  // return tables.map((table) => {
-  //   return join.all(
-  //     `CREATE TABLE ${sqlQuote(table.name)}`,
-  //     `(`,
-  //     join.comma(
-  //       `key ${printDatatype(table.key.column.datatype)} PRIMARY KEY NOT NULL`,
-  //       `data JSON`,
-  //       ...table.indexes.map(({ name, column: { datatype, nullable, primary, unique } }) => {
-  //         const notNull = nullable === false;
-  //         return join.space(
-  //           sqlQuote(name),
-  //           printDatatype(datatype),
-  //           primary ? 'PRIMARY KEY' : null,
-  //           notNull ? 'NOT NULL' : null,
-  //           unique ? 'UNIQUE' : null
-  //         );
-  //       })
-  //     ),
-  //     ');'
-  //   );
-  // });
 }
