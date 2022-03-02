@@ -3252,11 +3252,6 @@ jest-snapshot@^27.5.1:
     pretty-format "^27.5.1"
     semver "^7.3.2"
 
-jest-ts-tsx-resolver@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/jest-ts-tsx-resolver/-/jest-ts-tsx-resolver-1.0.0.tgz#aa4d6a69d9817a444f4ede0b3a92e32b278fbb66"
-  integrity sha512-0WWhlpriNWreeBCrzWaibPILzt5W16Ro0z1+XkAI0vAYbSk9pbaTzzUjVqNRQqPxElFXBlEUbRdx3pK1hCqCQA==
-
 jest-util@^27.0.0:
   version "27.4.2"
   resolved "https://registry.yarnpkg.com/jest-util/-/jest-util-27.4.2.tgz#ed95b05b1adfd761e2cda47e0144c6a58e05a621"
