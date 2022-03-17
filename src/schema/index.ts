@@ -1,4 +1,9 @@
-import { SchemaTableAny } from './SchemaTable';
+import { SchemaTableAny, SchemaTable, InferSchemaTableResult } from './SchemaTable';
+import { SchemaColumn } from './SchemaColumn';
+
+export * from './Datatype';
+export * from './SchemaTable';
+export * from './SchemaColumn';
 
 export type SchemaTablesAny = Record<string, SchemaTableAny>;
 
@@ -19,3 +24,9 @@ export function schema<Tables extends SchemaTablesAny>({
 }: Schema<Tables>): Required<Schema<Tables>> {
   return { sanitize, restore, tables, strict };
 }
+
+export const column = SchemaColumn;
+
+export const table = SchemaTable.create;
+
+export type Infer<Table extends SchemaTableAny> = InferSchemaTableResult<Table>;

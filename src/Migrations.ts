@@ -1,7 +1,7 @@
 import { Database } from './Database';
-import { SchemaAny } from './Schema';
 import DB from 'better-sqlite3';
 import fs from 'fs';
+import { SchemaAny } from './schema';
 
 type Options = {
   databasePath: string;

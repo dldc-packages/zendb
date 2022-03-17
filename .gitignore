@@ -136,3 +136,7 @@ dist
 .tern-port
 
 .DS_Store
+
+## Custom
+
+example/data
