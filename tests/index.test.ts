@@ -1,116 +1,118 @@
-throw new Error('TODO');
+import * as zen from '../src';
+import fse from 'fs-extra';
+import { nanoid } from 'nanoid';
+import { resolve } from 'path';
+import mockConsole, { RestoreConsole } from 'jest-mock-console';
 
-// import { Database, schema, Migrations, sql, table } from '../src';
-// import fse from 'fs-extra';
-// import { nanoid } from 'nanoid';
-// import { resolve } from 'path';
-// import mockConsole, { RestoreConsole } from 'jest-mock-console';
-// import * as z from 'zod';
+function tempFile(suffix: string): string {
+  return resolve('tests/tmp', nanoid() + suffix);
+}
 
-// function tempFile(suffix: string): string {
-//   return resolve('tests/tmp', nanoid() + suffix);
-// }
+let restoreConsole: null | RestoreConsole = null;
 
-// let restoreConsole: null | RestoreConsole = null;
+beforeEach(() => {
+  fse.ensureDir('tests/tmp');
+  restoreConsole = mockConsole(['log', 'warn', 'info']);
+});
 
-// beforeEach(() => {
-//   fse.ensureDir('tests/tmp');
-//   restoreConsole = mockConsole(['log', 'warn', 'info']);
-// });
+afterEach(() => {
+  if (restoreConsole) {
+    restoreConsole();
+  }
+  fse.emptyDir('tests/tmp');
+});
 
-// afterEach(() => {
-//   if (restoreConsole) {
-//     restoreConsole();
-//   }
-//   fse.emptyDir('tests/tmp');
-// });
+test('Run database', () => {
+  const v1 = zen.schema({
+    tables: {},
+  });
 
-// test('Run database', () => {
-//   const v1 = schema({
-//     tables: {},
-//   });
+  const db = new zen.Database(v1);
+  db.connect(':memory:');
+  expect(db.getUserVersion()).toBe(0);
+  expect(db.tables).toEqual({});
+});
 
-//   const db = new Database(v1);
-//   db.connect(':memory:');
-//   expect(db.getUserVersion()).toBe(0);
-//   expect(db.tables).toEqual({});
-// });
+test('Run database with tables', () => {
+  const v1 = zen.schema({
+    tables: {
+      users: zen.table({
+        id: zen.column.text().primary(),
+        slug: zen.column.text().unique(),
+        name: zen.column.text(),
+      }),
+    },
+  });
 
-// test('Run database with tables', () => {
-//   const v1 = schema({
-//     tables: {
-//       users: table<{ id: string; name: string }>()
-//         .key(sql.Value.text(), (user) => user.id)
-//         .index('name', sql.Value.text(), (user) => user.name),
-//     },
-//   });
+  const db = new zen.Database(v1);
+  db.connect(':memory:');
+  expect(db.getUserVersion()).toBe(0);
+  expect(Object.keys(db.tables)).toEqual(['users']);
+});
 
-//   const db = new Database(v1);
-//   db.connect(':memory:');
-//   expect(db.getUserVersion()).toBe(0);
-//   expect(Object.keys(db.tables)).toEqual(['users']);
-// });
+test('Run migration', () => {
+  const v1 = zen.schema({
+    tables: {
+      users: zen.table({
+        id: zen.column.text().primary(),
+        slug: zen.column.text().unique(),
+        name: zen.column.text(),
+      }),
+    },
+  });
 
-// test('Run migration', () => {
-//   const v1 = schema({
-//     tables: {
-//       users: table<{ id: string; name: string }>()
-//         .key(sql.Value.text(), (user) => user.id)
-//         .index('name', sql.Value.text(), (user) => user.name),
-//     },
-//   });
+  const migrations = zen.Migrations.create({
+    id: 'init',
+    description: 'Initial migration',
+    schema: v1,
+    migrate: (_, db) => {
+      db.tables.users.insert({ id: '1', slug: 'john', name: 'John' });
+      db.tables.users.insert({ id: '2', slug: 'paul', name: 'Paul' });
+      db.tables.users.insert({ id: '3', slug: 'john-2', name: 'John' });
+      db.tables.users.insert({ id: '4', slug: 'pierre', name: 'Pierre' });
+    },
+  });
 
-//   const migrations = Migrations.create({
-//     id: 'init',
-//     description: 'Initial migration',
-//     schema: v1,
-//     migrate: (_, db) => {
-//       db.tables.users.insert({ id: '1', name: 'John' });
-//       db.tables.users.insert({ id: '2', name: 'Paul' });
-//       db.tables.users.insert({ id: '3', name: 'John' });
-//       db.tables.users.insert({ id: '4', name: 'Pierre' });
-//     },
-//   });
+  const db = migrations.applySync({
+    databasePath: tempFile('_data.db'),
+    migrationDatabasePath: tempFile('_data-migration.db'),
+  });
 
-//   const db = migrations.applySync({
-//     databasePath: tempFile('_data.db'),
-//     migrationDatabasePath: tempFile('_data-migration.db'),
-//   });
+  expect((console.log as jest.Mock).mock.calls).toEqual([
+    ['1 migrations to apply'],
+    ['Running migration init "Initial migration" (INIT -> 196)'],
+    [
+      '-> CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL) STRICT',
+    ],
+  ]);
 
-//   expect((console.log as jest.Mock).mock.calls).toEqual([
-//     ['1 migrations to apply'],
-//     ['Running migration init "Initial migration" (INIT -> 232)'],
-//     [
-//       '-> CREATE TABLE `users` (`key` TEXT NOT NULL, `data` TEXT NOT NULL, `name` TEXT NOT NULL) STRICT',
-//     ],
-//   ]);
+  const user1a = db.tables.users
+    .query()
+    .select({ id: true, name: true, slug: true })
+    .where({ id: '1' })
+    .one();
+  expect(user1a).toEqual({ id: '1', slug: 'john', name: 'John' });
 
-//   expect(db.tables.users.findByKey('1').value()).toEqual({ id: '1', name: 'John' });
+  const user1b = db.tables.users.query().select({ slug: true }).where({ id: '1' }).one();
+  expect(user1b).toEqual({ slug: 'john' });
 
-//   expect(db.tables.users.all().valuesArray()).toEqual([
-//     { id: '1', name: 'John' },
-//     { id: '2', name: 'Paul' },
-//     { id: '3', name: 'John' },
-//     { id: '4', name: 'Pierre' },
-//   ]);
+  expect(db.tables.users.query().select({ id: true, name: true }).all()).toEqual([
+    { id: '1', name: 'John' },
+    { id: '2', name: 'Paul' },
+    { id: '3', name: 'John' },
+    { id: '4', name: 'Pierre' },
+  ]);
 
-//   const findJohns = db.tables.users
-//     .prepare()
-//     .where(({ indexes }) => sql.Expr.eq(indexes.name, sql.Expr.literal('John')));
+  const findJohns = db.tables.users
+    .query()
+    .where({ name: 'John' })
+    .select({ id: true, name: true });
 
-//   expect(db.tables.users.select(findJohns).valuesArray()).toEqual([
-//     { id: '1', name: 'John' },
-//     { id: '3', name: 'John' },
-//   ]);
-
-//   expect(db.tables.users.count(findJohns)).toEqual(2);
-
-//   const findByName = db.tables.users
-//     .prepare({ name: sql.Value.text() })
-//     .where(({ indexes, params }) => sql.Expr.eq(indexes.name, params.name));
-
-//   expect(db.tables.users.select(findByName, { name: 'Paul' }).keysArray()).toEqual(['2']);
-// });
+  expect(findJohns.all()).toEqual([
+    { id: '1', name: 'John' },
+    { id: '3', name: 'John' },
+  ]);
+});
 
 // test('Update key', () => {
 //   const v1 = schema({
