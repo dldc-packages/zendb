@@ -9,7 +9,7 @@ import {
   SchemaTableAny,
   serializeColumn,
 } from './schema';
-import { createWhere, paramsFromMap, PRIV } from './Utils';
+import { createSetItems, createWhere, paramsFromMap, PRIV } from './Utils';
 import { builder as b, printNode } from 'zensqlite';
 
 type QueriesCache = {
@@ -31,6 +31,10 @@ export type DeleteOptions = {
 
 export type DeleteResult = {
   deleted: number;
+};
+
+export type UpdateResult = {
+  updated: number;
 };
 
 export type UpdateOptions<SchemaTable extends SchemaTableAny> = {
@@ -109,8 +113,39 @@ export class DatabaseTable<
     return this.delete(condition, { limit: 1 });
   }
 
-  update(_options: UpdateOptions<SchemaTable>, _data: Partial<Infer<SchemaTable>>): void {
-    throw new Error('Method not implemented.');
+  update(
+    data: Partial<Infer<SchemaTable>>,
+    { where, limit }: UpdateOptions<SchemaTable> = {}
+  ): UpdateResult {
+    const valuesParamsMap = new Map<any, string>();
+    const tableName = this.name as string;
+    const values = Object.entries(data).map(([col, value]) => {
+      const column = this.schemaTable[PRIV].columns[col];
+      if (!column) {
+        throw new Error(`Column ${col} does not exist in table ${tableName}`);
+      }
+      return {
+        name: col,
+        value: serializeColumn(column, value),
+      };
+    });
+    const queryNode = b.UpdateStmt(tableName, {
+      where: where ? createWhere(valuesParamsMap, where, tableName) : undefined,
+      limit: limit,
+      setItems: createSetItems(valuesParamsMap, values),
+    });
+    const queryText = printNode(queryNode);
+    const params = paramsFromMap(valuesParamsMap);
+    const statement = this.getDb().prepare(queryText);
+    if (params !== null) {
+      statement.bind(params);
+    }
+    const result = statement.run();
+    return { updated: result.changes };
+  }
+
+  updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): UpdateResult {
+    return this.update(data, { where, limit: 1 });
   }
 
   private getStatement<Name extends keyof QueriesCache>(

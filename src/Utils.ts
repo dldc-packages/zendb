@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { Expr, builder as b, Node } from 'zensqlite';
+import { Expr, builder as b, Node, SetItem } from 'zensqlite';
 import { customAlphabet } from 'nanoid';
 
 const createParamName = customAlphabet('abcdefghijklmnopqrstuvwxyz', 15);
@@ -203,6 +203,15 @@ export function createWhere(
     current = b.Expr.And(current, item);
   });
   return current;
+}
+
+export function createSetItems(
+  map: Map<any, string>,
+  values: Array<{ name: string; value: any }>
+): Array<SetItem> {
+  return values.map((col) => {
+    return b.SetItems.ColumnName(col.name, getValueParam(map, col.value));
+  });
 }
 
 function getValueParam(map: Map<any, string>, value: any): Node<'BindParameter'> {
