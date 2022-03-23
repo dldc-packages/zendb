@@ -9,8 +9,9 @@ import {
   SchemaTableAny,
   serializeColumn,
 } from './schema';
-import { createSetItems, createWhere, paramsFromMap, PRIV } from './Utils';
+import { PRIV } from './Utils';
 import { builder as b, printNode } from 'zensqlite';
+import { createSetItems, createWhere, paramsFromMap } from './QueryUtils';
 
 type QueriesCache = {
   insert: DB.Statement | null;
@@ -93,14 +94,14 @@ export class DatabaseTable<
   }
 
   delete(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): DeleteResult {
-    const valuesParamsMap = new Map<any, string>();
+    const paramsMap = new Map<any, string>();
     const tableName = this.name as string;
     const queryNode = b.DeleteStmt(tableName, {
-      where: createWhere(valuesParamsMap, condition, tableName),
+      where: createWhere(paramsMap, this.schemaTable, condition, tableName),
       limit: options.limit,
     });
     const queryText = printNode(queryNode);
-    const params = paramsFromMap(valuesParamsMap);
+    const params = paramsFromMap(paramsMap);
     const statement = this.getDb().prepare(queryText);
     if (params !== null) {
       statement.bind(params);
@@ -117,25 +118,16 @@ export class DatabaseTable<
     data: Partial<Infer<SchemaTable>>,
     { where, limit }: UpdateOptions<SchemaTable> = {}
   ): UpdateResult {
-    const valuesParamsMap = new Map<any, string>();
+    const paramsMap = new Map<any, string>();
     const tableName = this.name as string;
-    const values = Object.entries(data).map(([col, value]) => {
-      const column = this.schemaTable[PRIV].columns[col];
-      if (!column) {
-        throw new Error(`Column ${col} does not exist in table ${tableName}`);
-      }
-      return {
-        name: col,
-        value: serializeColumn(column, value),
-      };
-    });
+    const table = this.schemaTable;
     const queryNode = b.UpdateStmt(tableName, {
-      where: where ? createWhere(valuesParamsMap, where, tableName) : undefined,
+      where: where ? createWhere(paramsMap, table, where, tableName) : undefined,
       limit: limit,
-      setItems: createSetItems(valuesParamsMap, values),
+      setItems: createSetItems(paramsMap, table, data),
     });
     const queryText = printNode(queryNode);
-    const params = paramsFromMap(valuesParamsMap);
+    const params = paramsFromMap(paramsMap);
     const statement = this.getDb().prepare(queryText);
     if (params !== null) {
       statement.bind(params);

@@ -3,9 +3,17 @@ import fse from 'fs-extra';
 import { nanoid } from 'nanoid';
 import { resolve } from 'path';
 import mockConsole, { RestoreConsole } from 'jest-mock-console';
+import { DatabaseTableQuery } from '../src/DatabaseTableQuery';
 
 function tempFile(suffix: string): string {
   return resolve('tests/tmp', nanoid() + suffix);
+}
+
+function extractQuery(query: DatabaseTableQuery<any, any, any, any, any, any>): {
+  query: string;
+  params: Record<string, any> | null;
+} {
+  return (query as any).getQueryText();
 }
 
 let restoreConsole: null | RestoreConsole = null;
@@ -57,6 +65,7 @@ test('Run migration', () => {
         id: zen.column.text().primary(),
         slug: zen.column.text().unique(),
         name: zen.column.text(),
+        createdAt: zen.column.date().defaultValue(() => new Date()),
       }),
     },
   });
@@ -80,9 +89,9 @@ test('Run migration', () => {
 
   expect((console.log as jest.Mock).mock.calls).toEqual([
     ['1 migrations to apply'],
-    ['Running migration init "Initial migration" (INIT -> 196)'],
+    ['Running migration init "Initial migration" (INIT -> 246)'],
     [
-      '-> CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL) STRICT',
+      '-> CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, createdAt REAL NOT NULL) STRICT',
     ],
   ]);
 
@@ -112,6 +121,23 @@ test('Run migration', () => {
     { id: '1', name: 'John' },
     { id: '3', name: 'John' },
   ]);
+
+  expect(extractQuery(findJohns)).toEqual({
+    params: { name: 'John' },
+    query: 'SELECT _0.id AS _0__id, _0.name AS _0__name FROM users AS _0 WHERE _0.name == :name',
+  });
+
+  expect(extractQuery(db.tables.users.query().where({ id: zen.Expr.lt('3') }))).toEqual({
+    params: { id: '3' },
+    query: 'SELECT _0.id AS _0__id FROM users AS _0 WHERE _0.id < :id',
+  });
+
+  expect(
+    extractQuery(db.tables.users.query().where({ createdAt: zen.Expr.lt(new Date(2020, 1, 1)) }))
+  ).toEqual({
+    params: { createdAt: 1580511600000 },
+    query: 'SELECT _0.id AS _0__id FROM users AS _0 WHERE _0.createdAt < :createdAt',
+  });
 });
 
 // test('Update key', () => {

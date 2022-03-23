@@ -1,8 +1,4 @@
 import crypto from 'crypto';
-import { Expr, builder as b, Node, SetItem } from 'zensqlite';
-import { customAlphabet } from 'nanoid';
-
-const createParamName = customAlphabet('abcdefghijklmnopqrstuvwxyz', 15);
 
 export const PRIV = Symbol.for('ZENDB_PRIVATE');
 export type PRIV = typeof PRIV;
@@ -168,66 +164,10 @@ export function isNotNull<T>(val: T | null): val is T {
   return val !== null;
 }
 
-export function dotCol(table: string, col: string): string {
-  return `${table}__${col}`;
-}
-
 export function dedupe<T>(arr: Array<T>): Array<T> {
   return Array.from(new Set<T>(arr));
 }
 
 export function arrayEqual<T>(a: Array<T>, b: Array<T>): boolean {
   return a.length === b.length && a.every((val, i) => val === b[i]);
-}
-
-export function createWhere(
-  map: Map<any, string>,
-  where: Record<string, unknown> | null,
-  tableAlias: string
-): Expr | undefined {
-  if (!where) {
-    return undefined;
-  }
-  const conditions = Object.entries(where).map(([key, value]) => {
-    return b.Expr.Equal(b.Column({ column: key, table: tableAlias }), getValueParam(map, value));
-  });
-  if (conditions.length === 0) {
-    return undefined;
-  }
-  if (conditions.length === 1) {
-    return conditions[0];
-  }
-  const [first, ...rest] = conditions;
-  let current: Expr = first;
-  rest.forEach((item) => {
-    current = b.Expr.And(current, item);
-  });
-  return current;
-}
-
-export function createSetItems(
-  map: Map<any, string>,
-  values: Array<{ name: string; value: any }>
-): Array<SetItem> {
-  return values.map((col) => {
-    return b.SetItems.ColumnName(col.name, getValueParam(map, col.value));
-  });
-}
-
-function getValueParam(map: Map<any, string>, value: any): Node<'BindParameter'> {
-  const current = map.get(value);
-  if (current !== undefined) {
-    return b.Expr.BindParameter.ColonNamed(current);
-  }
-  const name = createParamName();
-  map.set(value, name);
-  return b.Expr.BindParameter.ColonNamed(name);
-}
-
-export function paramsFromMap(map: Map<any, string>): Record<string, any> | null {
-  const entries = Array.from(map.entries()).map(([value, name]) => [name, value]);
-  if (entries.length === 0) {
-    return null;
-  }
-  return Object.fromEntries(entries);
 }

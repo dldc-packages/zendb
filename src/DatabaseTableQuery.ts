@@ -7,20 +7,21 @@ import {
   SchemaColumnAny,
   parseColumn,
 } from './schema';
+import { PRIV, arrayEqual, expectNever } from './Utils';
+import { Node, printNode } from 'zensqlite';
+import { Expr } from './Expr';
 import {
-  isNotNull,
-  PRIV,
-  dotCol,
-  dedupe,
-  arrayEqual,
-  expectNever,
-  createWhere,
   paramsFromMap,
-} from './Utils';
-import { Node, builder as b, printNode, createNode, arrayToOptionalNonEmptyArray } from 'zensqlite';
+  Resolved,
+  resolveQuery,
+  resolvedQueryToSelect,
+  ResolvedQuery,
+  ResolvedJoinItem,
+  dotCol,
+} from './QueryUtils';
 
-type SelectFrom = Extract<Node<'SelectCore'>, { variant: 'Select' }>['from'];
-type SelectOrderBy = Node<'SelectStmt'>['orderBy'];
+export type SelectFrom = Extract<Node<'SelectCore'>, { variant: 'Select' }>['from'];
+export type SelectOrderBy = Node<'SelectStmt'>['orderBy'];
 
 export type ExtractTable<
   Schema extends SchemaAny,
@@ -106,9 +107,9 @@ export type SelectionBase<SchemaTable extends SchemaTableAny> = {
 };
 
 export type WhereBase<SchemaTable extends SchemaTableAny> = {
-  [K in ExtractColumnsNames<SchemaTable>]?: SchemaColumnOutputValue<
-    SchemaTable[PRIV]['columns'][K]
-  >;
+  [K in ExtractColumnsNames<SchemaTable>]?:
+    | SchemaColumnOutputValue<SchemaTable[PRIV]['columns'][K]>
+    | Expr<SchemaColumnOutputValue<SchemaTable[PRIV]['columns'][K]>>;
 };
 
 export type PipeKind = 'many' | 'one' | 'maybeOne' | 'first' | 'maybeFirst';
@@ -159,35 +160,13 @@ type DatabaseTableQueryInternal<
   parent: Parent;
 }>;
 
-type DatabaseTableQueryInternalAny = DatabaseTableQueryInternal<
+export type DatabaseTableQueryInternalAny = DatabaseTableQueryInternal<
   SchemaAny,
   any,
   any,
   SelectionBase<any> | null,
   QueryParentBase<any> | null
 >;
-
-type ResolvedQuery = {
-  table: string;
-  tableAlias: string;
-  limit: null | number;
-  offset: null | number;
-  columns: Array<string> | null;
-  joinColumns: Array<string>;
-  primaryColumns: Array<string>;
-  where: Record<string, unknown> | null;
-  orderBy: null | Array<[string, OrderDirection]>;
-};
-
-type ResolvedJoin = {
-  kind: PipeKind;
-  currentCol: string;
-  joinCol: string;
-};
-
-type ResolvedJoinItem = { query: ResolvedQuery; join: ResolvedJoin };
-
-type Resolved = [query: ResolvedQuery, joins: Array<ResolvedJoinItem>];
 
 export class DatabaseTableQuery<
   Schema extends SchemaAny,
@@ -233,142 +212,45 @@ export class DatabaseTableQuery<
     if (this.resolved !== null) {
       return this.resolved;
     }
-    this.resolved = resolveInternal(this[PRIV], null, 0);
+    this.resolved = resolveQuery(schema, this[PRIV], null, 0);
     return this.resolved;
+  }
 
-    function resolveInternal(
-      query: DatabaseTableQueryInternalAny,
-      parentJoinCol: string | null,
-      depth: number
-    ): Resolved {
-      const joinCol = query.parent?.joinCol ?? null;
-      const primaryColumns = Object.entries(schema.tables[query.table][PRIV].columns)
-        .filter(([_, column]) => column[PRIV].primary)
-        .map(([key]) => key);
-
-      const resolved: ResolvedQuery = {
-        table: query.table,
-        tableAlias: `_${depth}`,
-        columns: query.selection ? Object.keys(query.selection) : null,
-        joinColumns: [joinCol, parentJoinCol].filter(isNotNull),
-        primaryColumns,
-        limit: query.limit?.limit ?? null,
-        offset: query.limit?.offset ?? null,
-        where: query.where,
-        orderBy: query.orderBy as any,
-      };
-      if (!query.parent) {
-        return [resolved, []];
-      }
-      const [innerQuery, innerJoins] = resolveInternal(
-        query.parent.query,
-        query.parent.currentCol,
-        depth + 1
-      );
-      const join: ResolvedJoin = {
-        currentCol: query.parent.currentCol,
-        joinCol: query.parent.joinCol,
-        kind: query.parent.kind,
-      };
-      return [innerQuery, [...innerJoins, { query: resolved, join }]];
-    }
+  private getQueryText(): { query: string; params: Record<string, any> | null } {
+    // map values to params names
+    const paramsMap = new Map<any, string>();
+    const [baseQuery, joins] = this.getResolved();
+    const tables = this[PRIV].schema.tables;
+    let prevQuery = baseQuery;
+    let queryNode: Node<'SelectStmt'> = resolvedQueryToSelect(
+      paramsMap,
+      tables[baseQuery.table],
+      baseQuery,
+      null
+    );
+    joins.forEach(({ join, query }) => {
+      queryNode = resolvedQueryToSelect(paramsMap, tables[query.table], query, {
+        join,
+        query: prevQuery,
+        select: queryNode,
+      });
+      prevQuery = query;
+    });
+    const queryText = printNode(queryNode);
+    const params = paramsFromMap(paramsMap);
+    return { query: queryText, params };
   }
 
   private getPreparedStatement(): DB.Statement {
     if (this.preparedStatement !== null) {
       return this.preparedStatement;
     }
-    // map values to params names
-    const valuesParamsMap = new Map<any, string>();
-    const [baseQuery, joins] = this.getResolved();
-    let prevQuery = baseQuery;
-    let queryNode: Node<'SelectStmt'> = resolvedQueryToSelect(baseQuery, null);
-    joins.forEach(({ join, query }) => {
-      queryNode = resolvedQueryToSelect(query, { join, query: prevQuery, select: queryNode });
-      prevQuery = query;
-    });
-    const queryText = printNode(queryNode);
-    const params = paramsFromMap(valuesParamsMap);
-    console.info(queryText, params);
-    this.preparedStatement = this.getDb().prepare(queryText);
+    const { query, params } = this.getQueryText();
+    this.preparedStatement = this.getDb().prepare(query);
     if (params !== null) {
       this.preparedStatement.bind(params);
     }
     return this.preparedStatement;
-
-    function resolvedQueryToSelect(
-      resolved: ResolvedQuery,
-      join: { join: ResolvedJoin; query: ResolvedQuery; select: Node<'SelectStmt'> } | null
-    ): Node<'SelectStmt'> {
-      return b.SelectStmt({
-        resultColumns: [
-          ...dedupe([
-            ...(resolved.columns ?? []),
-            ...resolved.joinColumns,
-            ...resolved.primaryColumns,
-          ]).map((col) =>
-            b.ResultColumn.Expr(
-              b.Column({ column: col, table: resolved.tableAlias }),
-              b.Identifier(dotCol(resolved.tableAlias, col)) // alias to "table.col"
-            )
-          ),
-          join ? b.ResultColumn.TableStar(join.query.tableAlias) : null,
-        ].filter(isNotNull),
-        from: createFrom(resolved, join),
-        where: createWhere(valuesParamsMap, resolved.where, resolved.tableAlias),
-        limit: createLimit(resolved.limit, resolved.offset),
-        orderBy: createOrderBy(resolved.orderBy, resolved.tableAlias),
-      });
-    }
-
-    function createOrderBy(
-      orderBy: null | Array<[string, OrderDirection]>,
-      tableAlias: string
-    ): SelectOrderBy | undefined {
-      if (orderBy === null) {
-        return undefined;
-      }
-      return arrayToOptionalNonEmptyArray(
-        orderBy.map(([col, dir]) => {
-          return createNode('OrderingTerm', {
-            expr: b.Column({ column: col, table: tableAlias }),
-            direction: dir,
-          });
-        })
-      );
-    }
-
-    function createLimit(
-      limit: number | null,
-      offset: number | null
-    ): Node<'SelectStmt'>['limit'] | undefined {
-      if (limit === null) {
-        return undefined;
-      }
-      return {
-        expr: b.literal(limit),
-        offset: offset !== null ? { separator: 'Offset', expr: b.literal(offset) } : undefined,
-      };
-    }
-
-    function createFrom(
-      resolved: ResolvedQuery,
-      join: { join: ResolvedJoin; query: ResolvedQuery; select: Node<'SelectStmt'> } | null
-    ): SelectFrom {
-      return join
-        ? b.From.Join(
-            b.TableOrSubquery.Select(join.select, join.query.tableAlias),
-            b.JoinOperator.Join('Left'),
-            b.TableOrSubquery.Table(resolved.table, { alias: resolved.tableAlias }),
-            b.JoinConstraint.On(
-              b.Expr.Equal(
-                b.Expr.Column(dotCol(join.query.tableAlias, join.join.currentCol)),
-                b.Expr.Column(dotCol(resolved.tableAlias, join.join.joinCol))
-              )
-            )
-          )
-        : b.From.Table(resolved.table, { alias: resolved.tableAlias });
-    }
   }
 
   private buildResult(rows: Array<Record<string, unknown>>): Array<any> {
