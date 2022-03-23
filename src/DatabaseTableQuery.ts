@@ -512,7 +512,6 @@ export class DatabaseTableQuery<
 
   all(): Array<Result<Schema, TableName, Selection, Parent>> {
     const rows = this.getPreparedStatement().all();
-    console.table(rows);
     return this.buildResult(rows);
   }
 

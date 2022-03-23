@@ -80,7 +80,7 @@ export class Database<Schema extends SchemaAny> {
       throw new Error(`Cannot init schema on non-empty database`);
     }
     this.schemaQueries.forEach((query) => {
-      console.log('-> ' + query);
+      console.info('-> ' + query);
       db.exec(query);
     });
   }

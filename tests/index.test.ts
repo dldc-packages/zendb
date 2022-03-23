@@ -87,7 +87,7 @@ test('Run migration', () => {
     migrationDatabasePath: tempFile('_data-migration.db'),
   });
 
-  expect((console.log as jest.Mock).mock.calls).toEqual([
+  expect((console.info as jest.Mock).mock.calls).toEqual([
     ['1 migrations to apply'],
     ['Running migration init "Initial migration" (INIT -> 246)'],
     [

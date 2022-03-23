@@ -69,9 +69,9 @@ export class Migrations<Schema extends SchemaAny> {
     }
     const queue = this.migrations.slice(stepIndex + 1);
     if (queue.length === 0) {
-      console.log(`Database schema is up to date`);
+      console.info(`Database schema is up to date`);
     } else {
-      console.log(`${queue.length} migrations to apply`);
+      console.info(`${queue.length} migrations to apply`);
     }
     return { queue };
   }
@@ -81,7 +81,7 @@ export class Migrations<Schema extends SchemaAny> {
     const prevItem = index === 0 ? null : this.migrations[index - 1];
     const prevDb = prevItem ? prevItem.database : null;
     const nextDb = mig.database;
-    console.log(
+    console.info(
       `Running migration ${mig.id} "${mig.description}" (${
         prevDb ? prevDb.fingerpring : 'INIT'
       } -> ${nextDb.fingerpring})`

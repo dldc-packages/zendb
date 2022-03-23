@@ -48,8 +48,6 @@ const newTask = db.tables.tasks.insert({
   big: 12n,
 });
 
-console.log(newTask.createdAt);
-
 db.tables.spaces.delete({ id: '' }, { limit: 1 });
 db.tables.spaces.deleteOne({ id: '' });
 
@@ -62,8 +60,6 @@ db.tables.spaces.deleteOne({ id: '' });
 //   .select({ name: true, slug: true, id: true })
 //   .one();
 
-// console.log(JSON.stringify(userSpacesFromToken, null, 2));
-
 // userSpacesFromToken[0].slug;
 
 const tasksWithUsers = db.tables.tasks
@@ -74,8 +70,6 @@ const tasksWithUsers = db.tables.tasks
   .pipeOne('userEmail', 'users', 'email')
   .select({ email: true, name: true })
   .all();
-
-console.log(JSON.stringify(tasksWithUsers, null, 2));
 
 // tasksWithUsers[0].task_user[0].email;
 
