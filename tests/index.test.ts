@@ -88,6 +88,7 @@ test('Run migration', () => {
   });
 
   expect((console.info as jest.Mock).mock.calls).toEqual([
+    ['Database current version: 0'],
     ['1 migrations to apply'],
     ['Running migration init "Initial migration" (INIT -> 246)'],
     [
