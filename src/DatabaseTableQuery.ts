@@ -43,7 +43,7 @@ export type ResultSelf<
   ? SelectionPick<ExtractTable<Schema, TableName>, Selection>
   : undefined;
 
-export type KindMapper<Inner, Kind extends PipeKind> = {
+export type KindMapper<Inner, Kind extends JoinKind> = {
   many: Array<Inner>;
   one: Inner;
   maybeOne: Inner | null;
@@ -54,7 +54,7 @@ export type KindMapper<Inner, Kind extends PipeKind> = {
 export type MergeInnerAndParent<
   Schema extends SchemaAny,
   TableName extends keyof Schema['tables'],
-  Kind extends PipeKind,
+  Kind extends JoinKind,
   Parent,
   Inner
 > = Parent extends undefined
@@ -112,11 +112,11 @@ export type WhereBase<SchemaTable extends SchemaTableAny> = {
     | Expr<SchemaColumnOutputValue<SchemaTable[PRIV]['columns'][K]>>;
 };
 
-export type PipeKind = 'many' | 'one' | 'maybeOne' | 'first' | 'maybeFirst';
+export type JoinKind = 'many' | 'one' | 'maybeOne' | 'first' | 'maybeFirst';
 
 type QueryParent<
   Schema extends SchemaAny,
-  Kind extends PipeKind,
+  Kind extends JoinKind,
   TableName extends keyof Schema['tables'],
   SchemaTable extends SchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
@@ -130,7 +130,7 @@ type QueryParent<
 
 type QueryParentBase<Schema extends SchemaAny> = QueryParent<
   Schema,
-  PipeKind,
+  JoinKind,
   keyof Schema['tables'],
   SchemaTableAny,
   SelectionBase<SchemaTableAny> | null,
@@ -271,7 +271,7 @@ export class DatabaseTableQuery<
       return columnSchema;
     }
 
-    function transformJoin(results: Array<any>, kind: PipeKind): any {
+    function transformJoin(results: Array<any>, kind: JoinKind): any {
       if (kind === 'many') {
         return results;
       }
@@ -401,7 +401,7 @@ export class DatabaseTableQuery<
     });
   }
 
-  private pipeInternal<JoinTableName extends keyof Schema['tables'], Kind extends PipeKind>(
+  private joinInternal<JoinTableName extends keyof Schema['tables'], Kind extends JoinKind>(
     kind: Kind,
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
@@ -433,7 +433,7 @@ export class DatabaseTableQuery<
   /**
    * Create left join
    */
-  pipe<JoinTableName extends keyof Schema['tables']>(
+  join<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
@@ -445,10 +445,10 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, 'many', TableName, SchemaTable, Selection, Parent>
   > {
-    return this.pipeInternal('many', currentCol, table, joinCol);
+    return this.joinInternal('many', currentCol, table, joinCol);
   }
 
-  pipeOne<JoinTableName extends keyof Schema['tables']>(
+  joinOne<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
@@ -460,10 +460,10 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, 'one', TableName, SchemaTable, Selection, Parent>
   > {
-    return this.pipeInternal('one', currentCol, table, joinCol);
+    return this.joinInternal('one', currentCol, table, joinCol);
   }
 
-  pipeMaybeOne<JoinTableName extends keyof Schema['tables']>(
+  joinMaybeOne<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
@@ -475,10 +475,10 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, 'maybeOne', TableName, SchemaTable, Selection, Parent>
   > {
-    return this.pipeInternal('maybeOne', currentCol, table, joinCol);
+    return this.joinInternal('maybeOne', currentCol, table, joinCol);
   }
 
-  pipeFirst<JoinTableName extends keyof Schema['tables']>(
+  joinFirst<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
@@ -490,10 +490,10 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, 'first', TableName, SchemaTable, Selection, Parent>
   > {
-    return this.pipeInternal('first', currentCol, table, joinCol);
+    return this.joinInternal('first', currentCol, table, joinCol);
   }
 
-  pipeMaybeFirst<JoinTableName extends keyof Schema['tables']>(
+  joinMaybeFirst<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
@@ -505,7 +505,7 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, 'maybeFirst', TableName, SchemaTable, Selection, Parent>
   > {
-    return this.pipeInternal('maybeFirst', currentCol, table, joinCol);
+    return this.joinInternal('maybeFirst', currentCol, table, joinCol);
   }
 
   // extract

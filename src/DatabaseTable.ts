@@ -54,9 +54,6 @@ export class DatabaseTable<
 
   private readonly columns: Array<[string, SchemaColumnAny]>;
   private readonly getDb: () => DB.Database;
-  // private readonly tableConfig: SchemaTableInternalAny;
-  // private readonly pipeParent: PipeParent<Key>;
-  // private readonly sqlTable: Table;
 
   private readonly cache: QueriesCache = {
     insert: null,
@@ -162,79 +159,4 @@ export class DatabaseTable<
       return db.prepare(printNode(queryNode));
     });
   }
-
-  // countAll(): number {
-  //   const res = this.getCountAllQuery().get();
-  //   return res.count;
-  // }
-
-  // count(query: PreparedQuery<Key, Data, Indexes, null>): number;
-  // count<Params extends ValuesAny>(
-  //   query: PreparedQuery<Key, Data, Indexes, Params>,
-  //   params: ValuesParsed<Params>
-  // ): number;
-  // count<Params extends ValuesAny | null>(
-  //   query: PreparedQuery<Key, Data, Indexes, Params>,
-  //   params?: Params extends ValuesAny ? ValuesParsed<Params> : null
-  // ): number {
-  //   const db = this.getDb();
-  //   const preparedQuery = query[PRIV].getCountQuery(db);
-  //   const paramsValues = query[PRIV].params;
-  //   const paramsSerialized =
-  //     paramsValues === null ? {} : sql.Value.serializeValues(paramsValues, params as any);
-  //   return preparedQuery.get(paramsSerialized as any).count;
-  // }
-
-  // select(query: PreparedQuery<Key, Data, Indexes, null>): PipeCollection<Key, Data>;
-  // select<Params extends ValuesAny>(
-  //   query: PreparedQuery<Key, Data, Indexes, Params>,
-  //   params: ValuesParsed<Params>
-  // ): PipeCollection<Key, Data>;
-  // select<Params extends ValuesAny | null>(
-  //   query: PreparedQuery<Key, Data, Indexes, Params>,
-  //   params?: Params extends ValuesAny ? ValuesParsed<Params> : null
-  // ): PipeCollection<Key, Data> {
-  //   const db = this.getDb();
-  //   const preparedQuery = query[PRIV].getSelectQuery(db);
-  //   const paramsValues = query[PRIV].params;
-  //   const paramsSerialized =
-  //     paramsValues === null ? {} : sql.Value.serializeValues(paramsValues, params as any);
-  //   const iter = preparedQuery.iterate(paramsSerialized as any);
-  //   return new PipeCollection(
-  //     traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
-  //     this.pipeParent
-  //   );
-  // }
-
-  // findByIndex<IndexName extends Indexes[number]['name']>(
-  //   index: IndexName,
-  //   value: Extract<Indexes[number], { name: IndexName }>['_value']
-  // ): PipeCollection<Key, Data> {
-  //   const indexConfig = notNil(this.tableConfig.indexes.find((i) => i.name === index));
-  //   const preparedQuery = this.getFindByIndexQuery(index);
-  //   const valueSerialized = sql.Value.serialize(indexConfig.value, value, indexConfig.name);
-  //   const iter = preparedQuery.iterate(valueSerialized);
-  //   return new PipeCollection(
-  //     traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
-  //     this.pipeParent
-  //   );
-  // }
-
-  // all(): PipeCollection<Key, Data> {
-  //   const iter = this.getSelectAllQuery().iterate();
-  //   return new PipeCollection(
-  //     traverserFromRowIterator<Key, string, Data>(iter, (data) => this.restore(data)),
-  //     this.pipeParent
-  //   );
-  // }
-
-  // findByKey(key: Key): PipeSingle<Key, Data, true> {
-  //   const query = this.getFindByKeyQuery();
-  //   const serializedKey = sql.Value.serialize(this.tableConfig.keyValue, key, 'key');
-  //   const entry = query.get(serializedKey);
-  //   return new PipeSingle<Key, Data, true>(
-  //     entry ? { key: entry.key as any, data: this.restore(entry.data as any) } : null,
-  //     this.pipeParent
-  //   );
-  // }
 }

@@ -11,7 +11,7 @@ import {
 import {
   DatabaseTableQueryInternalAny,
   OrderDirection,
-  PipeKind,
+  JoinKind,
   SelectFrom,
   SelectOrderBy,
 } from './DatabaseTableQuery';
@@ -34,7 +34,7 @@ export type ResolvedQuery = {
 };
 
 export type ResolvedJoin = {
-  kind: PipeKind;
+  kind: JoinKind;
   currentCol: string;
   joinCol: string;
 };

@@ -51,23 +51,12 @@ const newTask = db.tables.tasks.insert({
 db.tables.spaces.delete({ id: '' }, { limit: 1 });
 db.tables.spaces.deleteOne({ id: '' });
 
-// const userSpacesFromToken = db.tables.users
-//   .query()
-//   .where({ token: 'token1' })
-//   .pipe('email', 'user_space', 'userEmail')
-//   .pipeOne('spaceId', 'spaces', 'id')
-//   .orderBy('name', 'Desc')
-//   .select({ name: true, slug: true, id: true })
-//   .one();
-
-// userSpacesFromToken[0].slug;
-
 const tasksWithUsers = db.tables.tasks
   .query()
   .limit(10)
   .select({ id: true, name: true, date: true })
-  .pipe('id', 'task_user', 'taskId')
-  .pipeOne('userEmail', 'users', 'email')
+  .join('id', 'task_user', 'taskId')
+  .joinOne('userEmail', 'users', 'email')
   .select({ email: true, name: true })
   .all();
 
