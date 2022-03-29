@@ -134,7 +134,7 @@ test('Run migration', () => {
   });
 
   expect(
-    extractQuery(db.tables.users.query().where({ createdAt: zen.Expr.lt(new Date(2020, 1, 1)) }))
+    extractQuery(db.tables.users.query().where({ createdAt: zen.Expr.lt(new Date(1580511600000)) }))
   ).toEqual({
     params: { createdAt: 1580511600000 },
     query: 'SELECT _0.id AS _0__id FROM users AS _0 WHERE _0.createdAt < :createdAt',
