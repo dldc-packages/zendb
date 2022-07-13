@@ -1,9 +1,7 @@
-import DB from 'better-sqlite3';
 import { DatabaseTableQuery, ExtractTable, WhereBase } from './DatabaseTableQuery';
 import {
   Infer,
   InferSchemaTableInput,
-  InferSchemaTableResult,
   SchemaAny,
   SchemaColumnAny,
   SchemaTableAny,
@@ -13,30 +11,11 @@ import { PRIV } from './Utils';
 import { builder as b, printNode } from 'zensqlite';
 import { createSetItems, createWhere, paramsFromMap } from './QueryUtils';
 
-type QueriesCache = {
-  insert: DB.Statement | null;
-  //   deleteByKey: DB.Statement | null;
-  //   updateByKey: DB.Statement | null;
-  //   selectAll: DB.Statement | null;
-  //   findByKey: DB.Statement | null;
-  //   countAll: DB.Statement | null;
-};
-
-// type IndexQueriesCache<IndexName extends string> = { [K in IndexName]?: DB.Statement | undefined };
+export type Statement = { query: string; params: Record<string, any> | null };
 
 export type DatabaseTableAny = DatabaseTable<SchemaAny, string, SchemaTableAny>;
 
-export type DeleteOptions = {
-  limit?: number;
-};
-
-export type DeleteResult = {
-  deleted: number;
-};
-
-export type UpdateResult = {
-  updated: number;
-};
+export type DeleteOptions = { limit?: number };
 
 export type UpdateOptions<SchemaTable extends SchemaTableAny> = {
   limit?: number;
@@ -53,15 +32,8 @@ export class DatabaseTable<
   readonly schemaTable: SchemaTable;
 
   private readonly columns: Array<[string, SchemaColumnAny]>;
-  private readonly getDb: () => DB.Database;
 
-  private readonly cache: QueriesCache = {
-    insert: null,
-  };
-  // private readonly indexQueriesCache: IndexQueriesCache<Indexes[number]['name']> = {};
-
-  constructor(schema: Schema, name: TableName, getDb: () => DB.Database) {
-    this.getDb = getDb;
+  constructor(schema: Schema, name: TableName) {
     this.name = name;
     this.schema = schema;
     this.schemaTable = (schema.tables as any)[name];
@@ -76,21 +48,26 @@ export class DatabaseTable<
     null,
     null
   > {
-    return DatabaseTableQuery.create<Schema, TableName>(this.getDb, this.schema, this.name);
+    return DatabaseTableQuery.create<Schema, TableName>(this.schema, this.name);
   }
 
-  insert(data: InferSchemaTableInput<SchemaTable>): InferSchemaTableResult<SchemaTable> {
+  insert(data: InferSchemaTableInput<SchemaTable>): Statement {
     const resolvedData: Record<string, any> = {};
     this.columns.forEach(([name, column]) => {
       const input = (data as any)[name];
       resolvedData[name] = serializeColumn(column, input);
     });
     const columnsArgs = this.columns.map(([name]) => resolvedData[name]);
-    this.getInsertQuery().run(columnsArgs);
-    return resolvedData as any;
+    const params = this.columns.map(() => b.Expr.BindParameter.Indexed());
+    const columns = this.columns.map(([col]) => b.Identifier(col));
+    const insertNode = b.InsertStmt(this.name as string, {
+      columnNames: columns,
+      data: b.InsertStmtData.Values([params]),
+    });
+    return { query: printNode(insertNode), params: columnsArgs };
   }
 
-  delete(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): DeleteResult {
+  delete(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): Statement {
     const paramsMap = new Map<any, string>();
     const tableName = this.name as string;
     const queryNode = b.DeleteStmt(tableName, {
@@ -99,22 +76,17 @@ export class DatabaseTable<
     });
     const queryText = printNode(queryNode);
     const params = paramsFromMap(paramsMap);
-    const statement = this.getDb().prepare(queryText);
-    if (params !== null) {
-      statement.bind(params);
-    }
-    const result = statement.run();
-    return { deleted: result.changes };
+    return { query: queryText, params };
   }
 
-  deleteOne(condition: WhereBase<SchemaTable>): DeleteResult {
+  deleteOne(condition: WhereBase<SchemaTable>): Statement {
     return this.delete(condition, { limit: 1 });
   }
 
   update(
     data: Partial<Infer<SchemaTable>>,
     { where, limit }: UpdateOptions<SchemaTable> = {}
-  ): UpdateResult {
+  ): Statement {
     const paramsMap = new Map<any, string>();
     const tableName = this.name as string;
     const table = this.schemaTable;
@@ -125,38 +97,10 @@ export class DatabaseTable<
     });
     const queryText = printNode(queryNode);
     const params = paramsFromMap(paramsMap);
-    const statement = this.getDb().prepare(queryText);
-    if (params !== null) {
-      statement.bind(params);
-    }
-    const result = statement.run();
-    return { updated: result.changes };
+    return { query: queryText, params };
   }
 
-  updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): UpdateResult {
+  updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): Statement {
     return this.update(data, { where, limit: 1 });
-  }
-
-  private getStatement<Name extends keyof QueriesCache>(
-    name: Name,
-    create: () => QueriesCache[Name]
-  ): NonNullable<QueriesCache[Name]> {
-    if (this.cache[name] === null) {
-      this.cache[name] = create();
-    }
-    return this.cache[name] as any;
-  }
-
-  private getInsertQuery(): DB.Statement {
-    return this.getStatement('insert', (): DB.Statement => {
-      const db = this.getDb();
-      const params = this.columns.map(() => b.Expr.BindParameter.Indexed());
-      const columns = this.columns.map(([col]) => b.Identifier(col));
-      const queryNode = b.InsertStmt(this.name as string, {
-        columnNames: columns,
-        data: b.InsertStmtData.Values([params]),
-      });
-      return db.prepare(printNode(queryNode));
-    });
   }
 }

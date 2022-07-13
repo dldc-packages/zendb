@@ -43,14 +43,20 @@ export class SchemaColumn<DtExt, Nullable extends boolean, DefaultValue extends 
     return SchemaColumn.create(Datatype.json);
   }
 
+  static text(): SchemaColumn<string, false, null>;
+  static text<T extends string = string>(): SchemaColumn<T, false, null>;
   static text<T extends string = string>(): SchemaColumn<T, false, null> {
     return SchemaColumn.create(Datatype.text as any);
   }
 
+  static number(): SchemaColumn<number, false, null>;
+  static number<T extends number = number>(): SchemaColumn<T, false, null>;
   static number<T extends number = number>(): SchemaColumn<T, false, null> {
     return SchemaColumn.create(Datatype.number as any);
   }
 
+  static integer(): SchemaColumn<number, false, null>;
+  static integer<T extends number = number>(): SchemaColumn<T, false, null>;
   static integer<T extends number = number>(): SchemaColumn<T, false, null> {
     return SchemaColumn.create(Datatype.integer as any);
   }

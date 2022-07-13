@@ -1,4 +1,3 @@
-import DB from 'better-sqlite3';
 import {
   SchemaColumnOutputValue,
   Infer,
@@ -19,7 +18,9 @@ import {
   ResolvedJoinItem,
   dotCol,
 } from './QueryUtils';
+import { Statement } from './DatabaseTable';
 
+export type Rows = Array<Record<string, unknown>>;
 export type SelectFrom = Extract<Node<'SelectCore'>, { variant: 'Select' }>['from'];
 export type SelectOrderBy = Node<'SelectStmt'>['orderBy'];
 
@@ -154,9 +155,9 @@ type DatabaseTableQueryInternal<
   schema: Schema;
   table: TableName;
   selection: Selection;
-  where: WhereBase<SchemaTable> | null;
-  limit: null | { limit: number | null; offset: number | null };
-  orderBy: null | Array<OrderingTerm<SchemaTable>>;
+  filter: WhereBase<SchemaTable> | null;
+  take: null | { limit: number | null; offset: number | null };
+  sort: null | Array<OrderingTerm<SchemaTable>>;
   parent: Parent;
 }>;
 
@@ -177,34 +178,29 @@ export class DatabaseTableQuery<
   Parent extends null | QueryParentBase<Schema>
 > {
   static create<Schema extends SchemaAny, TableName extends keyof Schema['tables']>(
-    getDb: () => DB.Database,
     schema: Schema,
     table: TableName
   ): DatabaseTableQuery<Schema, TableName, ExtractTable<Schema, TableName>, null, null, null> {
-    return new DatabaseTableQuery(getDb, {
+    return new DatabaseTableQuery({
       schema,
       table,
       selection: null,
-      where: null,
-      limit: null,
+      filter: null,
+      take: null,
       parent: null,
-      orderBy: null,
+      sort: null,
     });
   }
 
-  private readonly getDb: () => DB.Database;
-
-  private preparedStatement: DB.Statement | null = null;
+  private statementCache: Statement | null = null;
   private resolved: Resolved | null = null;
 
   readonly [PRIV]: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>;
 
   private constructor(
-    getDb: () => DB.Database,
     internal: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>
   ) {
     this[PRIV] = internal;
-    this.getDb = getDb;
   }
 
   private getResolved(): Resolved {
@@ -216,7 +212,7 @@ export class DatabaseTableQuery<
     return this.resolved;
   }
 
-  private getQueryText(): { query: string; params: Record<string, any> | null } {
+  private getStatement(): { query: string; params: Record<string, any> | null } {
     // map values to params names
     const paramsMap = new Map<any, string>();
     const [baseQuery, joins] = this.getResolved();
@@ -239,18 +235,6 @@ export class DatabaseTableQuery<
     const queryText = printNode(queryNode);
     const params = paramsFromMap(paramsMap);
     return { query: queryText, params };
-  }
-
-  private getPreparedStatement(): DB.Statement {
-    if (this.preparedStatement !== null) {
-      return this.preparedStatement;
-    }
-    const { query, params } = this.getQueryText();
-    this.preparedStatement = this.getDb().prepare(query);
-    if (params !== null) {
-      this.preparedStatement.bind(params);
-    }
-    return this.preparedStatement;
   }
 
   private buildResult(rows: Array<Record<string, unknown>>): Array<any> {
@@ -349,55 +333,61 @@ export class DatabaseTableQuery<
     }
   }
 
+  get statement(): Statement {
+    if (this.statementCache !== null) {
+      return this.statementCache;
+    }
+    const { query, params } = this.getStatement();
+    this.statementCache = { query: query, params };
+    return this.statementCache;
+  }
+
   select<Selection extends SelectionBase<SchemaTable>>(
     selection: Selection
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery(this.getDb, {
+    return new DatabaseTableQuery({
       ...this[PRIV],
       selection,
     });
   }
 
-  where<Where extends WhereBase<SchemaTable>>(
-    where: Where
+  filter<Where extends WhereBase<SchemaTable>>(
+    condition: Where
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery(this.getDb, {
+    return new DatabaseTableQuery({
       ...this[PRIV],
-      where,
+      filter: condition,
     });
   }
 
-  limit(
+  take(
     limit: number | null,
     offset: number | null = null
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery(this.getDb, {
+    return new DatabaseTableQuery({
       ...this[PRIV],
-      limit: {
-        limit,
-        offset,
-      },
+      take: { limit, offset },
     });
   }
 
-  orderBy(
+  sort(
     column: ExtractColumnsNames<SchemaTable>,
     direction?: OrderDirection
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent>;
-  orderBy(
+  sort(
     arg1: OrderingTerm<SchemaTable>,
     ...others: Array<OrderingTerm<SchemaTable>>
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent>;
-  orderBy(
+  sort(
     arg1: OrderingTerm<SchemaTable> | ExtractColumnsNames<SchemaTable>,
     arg2?: OrderingTerm<SchemaTable> | OrderDirection,
     ...others: Array<OrderingTerm<SchemaTable>>
   ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
     const start: Array<OrderingTerm<SchemaTable>> =
       typeof arg1 === 'string' ? [[arg1, arg2 ?? 'Asc']] : arg2 ? [arg1, arg2 as any] : [arg1];
-    return new DatabaseTableQuery(this.getDb, {
+    return new DatabaseTableQuery({
       ...this[PRIV],
-      orderBy: [...start, ...others],
+      sort: [...start, ...others],
     });
   }
 
@@ -414,13 +404,13 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, Kind, TableName, SchemaTable, Selection, Parent>
   > {
-    return new DatabaseTableQuery(this.getDb, {
+    return new DatabaseTableQuery({
       schema: this[PRIV].schema,
       table,
-      limit: null,
+      take: null,
       selection: null,
-      where: null,
-      orderBy: null,
+      filter: null,
+      sort: null,
       parent: {
         kind,
         currentCol: currentCol as string,
@@ -508,18 +498,16 @@ export class DatabaseTableQuery<
     return this.joinInternal('maybeFirst', currentCol, table, joinCol);
   }
 
-  // extract
+  // transform rows
 
-  all(): Array<Result<Schema, TableName, Selection, Parent>> {
-    const rows = this.getPreparedStatement().all();
+  all(rows: Rows): Array<Result<Schema, TableName, Selection, Parent>> {
     return this.buildResult(rows);
   }
 
   /**
    * Throw if result count is not === 1
    */
-  one(): Result<Schema, TableName, Selection, Parent> {
-    const rows = this.getPreparedStatement().all();
+  one(rows: Rows): Result<Schema, TableName, Selection, Parent> {
     const results = this.buildResult(rows);
     if (results.length !== 1) {
       throw new Error(`Expected 1 result, got ${results.length}`);
@@ -530,8 +518,7 @@ export class DatabaseTableQuery<
   /**
    * Throw if result count is > 1
    */
-  maybeOne(): Result<Schema, TableName, Selection, Parent> | null {
-    const rows = this.getPreparedStatement().all();
+  maybeOne(rows: Rows): Result<Schema, TableName, Selection, Parent> | null {
     const results = this.buildResult(rows);
     if (results.length > 1) {
       throw new Error(`Expected maybe 1 result, got ${results.length}`);
@@ -542,8 +529,7 @@ export class DatabaseTableQuery<
   /**
    * Throw if result count is === 0
    */
-  first(): Result<Schema, TableName, Selection, Parent> {
-    const rows = this.getPreparedStatement().all();
+  first(rows: Rows): Result<Schema, TableName, Selection, Parent> {
     const results = this.buildResult(rows);
     if (results.length === 0) {
       throw new Error('Expected at least 1 result, got 0');
@@ -554,8 +540,7 @@ export class DatabaseTableQuery<
   /**
    * Never throws
    */
-  maybeFirst(): Result<Schema, TableName, Selection, Parent> | null {
-    const rows = this.getPreparedStatement().all();
+  maybeFirst(rows: Rows): Result<Schema, TableName, Selection, Parent> | null {
     const results = this.buildResult(rows);
     return results[0] ?? null;
   }

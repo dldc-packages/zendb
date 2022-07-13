@@ -1,75 +1,60 @@
 {
   "name": "zendb",
   "version": "2.0.0",
-  "description": "A local database",
+  "description": "Type safe SQLite",
   "keywords": [],
-  "homepage": "https://github.com/etienne-dldc/zendb-node#readme",
+  "homepage": "https://github.com/etienne-dldc/zendb#readme",
   "bugs": {
-    "url": "https://github.com/etienne-dldc/zendb-node/issues"
+    "url": "https://github.com/etienne-dldc/zendb/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/etienne-dldc/zendb-node.git"
+    "url": "git+https://github.com/etienne-dldc/zendb.git"
   },
   "license": "MIT",
   "author": "Etienne Dldc <e.deladonchamps@gmail.com>",
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/mod.mjs",
+      "require": "./dist/mod.js"
     }
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/mod.js",
+  "module": "./dist/mod.mjs",
+  "types": "./dist/mod.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rimraf dist && tsup src/index.ts --format esm,cjs --dts",
-    "codecov": "codecov",
-    "dev": "tsup src/index.ts --format esm,cjs --watch",
+    "build": "rimraf dist && tsup --format cjs,esm src/mod.ts --dts src/mod.ts",
     "lint": "prettier . --check && eslint . && tsc --noEmit",
     "lint:fix": "prettier . --write . && eslint . --fix",
-    "release": "yarn run build && np",
-    "test": "yarn run lint && jest --coverage",
-    "example:run": "esr ./example/index.ts",
+    "release": "yarn build && np",
+    "test": "yarn lint && jest --coverage",
     "test:run": "jest",
     "test:watch": "jest --watch",
-    "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "nanoid": "^3.3.4",
     "zensqlite": "^1.9.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.5.0",
-    "@types/fs-extra": "^9.0.13",
-    "@types/jest": "^27.4.1",
-    "@typescript-eslint/eslint-plugin": "^5.16.0",
-    "@typescript-eslint/parser": "^5.16.0",
-    "better-sqlite3": "^7.5.0",
-    "codecov": "^3.8.3",
-    "esbuild": "^0.14.27",
-    "esbuild-runner": "^2.2.1",
-    "eslint": "^8.11.0",
+    "@types/jest": "^27.5.0",
+    "@typescript-eslint/eslint-plugin": "^5.23.0",
+    "@typescript-eslint/parser": "^5.23.0",
+    "denoify": "^0.11.0",
+    "eslint": "^8.15.0",
     "eslint-config-prettier": "^8.5.0",
-    "fs-extra": "^10.0.1",
-    "jest": "^27.5.1",
-    "jest-mock-console": "^1.2.3",
-    "nanoid": "^3.3.1",
+    "jest": "^28.1.0",
     "np": "^7.6.1",
-    "prettier": "^2.6.0",
+    "prettier": "^2.6.2",
     "rimraf": "^3.0.2",
-    "ts-jest": "^27.1.3",
-    "tslib": "^2.3.1",
-    "tsup": "^5.12.1",
-    "typescript": "^4.6.2"
-  },
-  "peerDependencies": {
-    "better-sqlite3": "^7.4.6",
-    "zod": "^3.11.6"
+    "ts-jest": "^28.0.2",
+    "tslib": "^2.4.0",
+    "tsup": "^5.12.7",
+    "typescript": "^4.6.4"
   },
   "publishConfig": {
     "access": "public",

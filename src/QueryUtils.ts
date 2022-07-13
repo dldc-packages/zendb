@@ -1,4 +1,4 @@
-import { customAlphabet } from 'nanoid';
+import { customAlphabet } from 'nanoid/non-secure';
 import {
   Expr as SqlExpr,
   builder as b,
@@ -67,10 +67,10 @@ export function resolveQuery(
     columns: query.selection ? Object.keys(query.selection) : null,
     joinColumns: [joinCol, parentJoinCol].filter(isNotNull),
     primaryColumns,
-    limit: query.limit?.limit ?? null,
-    offset: query.limit?.offset ?? null,
-    where: query.where,
-    orderBy: query.orderBy as any,
+    limit: query.take?.limit ?? null,
+    offset: query.take?.offset ?? null,
+    where: query.filter,
+    orderBy: query.sort as any,
   };
   if (!query.parent) {
     return [resolved, []];
