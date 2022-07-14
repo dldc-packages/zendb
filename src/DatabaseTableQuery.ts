@@ -1,40 +1,20 @@
-import {
-  SchemaColumnOutputValue,
-  Infer,
-  SchemaAny,
-  SchemaTableAny,
-  SchemaColumnAny,
-  parseColumn,
-} from './schema';
+import { SchemaColumnOutputValue, Infer, SchemaAny, SchemaTableAny, SchemaColumnAny, parseColumn } from './schema';
 import { PRIV, arrayEqual, expectNever } from './Utils';
 import { Node, printNode } from 'zensqlite';
 import { Expr } from './Expr';
-import {
-  paramsFromMap,
-  Resolved,
-  resolveQuery,
-  resolvedQueryToSelect,
-  ResolvedQuery,
-  ResolvedJoinItem,
-  dotCol,
-} from './QueryUtils';
-import { Statement } from './DatabaseTable';
+import { paramsFromMap, Resolved, resolveQuery, resolvedQueryToSelect, ResolvedQuery, ResolvedJoinItem, dotCol } from './QueryUtils';
+import { IDriverDatabase, IDriverStatement } from './Driver';
 
 export type Rows = Array<Record<string, unknown>>;
 export type SelectFrom = Extract<Node<'SelectCore'>, { variant: 'Select' }>['from'];
 export type SelectOrderBy = Node<'SelectStmt'>['orderBy'];
 
-export type ExtractTable<
-  Schema extends SchemaAny,
-  TableName extends keyof Schema['tables']
-> = Schema['tables'][TableName];
+export type ExtractTable<Schema extends SchemaAny, TableName extends keyof Schema['tables']> = Schema['tables'][TableName];
 
 export type SelectionPick<
   SchemaTable extends SchemaTableAny,
   Selection extends SelectionBase<SchemaTable>
-> = keyof Selection extends keyof Infer<SchemaTable>
-  ? Pick<Infer<SchemaTable>, keyof Selection>
-  : undefined;
+> = keyof Selection extends keyof Infer<SchemaTable> ? Pick<Infer<SchemaTable>, keyof Selection> : undefined;
 
 export type ResultSelf<
   Schema extends SchemaAny,
@@ -85,12 +65,7 @@ export type WrapInParent<
   Inner,
   Parent extends null | QueryParentBase<Schema>
 > = Parent extends QueryParentBase<Schema>
-  ? WrapInParent<
-      Schema,
-      Parent['query']['table'],
-      ParentResult<Schema, TableName, Parent, Inner>,
-      Parent['query']['parent']
-    >
+  ? WrapInParent<Schema, Parent['query']['table'], ParentResult<Schema, TableName, Parent, Inner>, Parent['query']['parent']>
   : Inner;
 
 export type Result<
@@ -100,8 +75,7 @@ export type Result<
   Parent extends null | QueryParentBase<Schema>
 > = WrapInParent<Schema, TableName, ResultSelf<Schema, TableName, Selection>, Parent>;
 
-export type ExtractColumnsNames<SchemaTable extends SchemaTableAny> =
-  keyof SchemaTable[PRIV]['columns'];
+export type ExtractColumnsNames<SchemaTable extends SchemaTableAny> = keyof SchemaTable[PRIV]['columns'];
 
 export type SelectionBase<SchemaTable extends SchemaTableAny> = {
   [K in ExtractColumnsNames<SchemaTable>]?: true;
@@ -140,10 +114,7 @@ type QueryParentBase<Schema extends SchemaAny> = QueryParent<
 
 export type OrderDirection = 'Asc' | 'Desc';
 
-export type OrderingTerm<SchemaTable extends SchemaTableAny> = [
-  ExtractColumnsNames<SchemaTable>,
-  OrderDirection
-];
+export type OrderingTerm<SchemaTable extends SchemaTableAny> = [ExtractColumnsNames<SchemaTable>, OrderDirection];
 
 type DatabaseTableQueryInternal<
   Schema extends SchemaAny,
@@ -170,6 +141,8 @@ export type DatabaseTableQueryInternalAny = DatabaseTableQueryInternal<
 >;
 
 export class DatabaseTableQuery<
+  DriverStatement extends IDriverStatement,
+  DriverDatabase extends IDriverDatabase<DriverStatement>,
   Schema extends SchemaAny,
   TableName extends keyof Schema['tables'],
   SchemaTable extends SchemaTableAny,
@@ -177,29 +150,30 @@ export class DatabaseTableQuery<
   Where extends WhereBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > {
-  static create<Schema extends SchemaAny, TableName extends keyof Schema['tables']>(
+  static create<
+    DriverStatement extends IDriverStatement,
+    DriverDatabase extends IDriverDatabase<DriverStatement>,
+    Schema extends SchemaAny,
+    TableName extends keyof Schema['tables']
+  >(
+    driverDatabase: DriverDatabase,
     schema: Schema,
     table: TableName
-  ): DatabaseTableQuery<Schema, TableName, ExtractTable<Schema, TableName>, null, null, null> {
-    return new DatabaseTableQuery({
-      schema,
-      table,
-      selection: null,
-      filter: null,
-      take: null,
-      parent: null,
-      sort: null,
-    });
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, ExtractTable<Schema, TableName>, null, null, null> {
+    return new DatabaseTableQuery(driverDatabase, { schema, table, selection: null, filter: null, take: null, parent: null, sort: null });
   }
 
-  private statementCache: Statement | null = null;
+  private statementCache: DriverStatement | null = null;
   private resolved: Resolved | null = null;
 
   readonly [PRIV]: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>;
+  readonly driverDatabase: DriverDatabase;
 
   private constructor(
+    driverDatabase: DriverDatabase,
     internal: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>
   ) {
+    this.driverDatabase = driverDatabase;
     this[PRIV] = internal;
   }
 
@@ -212,18 +186,25 @@ export class DatabaseTableQuery<
     return this.resolved;
   }
 
-  private getStatement(): { query: string; params: Record<string, any> | null } {
+  private getStatement(): DriverStatement {
+    if (this.statementCache !== null) {
+      return this.statementCache;
+    }
+    const { query, params } = this.getQueryText();
+    this.statementCache = this.driverDatabase.prepare(query);
+    if (params !== null) {
+      this.statementCache.bind(params);
+    }
+    return this.statementCache;
+  }
+
+  private getQueryText(): { query: string; params: Record<string, any> | null } {
     // map values to params names
     const paramsMap = new Map<any, string>();
     const [baseQuery, joins] = this.getResolved();
     const tables = this[PRIV].schema.tables;
     let prevQuery = baseQuery;
-    let queryNode: Node<'SelectStmt'> = resolvedQueryToSelect(
-      paramsMap,
-      tables[baseQuery.table],
-      baseQuery,
-      null
-    );
+    let queryNode: Node<'SelectStmt'> = resolvedQueryToSelect(paramsMap, tables[baseQuery.table], baseQuery, null);
     joins.forEach(({ join, query }) => {
       queryNode = resolvedQueryToSelect(paramsMap, tables[query.table], query, {
         join,
@@ -283,11 +264,7 @@ export class DatabaseTableQuery<
       return expectNever(kind);
     }
 
-    function groupRows(
-      query: ResolvedQuery,
-      joins: Array<ResolvedJoinItem>,
-      rows: Array<Record<string, unknown>>
-    ): Array<any> {
+    function groupRows(query: ResolvedQuery, joins: Array<ResolvedJoinItem>, rows: Array<Record<string, unknown>>): Array<any> {
       const colsKey = query.primaryColumns.map((col) => dotCol(query.tableAlias, col));
       const groups: Array<{ keys: Array<any>; rows: Array<Record<string, unknown>> }> = [];
       rows.forEach((row) => {
@@ -333,19 +310,10 @@ export class DatabaseTableQuery<
     }
   }
 
-  get statement(): Statement {
-    if (this.statementCache !== null) {
-      return this.statementCache;
-    }
-    const { query, params } = this.getStatement();
-    this.statementCache = { query: query, params };
-    return this.statementCache;
-  }
-
   select<Selection extends SelectionBase<SchemaTable>>(
     selection: Selection
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery({
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent> {
+    return new DatabaseTableQuery(this.driverDatabase, {
       ...this[PRIV],
       selection,
     });
@@ -353,8 +321,8 @@ export class DatabaseTableQuery<
 
   filter<Where extends WhereBase<SchemaTable>>(
     condition: Where
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery({
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent> {
+    return new DatabaseTableQuery(this.driverDatabase, {
       ...this[PRIV],
       filter: condition,
     });
@@ -363,8 +331,8 @@ export class DatabaseTableQuery<
   take(
     limit: number | null,
     offset: number | null = null
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
-    return new DatabaseTableQuery({
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent> {
+    return new DatabaseTableQuery(this.driverDatabase, {
       ...this[PRIV],
       take: { limit, offset },
     });
@@ -373,19 +341,19 @@ export class DatabaseTableQuery<
   sort(
     column: ExtractColumnsNames<SchemaTable>,
     direction?: OrderDirection
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent>;
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent>;
   sort(
     arg1: OrderingTerm<SchemaTable>,
     ...others: Array<OrderingTerm<SchemaTable>>
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent>;
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent>;
   sort(
     arg1: OrderingTerm<SchemaTable> | ExtractColumnsNames<SchemaTable>,
     arg2?: OrderingTerm<SchemaTable> | OrderDirection,
     ...others: Array<OrderingTerm<SchemaTable>>
-  ): DatabaseTableQuery<Schema, TableName, SchemaTable, Selection, Where, Parent> {
+  ): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, SchemaTable, Selection, Where, Parent> {
     const start: Array<OrderingTerm<SchemaTable>> =
       typeof arg1 === 'string' ? [[arg1, arg2 ?? 'Asc']] : arg2 ? [arg1, arg2 as any] : [arg1];
-    return new DatabaseTableQuery({
+    return new DatabaseTableQuery(this.driverDatabase, {
       ...this[PRIV],
       sort: [...start, ...others],
     });
@@ -397,6 +365,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -404,7 +374,7 @@ export class DatabaseTableQuery<
     null,
     QueryParent<Schema, Kind, TableName, SchemaTable, Selection, Parent>
   > {
-    return new DatabaseTableQuery({
+    return new DatabaseTableQuery(this.driverDatabase, {
       schema: this[PRIV].schema,
       table,
       take: null,
@@ -428,6 +398,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -443,6 +415,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -458,6 +432,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -473,6 +449,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -488,6 +466,8 @@ export class DatabaseTableQuery<
     table: JoinTableName,
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): DatabaseTableQuery<
+    DriverStatement,
+    DriverDatabase,
     Schema,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
@@ -500,14 +480,16 @@ export class DatabaseTableQuery<
 
   // transform rows
 
-  all(rows: Rows): Array<Result<Schema, TableName, Selection, Parent>> {
+  all(): Array<Result<Schema, TableName, Selection, Parent>> {
+    const rows = this.getStatement().all();
     return this.buildResult(rows);
   }
 
   /**
    * Throw if result count is not === 1
    */
-  one(rows: Rows): Result<Schema, TableName, Selection, Parent> {
+  one(): Result<Schema, TableName, Selection, Parent> {
+    const rows = this.getStatement().all();
     const results = this.buildResult(rows);
     if (results.length !== 1) {
       throw new Error(`Expected 1 result, got ${results.length}`);
@@ -518,7 +500,8 @@ export class DatabaseTableQuery<
   /**
    * Throw if result count is > 1
    */
-  maybeOne(rows: Rows): Result<Schema, TableName, Selection, Parent> | null {
+  maybeOne(): Result<Schema, TableName, Selection, Parent> | null {
+    const rows = this.getStatement().all();
     const results = this.buildResult(rows);
     if (results.length > 1) {
       throw new Error(`Expected maybe 1 result, got ${results.length}`);
@@ -529,7 +512,8 @@ export class DatabaseTableQuery<
   /**
    * Throw if result count is === 0
    */
-  first(rows: Rows): Result<Schema, TableName, Selection, Parent> {
+  first(): Result<Schema, TableName, Selection, Parent> {
+    const rows = this.getStatement().all();
     const results = this.buildResult(rows);
     if (results.length === 0) {
       throw new Error('Expected at least 1 result, got 0');
@@ -540,7 +524,8 @@ export class DatabaseTableQuery<
   /**
    * Never throws
    */
-  maybeFirst(rows: Rows): Result<Schema, TableName, Selection, Parent> | null {
+  maybeFirst(): Result<Schema, TableName, Selection, Parent> | null {
+    const rows = this.getStatement().all();
     const results = this.buildResult(rows);
     return results[0] ?? null;
   }
