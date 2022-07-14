@@ -1,20 +1,6 @@
 import { customAlphabet } from 'nanoid/non-secure';
-import {
-  Expr as SqlExpr,
-  builder as b,
-  Node,
-  SetItem,
-  arrayToNonEmptyArray,
-  createNode,
-  arrayToOptionalNonEmptyArray,
-} from 'zensqlite';
-import {
-  DatabaseTableQueryInternalAny,
-  OrderDirection,
-  JoinKind,
-  SelectFrom,
-  SelectOrderBy,
-} from './DatabaseTableQuery';
+import { Expr as SqlExpr, builder as b, Node, SetItem, arrayToNonEmptyArray, createNode, arrayToOptionalNonEmptyArray } from 'zensqlite';
+import { DatabaseTableQueryInternalAny, OrderDirection, JoinKind, SelectFrom, SelectOrderBy } from './DatabaseTableQuery';
 import { Expr, isExpr } from './Expr';
 import { SchemaAny, SchemaColumnAny, SchemaTableAny, serializeColumn } from './schema';
 import { dedupe, expectNever, isNotNull, PRIV } from './Utils';
@@ -75,12 +61,7 @@ export function resolveQuery(
   if (!query.parent) {
     return [resolved, []];
   }
-  const [innerQuery, innerJoins] = resolveQuery(
-    schema,
-    query.parent.query,
-    query.parent.currentCol,
-    depth + 1
-  );
+  const [innerQuery, innerJoins] = resolveQuery(schema, query.parent.query, query.parent.currentCol, depth + 1);
   const join: ResolvedJoin = {
     currentCol: query.parent.currentCol,
     joinCol: query.parent.joinCol,
@@ -123,24 +104,13 @@ export function createWhere(
   return current;
 }
 
-function exprToSqlNode(
-  paramsMap: ParamsMap,
-  column: SchemaColumnAny,
-  expr: Expr<any>,
-  col: Node<'Column'>
-): SqlExpr {
+function exprToSqlNode(paramsMap: ParamsMap, column: SchemaColumnAny, expr: Expr<any>, col: Node<'Column'>): SqlExpr {
   const colName = col.columnName.name;
   if (expr.kind === 'And') {
-    return b.Expr.And(
-      exprToSqlNode(paramsMap, column, expr.left, col),
-      exprToSqlNode(paramsMap, column, expr.right, col)
-    );
+    return b.Expr.And(exprToSqlNode(paramsMap, column, expr.left, col), exprToSqlNode(paramsMap, column, expr.right, col));
   }
   if (expr.kind === 'Or') {
-    return b.Expr.Or(
-      exprToSqlNode(paramsMap, column, expr.left, col),
-      exprToSqlNode(paramsMap, column, expr.right, col)
-    );
+    return b.Expr.Or(exprToSqlNode(paramsMap, column, expr.left, col), exprToSqlNode(paramsMap, column, expr.right, col));
   }
   if (expr.kind === 'Equal') {
     return b.Expr.Equal(col, getValueParam(paramsMap, column, colName, expr.val));
@@ -161,19 +131,12 @@ function exprToSqlNode(
     return b.Expr.LowerThanOrEqual(col, getValueParam(paramsMap, column, colName, expr.val));
   }
   if (expr.kind === 'In') {
-    return b.Expr.In.List(
-      col,
-      arrayToNonEmptyArray(
-        expr.values.map((val, i) => getValueParam(paramsMap, column, `${colName}_${i}`, val))
-      )
-    );
+    return b.Expr.In.List(col, arrayToNonEmptyArray(expr.values.map((val, i) => getValueParam(paramsMap, column, `${colName}_${i}`, val))));
   }
   if (expr.kind === 'NotIn') {
     return b.Expr.NotIn.List(
       col,
-      arrayToNonEmptyArray(
-        expr.values.map((val, i) => getValueParam(paramsMap, column, `${colName}_${i}`, val))
-      )
+      arrayToNonEmptyArray(expr.values.map((val, i) => getValueParam(paramsMap, column, `${colName}_${i}`, val)))
     );
   }
   if (expr.kind === 'IsNull') {
@@ -185,11 +148,7 @@ function exprToSqlNode(
   return expectNever(expr.kind);
 }
 
-export function createSetItems(
-  paramsMap: ParamsMap,
-  table: SchemaTableAny,
-  values: Record<string, any>
-): Array<SetItem> {
+export function createSetItems(paramsMap: ParamsMap, table: SchemaTableAny, values: Record<string, any>): Array<SetItem> {
   return Object.entries(values).map(([col, value]) => {
     const column = table[PRIV].columns[col];
     if (!column) {
@@ -199,12 +158,7 @@ export function createSetItems(
   });
 }
 
-function getValueParam(
-  paramsMap: ParamsMap,
-  column: SchemaColumnAny,
-  name: string,
-  value: any
-): Node<'BindParameter'> {
+function getValueParam(paramsMap: ParamsMap, column: SchemaColumnAny, name: string, value: any): Node<'BindParameter'> {
   let uniqueName = name;
   // Find unique name
   if (paramsMap.has(name)) {
@@ -234,11 +188,7 @@ export function resolvedQueryToSelect(
 ): Node<'SelectStmt'> {
   return b.SelectStmt({
     resultColumns: [
-      ...dedupe([
-        ...(resolved.columns ?? []),
-        ...resolved.joinColumns,
-        ...resolved.primaryColumns,
-      ]).map((col) =>
+      ...dedupe([...(resolved.columns ?? []), ...resolved.joinColumns, ...resolved.primaryColumns]).map((col) =>
         b.ResultColumn.Expr(
           b.Column({ column: col, table: resolved.tableAlias }),
           b.Identifier(dotCol(resolved.tableAlias, col)) // alias to "table.col"
@@ -253,10 +203,7 @@ export function resolvedQueryToSelect(
   });
 }
 
-function createOrderBy(
-  orderBy: null | Array<[string, OrderDirection]>,
-  tableAlias: string
-): SelectOrderBy | undefined {
+function createOrderBy(orderBy: null | Array<[string, OrderDirection]>, tableAlias: string): SelectOrderBy | undefined {
   if (orderBy === null) {
     return undefined;
   }
@@ -270,10 +217,7 @@ function createOrderBy(
   );
 }
 
-function createLimit(
-  limit: number | null,
-  offset: number | null
-): Node<'SelectStmt'>['limit'] | undefined {
+function createLimit(limit: number | null, offset: number | null): Node<'SelectStmt'>['limit'] | undefined {
   if (limit === null) {
     return undefined;
   }

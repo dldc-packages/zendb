@@ -3,11 +3,7 @@ import { Datatype } from './Datatype';
 
 export type DefaultValueBase = (() => any) | null;
 
-type SchemaColumnInternal<
-  DtExt,
-  Nullable extends boolean,
-  DefaultValue extends DefaultValueBase
-> = {
+type SchemaColumnInternal<DtExt, Nullable extends boolean, DefaultValue extends DefaultValueBase> = {
   datatype: Datatype<DtExt, any>;
   nullable: Nullable;
   defaultValue: DefaultValue;
@@ -79,9 +75,7 @@ export class SchemaColumn<DtExt, Nullable extends boolean, DefaultValue extends 
     return new SchemaColumn({ ...this[PRIV], nullable: true });
   }
 
-  defaultValue<DefaultValue extends DtExt>(
-    defaultValue: () => DefaultValue
-  ): SchemaColumn<DtExt, Nullable, () => DefaultValue> {
+  defaultValue<DefaultValue extends DtExt>(defaultValue: () => DefaultValue): SchemaColumn<DtExt, Nullable, () => DefaultValue> {
     return new SchemaColumn({ ...this[PRIV], defaultValue });
   }
 
@@ -94,10 +88,7 @@ export class SchemaColumn<DtExt, Nullable extends boolean, DefaultValue extends 
   }
 }
 
-export function parseColumn<Col extends SchemaColumnAny>(
-  column: Col,
-  output: any
-): SchemaColumnOutputValue<Col> {
+export function parseColumn<Col extends SchemaColumnAny>(column: Col, output: any): SchemaColumnOutputValue<Col> {
   const { nullable, datatype } = column[PRIV];
   if (nullable && output === null) {
     return null as any;
@@ -105,10 +96,7 @@ export function parseColumn<Col extends SchemaColumnAny>(
   return datatype.parse(output);
 }
 
-export function serializeColumn<Col extends SchemaColumnAny>(
-  column: Col,
-  input: SchemaColumnInputValue<Col>
-): any {
+export function serializeColumn<Col extends SchemaColumnAny>(column: Col, input: SchemaColumnInputValue<Col>): any {
   const { defaultValue, nullable, datatype } = column[PRIV];
   if (defaultValue && input === undefined) {
     return serializeColumn(column, defaultValue());

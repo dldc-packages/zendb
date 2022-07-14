@@ -14,9 +14,7 @@ export function mapObject<In extends Record<string, any>, Out extends Record<key
   obj: In,
   mapper: (key: string, value: In[keyof In]) => Out[keyof In]
 ): Out {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, val]) => [key, mapper(key, val)])
-  ) as any;
+  return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, mapper(key, val)])) as any;
 }
 
 export function expectNever(val: never): never {
@@ -71,10 +69,7 @@ export function traverserFromRowIterator<Key, DataIn, DataOut>(
   };
 }
 
-export function traverserToIterable<K, T, O>(
-  traverser: Traverser<K, T>,
-  transform: (key: K, value: T) => O
-): Iterable<O> {
+export function traverserToIterable<K, T, O>(traverser: Traverser<K, T>, transform: (key: K, value: T) => O): Iterable<O> {
   return {
     [Symbol.iterator]: () => {
       let nextRes = traverser();

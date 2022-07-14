@@ -2,13 +2,7 @@ import { PRIV } from './Utils';
 
 export type CompareExpr<Val> = {
   [PRIV]: Val;
-  kind:
-    | 'LowerThan'
-    | 'GreaterThan'
-    | 'LowerThanOrEqual'
-    | 'GreaterThanOrEqual'
-    | 'Equal'
-    | 'Different';
+  kind: 'LowerThan' | 'GreaterThan' | 'LowerThanOrEqual' | 'GreaterThanOrEqual' | 'Equal' | 'Different';
   val: Val;
 };
 
@@ -77,10 +71,8 @@ export const Expr = {
   gte: greaterThanOrEqual,
   isNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNull' }),
   isNotNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNotNull' }),
-  and: <Val>(left: Expr<Val>, right: Expr<Val>) =>
-    createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
-  or: <Val>(left: Expr<Val>, right: Expr<Val>) =>
-    createExpr<CombineExpr<Val>>({ kind: 'Or', left, right }),
+  and: <Val>(left: Expr<Val>, right: Expr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
+  or: <Val>(left: Expr<Val>, right: Expr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'Or', left, right }),
   in: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'In', values }),
   notIn: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'NotIn', values }),
 };

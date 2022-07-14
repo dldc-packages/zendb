@@ -12,9 +12,7 @@ export type Datatype<External, Internal> = {
   type: SqliteDatatype;
 };
 
-function createDatatype<External, Internal>(
-  dt: Omit<Datatype<External, Internal>, PRIV>
-): Datatype<External, Internal> {
+function createDatatype<External, Internal>(dt: Omit<Datatype<External, Internal>, PRIV>): Datatype<External, Internal> {
   return dt as any;
 }
 
