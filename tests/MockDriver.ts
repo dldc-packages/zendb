@@ -81,4 +81,9 @@ export class MockDriverStatement implements IDriverStatement {
     // do nothing
     return this;
   });
+
+  readonly free = jest.fn((): void => {
+    // do nothing
+    return;
+  });
 }
