@@ -4,3 +4,4 @@ export * from './Database';
 export * from './DatabaseTable';
 export * from './DatabaseTableQuery';
 export * from './Driver';
+export * from './Migrations';
