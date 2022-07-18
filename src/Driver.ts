@@ -16,8 +16,8 @@ export interface IDriverDatabase<DriverStatement extends IDriverStatement> {
 }
 
 export interface IDriverStatement {
-  run(...params: Array<any>): { changes: number };
-  all(...params: Array<any>): any[];
+  run(): { changes: number };
+  all(): any[];
   bind(...params: Array<any>): this;
   free(): void;
 }

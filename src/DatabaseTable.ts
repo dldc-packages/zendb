@@ -61,7 +61,7 @@ export class DatabaseTable<
       resolvedData[name] = serializeColumn(column, input);
     });
     const columnsArgs = this.columns.map(([name]) => resolvedData[name]);
-    this.getInsertStatement().run(columnsArgs);
+    this.getInsertStatement().bind(columnsArgs).run();
     return resolvedData as any;
   }
 
