@@ -65,11 +65,11 @@ export class MockDriverDatabase implements IDriverDatabase<MockDriverStatement> 
 export class MockDriverStatement implements IDriverStatement {
   constructor(public source: string) {}
 
-  readonly run = jest.fn((..._params: any[]): { changes: number } => {
+  readonly run = jest.fn((): { changes: number } => {
     throw new Error('Method not implemented.');
   });
 
-  readonly all = jest.fn((..._params: any[]): any[] => {
+  readonly all = jest.fn((): any[] => {
     throw new Error('Method not implemented.');
   });
 
