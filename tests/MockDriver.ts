@@ -69,10 +69,6 @@ export class MockDriverStatement implements IDriverStatement {
     throw new Error('Method not implemented.');
   });
 
-  readonly get = jest.fn((..._params: any[]) => {
-    throw new Error('Method not implemented.');
-  });
-
   readonly all = jest.fn((..._params: any[]): any[] => {
     throw new Error('Method not implemented.');
   });

@@ -50,7 +50,7 @@ export class DatabaseTable<
     this.columns = Object.entries(this.schemaTable[PRIV].columns);
   }
 
-  query(): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, ExtractTable<Schema, TableName>, null, null, null> {
+  query(): DatabaseTableQuery<DriverStatement, DriverDatabase, Schema, TableName, ExtractTable<Schema, TableName>, null, null> {
     return DatabaseTableQuery.create<DriverStatement, DriverDatabase, Schema, TableName>(this.driverDatabase, this.schema, this.name);
   }
 
