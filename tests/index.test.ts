@@ -163,7 +163,7 @@ describe('Tasks Schema', () => {
     stmt.run.mockReturnValueOnce({ changes: 4 });
     const result = db.tables.users.delete({ id: '1' });
     expect(result).toEqual({ deleted: 4 });
-    expect(stmt.bind).toHaveBeenCalledWith({ id: '1' });
+    expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
     expect(stmt.run).toHaveBeenCalledTimes(1);
   });
 
@@ -174,7 +174,7 @@ describe('Tasks Schema', () => {
     stmt.run.mockReturnValueOnce({ changes: 1 });
     const result = db.tables.users.deleteOne({ id: '1' });
     expect(result).toEqual({ deleted: 1 });
-    expect(stmt.bind).toHaveBeenCalledWith({ id: '1' });
+    expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
     expect(stmt.run).toHaveBeenCalledTimes(1);
   });
 

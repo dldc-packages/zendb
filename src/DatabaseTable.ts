@@ -61,7 +61,7 @@ export class DatabaseTable<
       resolvedData[name] = serializeColumn(column, input);
     });
     const columnsArgs = this.columns.map(([name]) => resolvedData[name]);
-    this.getInsertStatement().bind(columnsArgs).run();
+    this.getInsertStatement().run(columnsArgs);
     return resolvedData as any;
   }
 
@@ -90,10 +90,7 @@ export class DatabaseTable<
     const queryText = printNode(queryNode);
     const params = paramsFromMap(paramsMap);
     const statement = this.driverDatabase.prepare(queryText);
-    if (params !== null) {
-      statement.bind(params);
-    }
-    const result = statement.run();
+    const result = params !== null ? statement.run(params) : statement.run();
     return { deleted: result.changes };
   }
 
@@ -113,10 +110,7 @@ export class DatabaseTable<
     const queryText = printNode(queryNode);
     const params = paramsFromMap(paramsMap);
     const statement = this.driverDatabase.prepare(queryText);
-    if (params !== null) {
-      statement.bind(params);
-    }
-    const result = statement.run();
+    const result = params !== null ? statement.run(params) : statement.run();
     return { updated: result.changes };
   }
 
