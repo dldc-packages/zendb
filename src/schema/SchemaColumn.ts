@@ -8,7 +8,7 @@ type SchemaColumnInternal<DtExt, Nullable extends boolean, DefaultValue extends 
   nullable: Nullable;
   defaultValue: DefaultValue;
   primary: boolean;
-  unique: boolean;
+  unique: Array<{ constraintName: string | null }>;
 };
 
 export type SchemaColumnAny = SchemaColumn<any, boolean, DefaultValueBase>;
@@ -31,7 +31,7 @@ export class SchemaColumn<DtExt, Nullable extends boolean, DefaultValue extends 
       nullable: false,
       defaultValue: null,
       primary: false,
-      unique: false,
+      unique: [],
     });
   }
 
@@ -83,8 +83,8 @@ export class SchemaColumn<DtExt, Nullable extends boolean, DefaultValue extends 
     return new SchemaColumn({ ...this[PRIV], primary: true });
   }
 
-  unique(): SchemaColumn<DtExt, Nullable, DefaultValue> {
-    return new SchemaColumn({ ...this[PRIV], unique: true });
+  unique(constraintName: string | null = null): SchemaColumn<DtExt, Nullable, DefaultValue> {
+    return new SchemaColumn({ ...this[PRIV], unique: [...this[PRIV].unique, { constraintName }] });
   }
 }
 

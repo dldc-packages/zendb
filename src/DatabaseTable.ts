@@ -7,6 +7,7 @@ import {
   SchemaColumnAny,
   SchemaTableAny,
   serializeColumn,
+  parseColumn,
 } from './schema';
 import { PRIV } from './Utils';
 import { builder as b, printNode } from 'zensqlite';
@@ -56,13 +57,16 @@ export class DatabaseTable<
 
   insert(data: InferSchemaTableInput<SchemaTable>): InferSchemaTableResult<SchemaTable> {
     const resolvedData: Record<string, any> = {};
+    const parsedData: Record<string, any> = {};
     this.columns.forEach(([name, column]) => {
       const input = (data as any)[name];
-      resolvedData[name] = serializeColumn(column, input);
+      const serialized = serializeColumn(column, input);
+      resolvedData[name] = serialized;
+      parsedData[name] = parseColumn(column, serialized);
     });
     const columnsArgs = this.columns.map(([name]) => resolvedData[name]);
     this.getInsertStatement().run(columnsArgs);
-    return resolvedData as any;
+    return parsedData as any;
   }
 
   private getInsertStatement(): IDriverStatement {

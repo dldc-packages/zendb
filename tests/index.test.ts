@@ -1,5 +1,6 @@
-import * as zen from '../src/mod';
-import { MockDiver, MockDriverDatabase } from './MockDriver';
+import { initAllDatatypesDatabase } from './utils/allDatatypesSchema';
+import { MockDiver, MockDriverDatabase } from './utils/MockDriver';
+import { initTasksDatabase } from './utils/tasksSchema';
 
 let driver: MockDiver = new MockDiver();
 let database: MockDriverDatabase = driver.connect('/tmp/test');
@@ -9,212 +10,101 @@ beforeEach(() => {
   database = driver.connect('/tmp/test');
 });
 
-test('Init empty schema', () => {
-  const v1 = zen.schema({ tables: {} });
+test('Insert', () => {
+  const db = initTasksDatabase(database);
 
-  const db = new zen.Database(database, v1, 0);
-  expect(db.fingerpring).toBe(0);
+  const stmt = database.mockNextStatement(`INSERT INTO users (id, name, email) VALUES (?, ?, ?)`);
+  stmt.run.mockReturnValueOnce({ changes: 1 });
+  const result = db.tables.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
+  expect(result).toEqual({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
+});
 
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
+test('Delete', () => {
+  const db = initTasksDatabase(database);
+
+  const stmt = database.mockNextStatement(`DELETE FROM users WHERE users.id == :id`);
+  stmt.run.mockReturnValueOnce({ changes: 4 });
+  const result = db.tables.users.delete({ id: '1' });
+  expect(result).toEqual({ deleted: 4 });
+  expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
+  expect(stmt.run).toHaveBeenCalledTimes(1);
+});
+
+test('Delete One', () => {
+  const db = initTasksDatabase(database);
+
+  const stmt = database.mockNextStatement(`DELETE FROM users WHERE users.id == :id LIMIT 1`);
+  stmt.run.mockReturnValueOnce({ changes: 1 });
+  const result = db.tables.users.deleteOne({ id: '1' });
+  expect(result).toEqual({ deleted: 1 });
+  expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
+  expect(stmt.run).toHaveBeenCalledTimes(1);
+});
+
+test('Update', () => {
+  const db = initTasksDatabase(database);
+
+  const stmt = database.mockNextStatement(`UPDATE users SET name = :name WHERE users.id == :id`);
+  stmt.run.mockReturnValueOnce({ changes: 3 });
+  const result = db.tables.users.update({ name: 'Paul' }, { where: { id: '1234' } });
+  expect(result).toEqual({ updated: 3 });
+  expect(stmt.run).toHaveBeenCalledTimes(1);
+});
+
+test('Update One', () => {
+  const db = initTasksDatabase(database);
+
+  const stmt = database.mockNextStatement(`UPDATE users SET name = :name WHERE users.id == :id LIMIT 1`);
+  stmt.run.mockReturnValueOnce({ changes: 1 });
+  const result = db.tables.users.updateOne({ name: 'Paul' }, { id: '1234' });
+  expect(result).toEqual({ updated: 1 });
+  expect(stmt.run).toHaveBeenCalledTimes(1);
+});
+
+test('Query', () => {
+  const db = initTasksDatabase(database);
+
+  const stmt = database.mockNextStatement(`SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0`);
+  stmt.all.mockReturnValueOnce([
+    { _0__id: '1', _0__email: 'etienne@gmail.com' },
+    { _0__id: '2', _0__email: 'agathe@gmail.com' },
+    { _0__id: '3', _0__email: 'paul@gmail.com' },
+  ]);
+  const result = db.tables.users.query().select({ id: true, email: true }).all();
+
+  expect(result).toEqual([
+    { id: '1', email: 'etienne@gmail.com' },
+    { id: '2', email: 'agathe@gmail.com' },
+    { id: '3', email: 'paul@gmail.com' },
+  ]);
   expect(stmt.all).toHaveBeenCalledTimes(1);
-  expect(database.exec).not.toHaveBeenCalled();
 });
 
-test('Init simple schema', () => {
-  const v1 = zen.schema({ tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) } });
+test('read and write datatypes', () => {
+  const db = initAllDatatypesDatabase(database);
 
-  const db = new zen.Database(database, v1, 0);
-
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
-  expect(stmt.all).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL) STRICT`);
-});
-
-test('Throw if database is not empty', () => {
-  const v1 = zen.schema({ tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) } });
-
-  const db = new zen.Database(database, v1, 0);
-
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([{ name: 'some-table' }]);
-  expect(() => db.initSchema()).toThrow('Cannot init schema on non-empty database');
-});
-
-test('Disable strict mode', () => {
-  const v1 = zen.schema({
-    strict: false,
-    tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) },
-  });
-
-  const db = new zen.Database(database, v1, 0);
-
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
-  expect(stmt.all).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL)`);
-});
-
-test('Should throw when no primary key is provided', () => {
-  const v1 = zen.schema({ tables: { users: zen.table({ name: zen.column.text() }) } });
-  expect(() => {
-    new zen.Database(database, v1, 0);
-  }).toThrow(/No primary key found/);
-});
-
-test('Should support multiple primary keys', () => {
-  const v1 = zen.schema({
-    tables: {
-      users: zen.table({ email: zen.column.text().primary(), username: zen.column.text().primary() }),
-    },
-  });
-
-  const db = new zen.Database(database, v1, 0);
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
-  expect(stmt.all).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledWith(
-    `CREATE TABLE users (email TEXT NOT NULL, username TEXT NOT NULL, PRIMARY KEY (email, username)) STRICT`
+  const stmt = database.mockNextStatement(
+    `INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
-});
-
-test('Nullable column', () => {
-  const v1 = zen.schema({
-    tables: { users: zen.table({ id: zen.column.text().primary(), comment: zen.column.text().nullable() }) },
+  stmt.run.mockReturnValueOnce({ changes: 1 });
+  const result = db.tables.datatype.insert({
+    id: '1',
+    text: 'test',
+    boolean: true,
+    date: new Date(2022, 8, 13, 15, 25, 12, 250),
+    integer: 42,
+    number: 3.14,
+    json: { foo: 'bar', baz: true },
   });
-
-  const db = new zen.Database(database, v1, 0);
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
-  expect(stmt.all).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledTimes(1);
-  expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, comment TEXT) STRICT`);
-});
-
-const tasksSchema = zen.schema({
-  tables: {
-    tasks: zen.table({
-      id: zen.column.text().primary(),
-      title: zen.column.text(),
-      description: zen.column.text(),
-      completed: zen.column.boolean(),
-    }),
-    users: zen.table({
-      id: zen.column.text().primary(),
-      name: zen.column.text(),
-      email: zen.column.text(),
-    }),
-    users_tasks: zen.table({
-      user_id: zen.column.text().primary(),
-      task_id: zen.column.text().primary(),
-    }),
-  },
-});
-
-describe('Tasks Schema', () => {
-  test('Init', () => {
-    const db = new zen.Database(database, tasksSchema, 0);
-
-    const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-    stmt.all.mockReturnValueOnce([]);
-    db.initSchema();
-    expect(stmt.all).toHaveBeenCalledTimes(1);
-    expect(database.exec).toHaveBeenCalledTimes(3);
-    expect(database.exec.mock.calls).toEqual([
-      [
-        'CREATE TABLE tasks (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL, completed INTEGER NOT NULL) STRICT',
-      ],
-      ['CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL) STRICT'],
-      ['CREATE TABLE users_tasks (user_id TEXT NOT NULL, task_id TEXT NOT NULL, PRIMARY KEY (user_id, task_id)) STRICT'],
-    ]);
-  });
-
-  function initTasksDatabase() {
-    const db = new zen.Database(database, tasksSchema, 0);
-
-    const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-    stmt.all.mockReturnValueOnce([]);
-    db.initSchema();
-    return db;
-  }
-
-  test('Insert', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`INSERT INTO users (id, name, email) VALUES (?, ?, ?)`);
-    stmt.run.mockReturnValueOnce({ changes: 1 });
-    const result = db.tables.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
-    expect(result).toEqual({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
-  });
-
-  test('Delete', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`DELETE FROM users WHERE users.id == :id`);
-    stmt.run.mockReturnValueOnce({ changes: 4 });
-    const result = db.tables.users.delete({ id: '1' });
-    expect(result).toEqual({ deleted: 4 });
-    expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
-    expect(stmt.run).toHaveBeenCalledTimes(1);
-  });
-
-  test('Delete One', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`DELETE FROM users WHERE users.id == :id LIMIT 1`);
-    stmt.run.mockReturnValueOnce({ changes: 1 });
-    const result = db.tables.users.deleteOne({ id: '1' });
-    expect(result).toEqual({ deleted: 1 });
-    expect(stmt.run).toHaveBeenCalledWith({ id: '1' });
-    expect(stmt.run).toHaveBeenCalledTimes(1);
-  });
-
-  test('Update', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`UPDATE users SET name = :name WHERE users.id == :id`);
-    stmt.run.mockReturnValueOnce({ changes: 3 });
-    const result = db.tables.users.update({ name: 'Paul' }, { where: { id: '1234' } });
-    expect(result).toEqual({ updated: 3 });
-    expect(stmt.run).toHaveBeenCalledTimes(1);
-  });
-
-  test('Update One', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`UPDATE users SET name = :name WHERE users.id == :id LIMIT 1`);
-    stmt.run.mockReturnValueOnce({ changes: 1 });
-    const result = db.tables.users.updateOne({ name: 'Paul' }, { id: '1234' });
-    expect(result).toEqual({ updated: 1 });
-    expect(stmt.run).toHaveBeenCalledTimes(1);
-  });
-
-  test('Query', () => {
-    const db = initTasksDatabase();
-
-    const stmt = database.mockNextStatement(`SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0`);
-    stmt.all.mockReturnValueOnce([
-      { _0__id: '1', _0__email: 'etienne@gmail.com' },
-      { _0__id: '2', _0__email: 'agathe@gmail.com' },
-      { _0__id: '3', _0__email: 'paul@gmail.com' },
-    ]);
-    const result = db.tables.users.query().select({ id: true, email: true }).all();
-
-    expect(result).toEqual([
-      { id: '1', email: 'etienne@gmail.com' },
-      { id: '2', email: 'agathe@gmail.com' },
-      { id: '3', email: 'paul@gmail.com' },
-    ]);
-    expect(stmt.all).toHaveBeenCalledTimes(1);
+  expect(stmt.run).toHaveBeenCalledWith(['1', 'test', 42, 1, 1663075512250, '{"foo":"bar","baz":true}', 3.14]);
+  expect(result).toEqual({
+    boolean: true,
+    date: new Date(2022, 8, 13, 15, 25, 12, 250),
+    id: '1',
+    integer: 42,
+    json: { baz: true, foo: 'bar' },
+    number: 3.14,
+    text: 'test',
   });
 });
 

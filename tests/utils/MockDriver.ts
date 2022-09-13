@@ -1,4 +1,4 @@
-import { IDriver, IDriverDatabase, IDriverStatement } from '../src/mod';
+import { IDriver, IDriverDatabase, IDriverStatement } from '../../src/mod';
 
 export class MockDiver implements IDriver<MockDriverDatabase> {
   databases: MockDriverDatabase[] = [];
