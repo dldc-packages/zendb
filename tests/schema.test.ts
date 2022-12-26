@@ -4,11 +4,11 @@ import { MockDiver, MockDriverDatabase } from './utils/MockDriver';
 import { tasksSchema } from './utils/tasksSchema';
 
 let driver: MockDiver = new MockDiver();
-let database: MockDriverDatabase = driver.connect('/tmp/test');
+let database: MockDriverDatabase = driver.openMain();
 
 beforeEach(() => {
   driver = new MockDiver();
-  database = driver.connect('/tmp/test');
+  database = driver.openMain();
 });
 
 test('Init empty schema', () => {

@@ -4,11 +4,6 @@ import { IDriver, IDriverDatabase, IDriverStatement } from './Driver';
 import { SchemaAny } from './schema';
 import { fingerprintString } from './Utils';
 
-type Options = {
-  databasePath: string;
-  migrationDatabasePath: string;
-};
-
 type Migrate<
   DriverStatement extends IDriverStatement,
   DriverDatabase extends IDriverDatabase<DriverStatement>,
@@ -89,8 +84,8 @@ export class Migrations<
     return new Migrations(this.driver, [...this.migrations, item]);
   }
 
-  private prepareApply(options: Options) {
-    const db = this.driver.connect(options.databasePath);
+  private prepareApply() {
+    const db = this.driver.openMain();
     // const currentVersion = db.pragma(`user_version`, { simple: true }) as number;
     const currentVersion = db.getUserVersion();
     db.close();
@@ -108,12 +103,12 @@ export class Migrations<
     return { queue };
   }
 
-  private applyMigration(mig: MigrationObj, options: Options): void | Promise<void> {
-    this.driver.remove(options.migrationDatabasePath);
+  private applyMigration(mig: MigrationObj): void | Promise<void> {
+    this.driver.removeMigration();
     const index = this.migrations.indexOf(mig);
     const prevItem = index === 0 ? null : this.migrations[index - 1];
-    const prevDb = prevItem ? new Database(this.driver.connect(options.databasePath), prevItem.schema, prevItem.fingerprint) : null;
-    const nextDb = new Database(this.driver.connect(options.migrationDatabasePath), mig.schema, mig.fingerprint);
+    const prevDb = prevItem ? new Database(this.driver.openMain(), prevItem.schema, prevItem.fingerprint) : null;
+    const nextDb = new Database(this.driver.openMigration(), mig.schema, mig.fingerprint);
     console.info(`Running migration ${mig.id} "${mig.description}" (${prevItem ? prevItem.fingerprint : 'INIT'} -> ${mig.fingerprint})`);
     nextDb.initSchema();
     const afterMigrate = () => {
@@ -122,8 +117,7 @@ export class Migrations<
         prevDb.close();
       }
       nextDb.close();
-      this.driver.remove(options.databasePath);
-      this.driver.rename(options.migrationDatabasePath, options.databasePath);
+      this.driver.applyMigration();
     };
     if (!mig.migrate) {
       return afterMigrate();
@@ -139,30 +133,30 @@ export class Migrations<
     }
   }
 
-  private finishApply(options: Options): Database<DriverStatement, DriverDatabase, Schema> {
+  private finishApply(): Database<DriverStatement, DriverDatabase, Schema> {
     const lastMig = this.migrations[this.migrations.length - 1];
-    return new Database(this.driver.connect(options.databasePath), lastMig.schema as any, lastMig.fingerprint);
+    return new Database(this.driver.openMain(), lastMig.schema as any, lastMig.fingerprint);
   }
 
-  async apply(options: Options): Promise<Database<DriverStatement, DriverDatabase, Schema>> {
-    const { queue } = this.prepareApply(options);
+  async apply(): Promise<Database<DriverStatement, DriverDatabase, Schema>> {
+    const { queue } = this.prepareApply();
     for await (const mig of queue) {
-      const result = this.applyMigration(mig, options);
+      const result = this.applyMigration(mig);
       if (Promise.resolve(result) === result) {
         await result;
       }
     }
-    return this.finishApply(options);
+    return this.finishApply();
   }
 
-  applySync(options: Options): Database<DriverStatement, DriverDatabase, Schema> {
-    const { queue } = this.prepareApply(options);
+  applySync(): Database<DriverStatement, DriverDatabase, Schema> {
+    const { queue } = this.prepareApply();
     for (const mig of queue) {
-      const result = this.applyMigration(mig, options);
+      const result = this.applyMigration(mig);
       if (Promise.resolve(result) === result) {
         throw new Error(`Migration ${mig.id} is async. Convert it to a synchronous function or use apply() instead`);
       }
     }
-    return this.finishApply(options);
+    return this.finishApply();
   }
 }

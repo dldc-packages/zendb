@@ -1,25 +1,49 @@
 import { IDriver, IDriverDatabase, IDriverStatement } from '../../src/mod';
 
 export class MockDiver implements IDriver<MockDriverDatabase> {
-  databases: MockDriverDatabase[] = [];
+  public mainDatabase: MockDriverDatabase | null = null;
+  public migrationDatabase: MockDriverDatabase | null = null;
 
-  connect(path: string): MockDriverDatabase {
-    const db = new MockDriverDatabase(path);
-    this.databases.push(db);
-    return db;
+  openMain(): MockDriverDatabase {
+    if (this.mainDatabase) {
+      throw new Error('main database already open');
+    }
+    this.mainDatabase = new MockDriverDatabase('main');
+    return this.mainDatabase;
   }
 
-  readonly remove = jest.fn((_path: string): void => {
-    /* */
-  });
+  openMigration(): MockDriverDatabase {
+    if (this.migrationDatabase) {
+      throw new Error('migration database already open');
+    }
+    this.migrationDatabase = new MockDriverDatabase('migration');
+    return this.migrationDatabase;
+  }
 
-  readonly rename = jest.fn((_oldPath: string, _newPath: string): void => {
-    /* */
-  });
+  removeMain(): void {
+    if (this.mainDatabase) {
+      this.mainDatabase.close();
+      this.mainDatabase = null;
+    }
+  }
+
+  removeMigration(): void {
+    if (this.migrationDatabase) {
+      this.migrationDatabase.close();
+      this.migrationDatabase = null;
+    }
+  }
+
+  applyMigration(): void {
+    if (!this.migrationDatabase) {
+      throw new Error('migration database does not exist');
+    }
+    this.mainDatabase = this.migrationDatabase;
+  }
 }
 
 export class MockDriverDatabase implements IDriverDatabase<MockDriverStatement> {
-  constructor(public path: string) {}
+  constructor(public type: 'main' | 'migration') {}
   private nextStatements: MockDriverStatement[] = [];
 
   public statements: MockDriverStatement[] = [];

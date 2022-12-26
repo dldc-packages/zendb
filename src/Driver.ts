@@ -1,8 +1,13 @@
 export type IDriverAny = IDriver<IDriverDatabaseAny>;
 export interface IDriver<DriverDatabase extends IDriverDatabaseAny> {
-  connect(path: string): DriverDatabase;
-  remove(path: string): void;
-  rename(oldPath: string, newPath: string): void;
+  // open the main database
+  openMain(): DriverDatabase;
+  // open the migration database
+  openMigration(): DriverDatabase;
+  removeMain(): void;
+  removeMigration(): void;
+  // replace the main database with the migration database
+  applyMigration(): void;
 }
 
 export type IDriverDatabaseAny = IDriverDatabase<IDriverStatement>;
