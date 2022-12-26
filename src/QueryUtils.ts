@@ -1,9 +1,8 @@
-import { customAlphabet } from 'nanoid/non-secure';
 import { Expr as SqlExpr, builder as b, Node, SetItem, arrayToNonEmptyArray, createNode, arrayToOptionalNonEmptyArray } from 'zensqlite';
 import { DatabaseTableQueryInternalAny, OrderDirection, JoinKind, SelectFrom, SelectOrderBy } from './DatabaseTableQuery';
 import { Expr, isExpr } from './Expr';
 import { SchemaAny, SchemaColumnAny, SchemaTableAny, serializeColumn } from './schema';
-import { dedupe, expectNever, isNotNull, PRIV } from './Utils';
+import { dedupe, expectNever, isNotNull, PRIV, customAlphabet } from './Utils';
 
 export type ParamsMap = Map<string, unknown>;
 

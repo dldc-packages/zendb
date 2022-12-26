@@ -166,3 +166,16 @@ export function dedupe<T>(arr: Array<T>): Array<T> {
 export function arrayEqual<T>(a: Array<T>, b: Array<T>): boolean {
   return a.length === b.length && a.every((val, i) => val === b[i]);
 }
+
+export function customAlphabet(alphabet: string, defaultSize = 21) {
+  return (size: number = defaultSize) => {
+    let id = '';
+    // A compact alternative for `for (var i = 0; i < step; i++)`.
+    let i = size;
+    while (i--) {
+      // `| 0` is more compact and faster than `Math.floor()`.
+      id += alphabet[(Math.random() * alphabet.length) | 0];
+    }
+    return id;
+  };
+}
