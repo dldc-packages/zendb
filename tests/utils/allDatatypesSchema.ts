@@ -1,5 +1,4 @@
 import * as zen from '../../src/mod';
-import { MockDriverDatabase } from './MockDriver';
 
 export const allDatatypesSchema = zen.schema({
   tables: {
@@ -14,12 +13,3 @@ export const allDatatypesSchema = zen.schema({
     }),
   },
 });
-
-export function initAllDatatypesDatabase(database: MockDriverDatabase) {
-  const db = new zen.Database(database, allDatatypesSchema, 0);
-
-  const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-  stmt.all.mockReturnValueOnce([]);
-  db.initSchema();
-  return db;
-}
