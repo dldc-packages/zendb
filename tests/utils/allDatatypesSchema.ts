@@ -1,6 +1,6 @@
 import { Schema } from '../../src/mod';
 
-export const allDatatypesSchema = Schema.create({
+export const allDatatypesSchema = Schema.define({
   tables: {
     datatype: Schema.table({
       id: Schema.column.dt.text().primary(),

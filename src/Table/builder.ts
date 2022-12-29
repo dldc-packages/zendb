@@ -1,5 +1,6 @@
+import { ResultMode } from '../Database';
 import { Expr } from '../Expr';
-import { IQueryOperation } from '../Operation';
+import { IOperation, IQueryOperation, ResultFromMode } from '../Operation';
 import { ISchemaAny } from '../Schema';
 import { SchemaColumnOutputValue } from '../SchemaColumn';
 import { ISchemaTableAny } from '../SchemaTable';
@@ -60,6 +61,7 @@ export type DatabaseTableQueryInternal<
   Parent extends null | QueryParentBase<Schema>
 > = Readonly<{
   schema: Schema;
+  operationResolver: (op: IOperation) => any;
   table: TableName;
   selection: Selection;
   filter: WhereBase<SchemaTable> | null;
@@ -78,6 +80,7 @@ export type DatabaseTableQueryInternalAny = DatabaseTableQueryInternal<
 
 export interface IQueryBuilder<
   Schema extends ISchemaAny,
+  Mode extends ResultMode,
   TableName extends keyof Schema['tables'],
   SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
@@ -87,20 +90,20 @@ export interface IQueryBuilder<
 
   select<Selection extends SelectionBase<SchemaTable>>(
     selection: Selection
-  ): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent>;
+  ): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent>;
 
-  filter(condition: WhereBase<SchemaTable>): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent>;
+  filter(condition: WhereBase<SchemaTable>): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent>;
 
-  take(limit: number | null, offset?: number | null): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent>;
+  take(limit: number | null, offset?: number | null): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent>;
 
   sort(
     column: ExtractColumnsNames<SchemaTable>,
     direction?: OrderDirection
-  ): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent>;
+  ): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent>;
   sort(
     arg1: OrderingTerm<SchemaTable>,
     ...others: Array<OrderingTerm<SchemaTable>>
-  ): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent>;
+  ): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent>;
 
   join<JoinTableName extends keyof Schema['tables']>(
     currentCol: ExtractColumnsNames<SchemaTable>,
@@ -108,6 +111,7 @@ export interface IQueryBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -120,6 +124,7 @@ export interface IQueryBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -132,6 +137,7 @@ export interface IQueryBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -144,6 +150,7 @@ export interface IQueryBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -156,6 +163,7 @@ export interface IQueryBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -163,35 +171,37 @@ export interface IQueryBuilder<
   >;
 
   // Returns an Array
-  all(): IQueryOperation<Array<Result<Schema, TableName, Selection, Parent>>>;
+  all(): ResultFromMode<Mode, IQueryOperation<Array<Result<Schema, TableName, Selection, Parent>>>>;
   // Throw if result count is not === 1
-  one(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  one(): ResultFromMode<Mode, IQueryOperation<Result<Schema, TableName, Selection, Parent>>>;
   // Throw if result count is > 1
-  maybeOne(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
+  maybeOne(): ResultFromMode<Mode, IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>>;
   // Throw if result count is === 0
-  first(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  first(): ResultFromMode<Mode, IQueryOperation<Result<Schema, TableName, Selection, Parent>>>;
   // Never throws
-  maybeFirst(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
+  maybeFirst(): ResultFromMode<Mode, IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>>;
 }
 
-export type IQueryBuilderAny = IQueryBuilder<ISchemaAny, any, any, any, any>;
+export type IQueryBuilderAny = IQueryBuilder<ISchemaAny, ResultMode, any, any, any, any>;
 
-export function builder<Schema extends ISchemaAny, TableName extends keyof Schema['tables']>(
+export function builder<Schema extends ISchemaAny, Mode extends ResultMode, TableName extends keyof Schema['tables']>(
   schema: Schema,
+  operationResolver: (op: IOperation) => any,
   table: TableName
-): IQueryBuilder<Schema, TableName, ExtractTable<Schema, TableName>, null, null> {
-  return createBuilder({ schema, table, selection: null, filter: null, take: null, parent: null, sort: null });
+): IQueryBuilder<Schema, Mode, TableName, ExtractTable<Schema, TableName>, null, null> {
+  return createBuilder({ schema, operationResolver, table, selection: null, filter: null, take: null, parent: null, sort: null });
 }
 
 function createBuilder<
   Schema extends ISchemaAny,
+  Mode extends ResultMode,
   TableName extends keyof Schema['tables'],
   SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 >(
   internal: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>
-): IQueryBuilder<Schema, TableName, SchemaTable, Selection, Parent> {
+): IQueryBuilder<Schema, Mode, TableName, SchemaTable, Selection, Parent> {
   return {
     [PRIV]: internal,
     select(selection) {
@@ -229,11 +239,11 @@ function createBuilder<
 
     all() {
       const { sql, params, schema, resolvedJoins } = resolve(internal);
-      return { kind: 'Query', sql, params, parse: (data) => groupRows(schema, resolvedJoins, data) };
+      return internal.operationResolver({ kind: 'Query', sql, params, parse: (data) => groupRows(schema, resolvedJoins, data) });
     },
     one() {
       const { sql, params, schema, resolvedJoins } = resolve(internal);
-      return {
+      return internal.operationResolver({
         kind: 'Query',
         sql,
         params,
@@ -244,11 +254,11 @@ function createBuilder<
           }
           return results[0];
         },
-      };
+      });
     },
     maybeOne() {
       const { sql, params, schema, resolvedJoins } = resolve(internal);
-      return {
+      return internal.operationResolver({
         kind: 'Query',
         sql,
         params,
@@ -259,11 +269,11 @@ function createBuilder<
           }
           return results[0] ?? null;
         },
-      };
+      });
     },
     first() {
       const { sql, params, schema, resolvedJoins } = resolve(internal);
-      return {
+      return internal.operationResolver({
         kind: 'Query',
         sql,
         params,
@@ -274,11 +284,11 @@ function createBuilder<
           }
           return results[0];
         },
-      };
+      });
     },
     maybeFirst() {
       const { sql, params, schema, resolvedJoins } = resolve(internal);
-      return {
+      return internal.operationResolver({
         kind: 'Query',
         sql,
         params,
@@ -286,7 +296,7 @@ function createBuilder<
           const results = groupRows(schema, resolvedJoins, data);
           return results[0] ?? null;
         },
-      };
+      });
     },
   };
 
@@ -297,6 +307,7 @@ function createBuilder<
     joinCol: ExtractColumnsNames<ExtractTable<Schema, JoinTableName>>
   ): IQueryBuilder<
     Schema,
+    Mode,
     JoinTableName,
     ExtractTable<Schema, JoinTableName>,
     null,
@@ -304,6 +315,7 @@ function createBuilder<
   > {
     return createBuilder({
       schema: internal.schema,
+      operationResolver: internal.operationResolver,
       table,
       take: null,
       selection: null,

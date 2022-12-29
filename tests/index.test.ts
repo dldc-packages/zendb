@@ -6,42 +6,39 @@ const tasksDatabase = Database.create(tasksSchema);
 
 test('Insert', () => {
   const result = tasksDatabase.tables.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
-  expect(result).toEqual({
-    query: 'INSERT INTO users (id, name, email) VALUES (?, ?, ?)',
+  expect(result).toMatchObject({
+    kind: 'Insert',
     params: ['1', 'John Doe', 'john@exemple.com'],
-    inserted: { email: 'john@exemple.com', id: '1', name: 'John Doe' },
+    sql: 'INSERT INTO users (id, name, email) VALUES (?, ?, ?)',
   });
+  expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe' });
 });
 
 test('Delete', () => {
   const result = tasksDatabase.tables.users.delete({ id: '1' });
-  expect(result).toEqual({
-    query: 'DELETE FROM users WHERE users.id == :id',
-    params: { id: '1' },
-  });
+  expect(result).toMatchObject({ kind: 'Delete', params: { id: '1' }, sql: 'DELETE FROM users WHERE users.id == :id' });
 });
 
 test('Delete One', () => {
   const result = tasksDatabase.tables.users.deleteOne({ id: '1' });
-  expect(result).toEqual({
-    query: 'DELETE FROM users WHERE users.id == :id LIMIT 1',
-    params: { id: '1' },
-  });
+  expect(result).toMatchObject({ kind: 'Delete', params: { id: '1' }, sql: 'DELETE FROM users WHERE users.id == :id LIMIT 1' });
 });
 
 test('Update', () => {
   const result = tasksDatabase.tables.users.update({ name: 'Paul' }, { where: { id: '1234' } });
-  expect(result).toEqual({
-    query: 'UPDATE users SET name = :name WHERE users.id == :id',
+  expect(result).toMatchObject({
+    kind: 'Update',
     params: { id: '1234', name: 'Paul' },
+    sql: 'UPDATE users SET name = :name WHERE users.id == :id',
   });
 });
 
 test('Update One', () => {
   const result = tasksDatabase.tables.users.updateOne({ name: 'Paul' }, { id: '1234' });
-  expect(result).toEqual({
-    query: 'UPDATE users SET name = :name WHERE users.id == :id LIMIT 1',
+  expect(result).toMatchObject({
+    kind: 'Update',
     params: { id: '1234', name: 'Paul' },
+    sql: 'UPDATE users SET name = :name WHERE users.id == :id LIMIT 1',
   });
 });
 
@@ -93,18 +90,18 @@ test('read and write datatypes', () => {
     number: 3.14,
     json: { foo: 'bar', baz: true },
   });
-  expect(result).toEqual({
-    inserted: {
-      boolean: true,
-      date: new Date('2022-09-13T13:25:12.250Z'),
-      id: '1',
-      integer: 42,
-      json: { baz: true, foo: 'bar' },
-      number: 3.14,
-      text: 'test',
-    },
+  expect(result).toMatchObject({
+    sql: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (?, ?, ?, ?, ?, ?, ?)',
     params: ['1', 'test', 42, 1, 1663075512250, '{"foo":"bar","baz":true}', 3.14],
-    query: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  });
+  expect(result.parse()).toEqual({
+    boolean: true,
+    date: new Date('2022-09-13T13:25:12.250Z'),
+    id: '1',
+    integer: 42,
+    json: { baz: true, foo: 'bar' },
+    number: 3.14,
+    text: 'test',
   });
 });
 

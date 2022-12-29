@@ -1,6 +1,6 @@
 import { Schema } from '../../src/mod';
 
-export const tasksSchema = Schema.create({
+export const tasksSchema = Schema.define({
   tables: {
     tasks: Schema.table({
       id: Schema.column.dt.text().primary(),
