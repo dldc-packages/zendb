@@ -1,13 +1,13 @@
 import { arrayToOptionalNonEmptyArray, builder as b, createNode, Node, SetItem } from 'zensqlite';
-import { SelectFrom, SelectOrderBy } from '../Query';
-import { OrderDirection } from '../QueryBuilder';
-import { SchemaTableAny } from '../schema';
+import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
+import { OrderDirection } from './builder';
 import { getValueParam } from './getValueParam';
 import { ResolvedJoin, ResolvedQuery } from './resolveQuery';
+import { SelectFrom, SelectOrderBy } from './types';
 import { dotCol, ParamsMap } from './utils';
 
-export function createSetItems(paramsMap: ParamsMap, table: SchemaTableAny, values: Record<string, any>): Array<SetItem> {
+export function createSetItems(paramsMap: ParamsMap, table: ISchemaTableAny, values: Record<string, any>): Array<SetItem> {
   return Object.entries(values).map(([col, value]) => {
     const column = table[PRIV].columns[col];
     if (!column) {

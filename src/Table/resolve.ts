@@ -1,5 +1,6 @@
 import { Node, printNode } from 'zensqlite';
-import { ISchemaAny, SchemaTableAny } from '../schemaOlfd/mod';
+import { ISchemaAny } from '../Schema';
+import { ISchemaTableAny } from '../SchemaTable';
 import { DatabaseTableQueryInternal, QueryParentBase, SelectionBase } from './builder';
 import { groupRows } from './groupRows';
 import { resolvedQueryToSelect } from './resolvedQueryToSelect';
@@ -10,7 +11,7 @@ import { paramsFromMap } from './utils';
 export function resolve<
   Schema extends ISchemaAny,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 >(

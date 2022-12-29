@@ -1,21 +1,21 @@
-import * as zen from '../../src/mod';
+import { Schema } from '../../src/mod';
 
-export const tasksSchema = zen.schema({
+export const tasksSchema = Schema.create({
   tables: {
-    tasks: zen.table({
-      id: zen.column.text().primary(),
-      title: zen.column.text(),
-      description: zen.column.text(),
-      completed: zen.column.boolean(),
+    tasks: Schema.table({
+      id: Schema.column.dt.text().primary(),
+      title: Schema.column.dt.text(),
+      description: Schema.column.dt.text(),
+      completed: Schema.column.dt.boolean(),
     }),
-    users: zen.table({
-      id: zen.column.text().primary(),
-      name: zen.column.text(),
-      email: zen.column.text(),
+    users: Schema.table({
+      id: Schema.column.dt.text().primary(),
+      name: Schema.column.dt.text(),
+      email: Schema.column.dt.text(),
     }),
-    users_tasks: zen.table({
-      user_id: zen.column.text().primary(),
-      task_id: zen.column.text().primary(),
+    users_tasks: Schema.table({
+      user_id: Schema.column.dt.text().primary(),
+      task_id: Schema.column.dt.text().primary(),
     }),
   },
 });

@@ -1,17 +1,12 @@
 import { builder as b, printNode } from 'zensqlite';
-import { ExtractTable } from './Query';
-import { IQueryBuilder, QueryBuilder, WhereBase } from './QueryBuilder';
-import { QueryUtils } from './QueryUtils';
-import {
-  Infer,
-  InferSchemaTableInput,
-  InferSchemaTableResult,
-  ISchemaAny,
-  parseColumn,
-  SchemaColumnAny,
-  SchemaTableAny,
-  serializeColumn,
-} from './schema';
+import { Infer, ISchemaAny } from './Schema';
+import { ISchemaColumnAny, SchemaColumn } from './SchemaColumn';
+import { InferSchemaTableInput, InferSchemaTableResult, ISchemaTableAny } from './SchemaTable';
+import { builder, IQueryBuilder, WhereBase } from './Table/builder';
+import { createSetItems } from './Table/create';
+import { createWhere } from './Table/createWhere';
+import { ExtractTable } from './Table/types';
+import { paramsFromMap } from './Table/utils';
 import { PRIV } from './Utils';
 
 export type DeleteOptions = { limit?: number };
@@ -21,7 +16,7 @@ export type DeleteResolved = {
   params: Record<string, any> | null;
 };
 
-export type UpdateOptions<SchemaTable extends SchemaTableAny> = {
+export type UpdateOptions<SchemaTable extends ISchemaTableAny> = {
   limit?: number;
   where?: WhereBase<SchemaTable>;
 };
@@ -31,13 +26,13 @@ export type UpdateResolved = {
   params: Record<string, any> | null;
 };
 
-export interface InsertResolved<SchemaTable extends SchemaTableAny> {
+export interface InsertResolved<SchemaTable extends ISchemaTableAny> {
   query: string;
   params: Array<any>;
   inserted: InferSchemaTableResult<SchemaTable>;
 }
 
-export interface ITable<Schema extends ISchemaAny, TableName extends keyof Schema['tables'], SchemaTable extends SchemaTableAny> {
+export interface ITable<Schema extends ISchemaAny, TableName extends keyof Schema['tables'], SchemaTable extends ISchemaTableAny> {
   query(): IQueryBuilder<Schema, TableName, ExtractTable<Schema, TableName>, null, null>;
   insert(data: InferSchemaTableInput<SchemaTable>): InsertResolved<SchemaTable>;
   delete(condition: WhereBase<SchemaTable>, options?: DeleteOptions): DeleteResolved;
@@ -49,13 +44,13 @@ export interface ITable<Schema extends ISchemaAny, TableName extends keyof Schem
 export const Table = (() => {
   return { create };
 
-  function create<Schema extends ISchemaAny, TableName extends keyof Schema['tables'], SchemaTable extends SchemaTableAny>(
+  function create<Schema extends ISchemaAny, TableName extends keyof Schema['tables'], SchemaTable extends ISchemaTableAny>(
     schema: Schema,
     _tableName: TableName
   ): ITable<Schema, TableName, SchemaTable> {
     const tableName = _tableName as string;
     const schemaTable = (schema.tables as any)[tableName];
-    const columns: Array<[string, SchemaColumnAny]> = Object.entries(schemaTable[PRIV].columns);
+    const columns: Array<[string, ISchemaColumnAny]> = Object.entries(schemaTable[PRIV].columns);
     let insertStatement: string | null = null;
 
     return {
@@ -68,7 +63,7 @@ export const Table = (() => {
     };
 
     function query(): IQueryBuilder<Schema, TableName, ExtractTable<Schema, TableName>, null, null> {
-      return QueryBuilder.create<Schema, TableName>(schema, _tableName);
+      return builder<Schema, TableName>(schema, _tableName);
     }
 
     function insert(data: InferSchemaTableInput<SchemaTable>): InsertResolved<SchemaTable> {
@@ -76,9 +71,9 @@ export const Table = (() => {
       const parsedData: Record<string, any> = {};
       columns.forEach(([name, column]) => {
         const input = (data as any)[name];
-        const serialized = serializeColumn(column, input);
+        const serialized = SchemaColumn.serialize(column, input);
         resolvedData[name] = serialized;
-        parsedData[name] = parseColumn(column, serialized);
+        parsedData[name] = SchemaColumn.parse(column, serialized);
       });
       const columnsArgs = columns.map(([name]) => resolvedData[name]);
       return {
@@ -91,11 +86,11 @@ export const Table = (() => {
     function deleteFn(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): DeleteResolved {
       const paramsMap = new Map<any, string>();
       const queryNode = b.DeleteStmt(tableName, {
-        where: QueryUtils.createWhere(paramsMap, schemaTable, condition, tableName),
+        where: createWhere(paramsMap, schemaTable, condition, tableName),
         limit: options.limit,
       });
       const queryText = printNode(queryNode);
-      const params = QueryUtils.paramsFromMap(paramsMap);
+      const params = paramsFromMap(paramsMap);
       return { query: queryText, params };
     }
 
@@ -107,12 +102,12 @@ export const Table = (() => {
       const paramsMap = new Map<any, string>();
       // const table = this.schemaTable;
       const queryNode = b.UpdateStmt(tableName, {
-        where: where ? QueryUtils.createWhere(paramsMap, schemaTable, where, tableName) : undefined,
+        where: where ? createWhere(paramsMap, schemaTable, where, tableName) : undefined,
         limit: limit,
-        setItems: QueryUtils.createSetItems(paramsMap, schemaTable, data),
+        setItems: createSetItems(paramsMap, schemaTable, data),
       });
       const queryText = printNode(queryNode);
-      const params = QueryUtils.paramsFromMap(paramsMap);
+      const params = paramsFromMap(paramsMap);
       return { query: queryText, params };
     }
 

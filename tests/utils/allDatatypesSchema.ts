@@ -1,15 +1,15 @@
-import * as zen from '../../src/mod';
+import { Schema } from '../../src/mod';
 
-export const allDatatypesSchema = zen.schema({
+export const allDatatypesSchema = Schema.create({
   tables: {
-    datatype: zen.table({
-      id: zen.column.text().primary(),
-      text: zen.column.text(),
-      integer: zen.column.integer(),
-      boolean: zen.column.boolean(),
-      date: zen.column.date(),
-      json: zen.column.json(),
-      number: zen.column.number(),
+    datatype: Schema.table({
+      id: Schema.column.dt.text().primary(),
+      text: Schema.column.dt.text(),
+      integer: Schema.column.dt.integer(),
+      boolean: Schema.column.dt.boolean(),
+      date: Schema.column.dt.date(),
+      json: Schema.column.dt.json(),
+      number: Schema.column.dt.number(),
     }),
   },
 });

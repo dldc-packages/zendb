@@ -1,14 +1,5 @@
-import crypto from 'crypto';
-
 export const PRIV = Symbol.for('ZENDB_PRIVATE');
 export type PRIV = typeof PRIV;
-
-export function sqlQuote(str: string | number | symbol): string {
-  if (typeof str !== 'string') {
-    throw new Error(`Expected string, got ${typeof str}`);
-  }
-  return '`' + str + '`';
-}
 
 export function mapObject<In extends Record<string, any>, Out extends Record<keyof In, any>>(
   obj: In,
@@ -21,140 +12,6 @@ export function expectNever(val: never): never {
   throw new Error(`Unexpected never ${val}`);
 }
 
-type Parts = Array<string | null | undefined>;
-
-export function joiner(glue: string, ...parts: Parts): string {
-  return parts.filter(Boolean).join(glue);
-}
-
-export const join = {
-  space: (...parts: Parts): string => joiner(' ', ...parts),
-  comma: (...parts: Parts): string => joiner(', ', ...parts),
-  all: (...parts: Parts): string => joiner('', ...parts),
-};
-
-export function parent(content: string): string {
-  return `(${content})`;
-}
-
-export function notNil<T>(val: T | null | undefined): T {
-  if (val === null || val === undefined) {
-    throw new Error(`Expected non-nil value, got ${val}`);
-  }
-  return val;
-}
-
-export type TraverserResult<K, T> = { key: K; data: T } | null;
-
-export type Traverser<K, T> = () => TraverserResult<K, T>;
-
-export function traverserFromRowIterator<Key, DataIn, DataOut>(
-  iter: IterableIterator<{ key: Key; data: DataIn }>,
-  transform: (data: DataIn) => DataOut
-): Traverser<Key, DataOut> {
-  let done = false;
-  return (): TraverserResult<Key, DataOut> => {
-    if (done) {
-      return null;
-    }
-    const row = iter.next();
-    if (!row.done) {
-      return { key: row.value.key, data: transform(row.value.data) };
-    }
-    done = true;
-    if (row.value) {
-      return { key: row.value.key, data: transform(row.value.data) };
-    }
-    return null;
-  };
-}
-
-export function traverserToIterable<K, T, O>(traverser: Traverser<K, T>, transform: (key: K, value: T) => O): Iterable<O> {
-  return {
-    [Symbol.iterator]: () => {
-      let nextRes = traverser();
-      return {
-        next: (): IteratorResult<O> => {
-          if (nextRes === null) {
-            return { done: true, value: undefined };
-          }
-          const nextNextRes = traverser();
-          const result: IteratorResult<O> = {
-            done: nextNextRes === null ? undefined : false,
-            value: transform(nextRes.key, nextRes.data),
-          };
-          nextRes = nextNextRes;
-          return result;
-        },
-      };
-    },
-  };
-}
-
-export function fingerprintString(str: string, max: number): number {
-  const hash = crypto.createHash('md5').update(str).digest('hex');
-  let result = 0;
-  hash
-    .split('')
-    .map((c) => parseInt(c, 16))
-    .forEach((num) => {
-      result = (result + num) % max;
-    });
-  // never return 0
-  if (result === 0) {
-    return max;
-  }
-  return result;
-}
-
-export function mapMaybe<T, O>(val: T | null | undefined, mapper: (val: T) => O): O | null {
-  if (val === null || val === undefined) {
-    return null;
-  }
-  return mapper(val);
-}
-
-export function transformSet<I, O>(input: Set<I>, transform: (val: I) => O): Set<O> {
-  const res = new Set<O>();
-  input.forEach((item) => {
-    res.add(transform(item));
-  });
-  return res;
-}
-
-export type NonEmptyList<T> = { head: T; tail: Array<T> };
-
-export function nonEmptyList<T>(head: T, ...tail: Array<T>): NonEmptyList<T> {
-  return { head, tail };
-}
-
-export type Variants<T extends Record<string, any>> = {
-  [K in keyof T]: T[K] & { variant: K };
-}[keyof T];
-
-export function mapVariants<T extends { variant: string }, Res>(
-  variant: T,
-  mapper: { [K in T['variant']]: (val: Extract<T, { variant: K }>) => Res }
-): Res {
-  return (mapper as any)[(variant as any).variant](variant);
-}
-
-export function mapUnionString<T extends string, Res>(val: T, mapper: { [K in T]: Res }): Res {
-  return mapper[val];
-}
-
-export function mergeSets<T>(...sets: Array<Set<T> | null>): Set<T> {
-  const merged = new Set<T>();
-  sets.forEach((set) => {
-    if (set) {
-      set.forEach((item) => {
-        merged.add(item);
-      });
-    }
-  });
-  return merged;
-}
-
 export function isNotNull<T>(val: T | null): val is T {
   return val !== null;
 }
@@ -165,17 +22,4 @@ export function dedupe<T>(arr: Array<T>): Array<T> {
 
 export function arrayEqual<T>(a: Array<T>, b: Array<T>): boolean {
   return a.length === b.length && a.every((val, i) => val === b[i]);
-}
-
-export function customAlphabet(alphabet: string, defaultSize = 21) {
-  return (size: number = defaultSize) => {
-    let id = '';
-    // A compact alternative for `for (var i = 0; i < step; i++)`.
-    let i = size;
-    while (i--) {
-      // `| 0` is more compact and faster than `Math.floor()`.
-      id += alphabet[(Math.random() * alphabet.length) | 0];
-    }
-    return id;
-  };
 }

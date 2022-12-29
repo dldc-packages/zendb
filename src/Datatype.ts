@@ -1,4 +1,4 @@
-import { PRIV } from '../Utils';
+import { PRIV } from './Utils';
 
 export type SqliteDatatype = 'INTEGER' | 'TEXT' | 'REAL' | 'BLOB';
 

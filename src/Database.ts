@@ -1,6 +1,6 @@
-import { ExtractTable } from './Query';
-import { ISchemaAny } from './schema';
+import { ISchemaAny } from './Schema';
 import { ITable, Table } from './Table';
+import { ExtractTable } from './Table/types';
 import { mapObject } from './Utils';
 
 export interface IDatabase<Schema extends ISchemaAny> {

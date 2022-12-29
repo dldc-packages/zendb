@@ -1,4 +1,4 @@
-import { ISchemaAny } from '../schemaOlfd/mod';
+import { ISchemaAny } from '../Schema';
 import { isNotNull, PRIV } from '../Utils';
 import { DatabaseTableQueryInternalAny, JoinKind, OrderDirection } from './builder';
 

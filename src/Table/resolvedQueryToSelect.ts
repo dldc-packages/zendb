@@ -1,5 +1,5 @@
 import { builder as b, Node } from 'zensqlite';
-import { SchemaTableAny } from '../schemaOlfd/mod';
+import { ISchemaTableAny } from '../SchemaTable';
 import { dedupe, isNotNull } from '../Utils';
 import { createFrom, createLimit, createOrderBy } from './create';
 import { createWhere } from './createWhere';
@@ -8,7 +8,7 @@ import { dotCol, ParamsMap } from './utils';
 
 export function resolvedQueryToSelect(
   paramsMap: ParamsMap,
-  table: SchemaTableAny,
+  table: ISchemaTableAny,
   resolved: ResolvedQuery,
   join: { join: ResolvedJoin; query: ResolvedQuery; select: Node<'SelectStmt'> } | null
 ): Node<'SelectStmt'> {

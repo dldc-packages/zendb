@@ -1,4 +1,5 @@
-import { ISchemaAny, parseColumn } from '../schema';
+import { ISchemaAny } from '../Schema';
+import { SchemaColumn } from '../SchemaColumn';
 import { arrayEqual } from '../Utils';
 import { getColumnSchema } from './getColumnSchema';
 import { ResolvedJoinItem, ResolvedQuery } from './resolveQuery';
@@ -33,7 +34,7 @@ export function groupRows(
       query.columns.forEach((col) => {
         const colSchema = getColumnSchema(schema, query.table, col);
         const rawValue = group.rows[0][dotCol(query.tableAlias, col)];
-        result[col] = parseColumn(colSchema, rawValue);
+        result[col] = SchemaColumn.parse(colSchema, rawValue);
       });
     }
     if (!join) {

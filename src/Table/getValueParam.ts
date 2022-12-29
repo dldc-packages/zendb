@@ -1,8 +1,8 @@
 import { builder as b, Node } from 'zensqlite';
-import { SchemaColumnAny, serializeColumn } from '../schema';
+import { ISchemaColumnAny, SchemaColumn } from '../SchemaColumn';
 import { ParamsMap } from './utils';
 
-export function getValueParam(paramsMap: ParamsMap, column: SchemaColumnAny, name: string, value: any): Node<'BindParameter'> {
+export function getValueParam(paramsMap: ParamsMap, column: ISchemaColumnAny, name: string, value: any): Node<'BindParameter'> {
   let uniqueName = name;
   // Find unique name
   if (paramsMap.has(name)) {
@@ -12,6 +12,6 @@ export function getValueParam(paramsMap: ParamsMap, column: SchemaColumnAny, nam
     }
     uniqueName = `${name}_${i}`;
   }
-  paramsMap.set(uniqueName, serializeColumn(column, value));
+  paramsMap.set(uniqueName, SchemaColumn.serialize(column, value));
   return b.Expr.BindParameter.ColonNamed(uniqueName);
 }

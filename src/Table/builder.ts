@@ -1,5 +1,7 @@
 import { Expr } from '../Expr';
-import { ISchemaAny, SchemaColumnOutputValue, SchemaTableAny } from '../schemaOlfd/mod';
+import { ISchemaAny } from '../Schema';
+import { SchemaColumnOutputValue } from '../SchemaColumn';
+import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
 import { resolve } from './resolve';
 import { ExtractTable, QueryResolved } from './types';
@@ -10,36 +12,36 @@ type QueryParent<
   Schema extends ISchemaAny,
   Kind extends JoinKind,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > = {
   kind: Kind;
   currentCol: string;
   joinCol: string;
-  query: DatabaseTableQueryInternal<Schema, TableName, SchemaTableAny, Selection, Parent>;
+  query: DatabaseTableQueryInternal<Schema, TableName, ISchemaTableAny, Selection, Parent>;
 };
 
 export type QueryParentBase<Schema extends ISchemaAny> = QueryParent<
   Schema,
   JoinKind,
   keyof Schema['tables'],
-  SchemaTableAny,
-  SelectionBase<SchemaTableAny> | null,
+  ISchemaTableAny,
+  SelectionBase<ISchemaTableAny> | null,
   any
 >;
 
 export type OrderDirection = 'Asc' | 'Desc';
 
-export type OrderingTerm<SchemaTable extends SchemaTableAny> = [ExtractColumnsNames<SchemaTable>, OrderDirection];
+export type OrderingTerm<SchemaTable extends ISchemaTableAny> = [ExtractColumnsNames<SchemaTable>, OrderDirection];
 
-export type ExtractColumnsNames<SchemaTable extends SchemaTableAny> = keyof SchemaTable[PRIV]['columns'];
+export type ExtractColumnsNames<SchemaTable extends ISchemaTableAny> = keyof SchemaTable[PRIV]['columns'];
 
-export type SelectionBase<SchemaTable extends SchemaTableAny> = {
+export type SelectionBase<SchemaTable extends ISchemaTableAny> = {
   [K in ExtractColumnsNames<SchemaTable>]?: true;
 };
 
-export type WhereBase<SchemaTable extends SchemaTableAny> = {
+export type WhereBase<SchemaTable extends ISchemaTableAny> = {
   [K in ExtractColumnsNames<SchemaTable>]?:
     | SchemaColumnOutputValue<SchemaTable[PRIV]['columns'][K]>
     | Expr<SchemaColumnOutputValue<SchemaTable[PRIV]['columns'][K]>>;
@@ -51,7 +53,7 @@ export type WhereBase<SchemaTable extends SchemaTableAny> = {
 export type DatabaseTableQueryInternal<
   Schema extends ISchemaAny,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > = Readonly<{
@@ -75,7 +77,7 @@ export type DatabaseTableQueryInternalAny = DatabaseTableQueryInternal<
 export interface IQueryBuilder<
   Schema extends ISchemaAny,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > {
@@ -174,7 +176,7 @@ export function builder<Schema extends ISchemaAny, TableName extends keyof Schem
 function createBuilder<
   Schema extends ISchemaAny,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 >(

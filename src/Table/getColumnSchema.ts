@@ -1,7 +1,8 @@
-import { ISchemaAny, SchemaColumnAny } from '../schema';
+import { ISchemaAny } from '../Schema';
+import { ISchemaColumnAny } from '../SchemaColumn';
 import { PRIV } from '../Utils';
 
-export function getColumnSchema(schema: ISchemaAny, table: string, column: string): SchemaColumnAny {
+export function getColumnSchema(schema: ISchemaAny, table: string, column: string): ISchemaColumnAny {
   const tableSchema = schema.tables[table];
   if (!tableSchema) {
     throw new Error(`Table "${table}" not found`);

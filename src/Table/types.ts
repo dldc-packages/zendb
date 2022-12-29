@@ -1,5 +1,6 @@
 import { Node } from 'zensqlite';
-import { Infer, ISchemaAny, SchemaTableAny } from '../schemaOlfd/mod';
+import { Infer, ISchemaAny } from '../Schema';
+import { ISchemaTableAny } from '../SchemaTable';
 import { JoinKind, QueryParentBase, SelectionBase } from './builder';
 
 export type Rows = Array<Record<string, unknown>>;
@@ -17,7 +18,7 @@ export type KindMapper<Inner, Kind extends JoinKind> = {
 export type ExtractTable<Schema extends ISchemaAny, TableName extends keyof Schema['tables']> = Schema['tables'][TableName];
 
 export type SelectionPick<
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable>
 > = keyof Selection extends keyof Infer<SchemaTable> ? Pick<Infer<SchemaTable>, keyof Selection> : undefined;
 
@@ -75,7 +76,7 @@ export type Result<
 export interface QueryResolved<
   Schema extends ISchemaAny,
   TableName extends keyof Schema['tables'],
-  SchemaTable extends SchemaTableAny,
+  SchemaTable extends ISchemaTableAny,
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > {

@@ -1,7 +1,9 @@
 import { builder as b, Node, printNode } from 'zensqlite';
+import { SchemaColumn } from './SchemaColumn';
+import { InferSchemaTableResult, ISchemaTableAny, SchemaTable } from './SchemaTable';
 import { isNotNull, PRIV } from './Utils';
 
-export type SchemaTablesAny = Record<string, SchemaTableAny>;
+export type SchemaTablesAny = Record<string, ISchemaTableAny>;
 
 export type ISchema<Tables extends SchemaTablesAny> = {
   tables: Tables;
@@ -10,23 +12,20 @@ export type ISchema<Tables extends SchemaTablesAny> = {
 
 export type ISchemaAny = Required<ISchema<SchemaTablesAny>>;
 
-export function schema<Tables extends SchemaTablesAny>({ tables, strict = true }: ISchema<Tables>): Required<ISchema<Tables>> {
-  return { tables, strict };
-}
-
-export const column = SchemaColumn;
-
-export const table = SchemaTable.create;
-
-export type Infer<Table extends SchemaTableAny> = InferSchemaTableResult<Table>;
-
+export type Infer<Table extends ISchemaTableAny> = InferSchemaTableResult<Table>;
 
 export const Schema = (() => {
   return {
-    schema
+    create,
+    column: SchemaColumn,
+    table: SchemaTable,
     schemaToCreateTableQueries,
     findAllTablesQuery,
   };
+
+  function create<Tables extends SchemaTablesAny>({ tables, strict = true }: ISchema<Tables>): Required<ISchema<Tables>> {
+    return { tables, strict };
+  }
 
   function schemaToCreateTableQueries(schema: ISchemaAny): Array<string> {
     const { tables } = schema;

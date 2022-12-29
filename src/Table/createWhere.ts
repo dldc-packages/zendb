@@ -1,6 +1,6 @@
 import { builder as b, Expr as SqlExpr } from 'zensqlite';
 import { isExpr } from '../Expr';
-import { SchemaTableAny } from '../schema';
+import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
 import { exprToSqlNode } from './exprToSqlNode';
 import { getValueParam } from './getValueParam';
@@ -8,7 +8,7 @@ import { ParamsMap } from './utils';
 
 export function createWhere(
   paramsMap: ParamsMap,
-  table: SchemaTableAny,
+  table: ISchemaTableAny,
   where: Record<string, unknown> | null,
   tableAlias: string
 ): SqlExpr | undefined {
