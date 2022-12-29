@@ -1,161 +1,107 @@
-test('Temp', () => {
-  expect(true).toBe(true);
+import { Schema } from '../src/mod';
+import { allDatatypesSchema } from './utils/allDatatypesSchema';
+import { tasksSchema } from './utils/tasksSchema';
+
+test('Init empty schema', () => {
+  const v1 = Schema.create({ tables: {} });
+
+  const res = Schema.schemaToCreateTableQueries(v1);
+
+  expect(res).toEqual([]);
 });
 
-// test('Init empty schema', () => {
-//   const v1 = zen.schema({ tables: {} });
+test('Init simple schema', () => {
+  const v1 = Schema.create({
+    tables: { users: Schema.table({ email: Schema.column.dt.text().primary(), username: Schema.column.dt.text() }) },
+  });
 
-//   const db = new zen.Database(database, v1, 0);
-//   expect(db.fingerpring).toBe(0);
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).not.toHaveBeenCalled();
-// });
+  expect(res).toEqual([`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL) STRICT`]);
+});
 
-// test('Init simple schema', () => {
-//   const v1 = zen.schema({ tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) } });
+test('Disable strict mode', () => {
+  const v1 = Schema.create({
+    strict: false,
+    tables: { users: Schema.table({ email: Schema.column.dt.text().primary(), username: Schema.column.dt.text() }) },
+  });
 
-//   const db = new zen.Database(database, v1, 0);
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL) STRICT`);
-// });
+  expect(res).toEqual([`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL)`]);
+});
 
-// test('Throw if database is not empty', () => {
-//   const v1 = zen.schema({ tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) } });
+test('Should throw when no primary key is provided', () => {
+  const v1 = Schema.create({ tables: { users: Schema.table({ name: Schema.column.dt.text() }) } });
+  expect(() => Schema.schemaToCreateTableQueries(v1)).toThrow(/No primary key found/);
+});
 
-//   const db = new zen.Database(database, v1, 0);
+test('Should support multiple primary keys', () => {
+  const v1 = Schema.create({
+    tables: {
+      users: Schema.table({ email: Schema.column.dt.text().primary(), username: Schema.column.dt.text().primary() }),
+    },
+  });
 
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([{ name: 'some-table' }]);
-//   expect(() => db.initSchema()).toThrow('Cannot init schema on non-empty database');
-// });
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-// test('Disable strict mode', () => {
-//   const v1 = zen.schema({
-//     strict: false,
-//     tables: { users: zen.table({ email: zen.column.text().primary(), username: zen.column.text() }) },
-//   });
+  expect(res).toEqual([`CREATE TABLE users (email TEXT NOT NULL, username TEXT NOT NULL, PRIMARY KEY (email, username)) STRICT`]);
+});
 
-//   const db = new zen.Database(database, v1, 0);
+test('Unique column', () => {
+  const v1 = Schema.create({
+    tables: {
+      users: Schema.table({ email: Schema.column.dt.text().primary(), username: Schema.column.dt.text().unique() }),
+    },
+  });
 
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL)`);
-// });
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-// test('Should throw when no primary key is provided', () => {
-//   const v1 = zen.schema({ tables: { users: zen.table({ name: zen.column.text() }) } });
-//   expect(() => {
-//     new zen.Database(database, v1, 0);
-//   }).toThrow(/No primary key found/);
-// });
+  expect(res).toEqual([`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL UNIQUE) STRICT`]);
+});
 
-// test('Should support multiple primary keys', () => {
-//   const v1 = zen.schema({
-//     tables: {
-//       users: zen.table({ email: zen.column.text().primary(), username: zen.column.text().primary() }),
-//     },
-//   });
+test('Multi column unique constraint', () => {
+  const v1 = Schema.create({
+    tables: {
+      users: Schema.table({
+        id: Schema.column.dt.text().primary(),
+        username: Schema.column.dt.text().unique('unique_username_in_namespace'),
+        namespace: Schema.column.dt.text().unique('unique_username_in_namespace'),
+      }),
+    },
+  });
 
-//   const db = new zen.Database(database, v1, 0);
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(
-//     `CREATE TABLE users (email TEXT NOT NULL, username TEXT NOT NULL, PRIMARY KEY (email, username)) STRICT`
-//   );
-// });
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-// test('Unique column', () => {
-//   const v1 = zen.schema({
-//     tables: {
-//       users: zen.table({ email: zen.column.text().primary(), username: zen.column.text().unique() }),
-//     },
-//   });
+  expect(res).toEqual([
+    `CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL, namespace TEXT NOT NULL, CONSTRAINT unique_username_in_namespace UNIQUE (username, namespace)) STRICT`,
+  ]);
+});
 
-//   const db = new zen.Database(database, v1, 0);
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL UNIQUE) STRICT`);
-// });
+test('All datatype', () => {
+  const res = Schema.schemaToCreateTableQueries(allDatatypesSchema);
 
-// test('Multi column unique constraint', () => {
-//   const v1 = zen.schema({
-//     tables: {
-//       users: zen.table({
-//         id: zen.column.text().primary(),
-//         username: zen.column.text().unique('unique_username_in_namespace'),
-//         namespace: zen.column.text().unique('unique_username_in_namespace'),
-//       }),
-//     },
-//   });
+  expect(res).toEqual([
+    `CREATE TABLE datatype (id TEXT NOT NULL PRIMARY KEY, text TEXT NOT NULL, integer INTEGER NOT NULL, boolean INTEGER NOT NULL, date REAL NOT NULL, json TEXT NOT NULL, number REAL NOT NULL) STRICT`,
+  ]);
+});
 
-//   const db = new zen.Database(database, v1, 0);
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(
-//     `CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL, namespace TEXT NOT NULL, CONSTRAINT unique_username_in_namespace UNIQUE (username, namespace)) STRICT`
-//   );
-// });
+test('Nullable column', () => {
+  const v1 = Schema.create({
+    tables: { users: Schema.table({ id: Schema.column.dt.text().primary(), comment: Schema.column.dt.text().nullable() }) },
+  });
 
-// test('All datatype', () => {
-//   const db = new zen.Database(database, allDatatypesSchema, 0);
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(
-//     `CREATE TABLE datatype (id TEXT NOT NULL PRIMARY KEY, text TEXT NOT NULL, integer INTEGER NOT NULL, boolean INTEGER NOT NULL, date REAL NOT NULL, json TEXT NOT NULL, number REAL NOT NULL) STRICT`
-//   );
-// });
+  const res = Schema.schemaToCreateTableQueries(v1);
 
-// test('Nullable column', () => {
-//   const v1 = zen.schema({
-//     tables: { users: zen.table({ id: zen.column.text().primary(), comment: zen.column.text().nullable() }) },
-//   });
+  expect(res).toEqual([`CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, comment TEXT) STRICT`]);
+});
 
-//   const db = new zen.Database(database, v1, 0);
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledWith(`CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, comment TEXT) STRICT`);
-// });
+test('Init tasksSchema', () => {
+  const res = Schema.schemaToCreateTableQueries(tasksSchema);
 
-// test('Init tasksSchema', () => {
-//   const db = new zen.Database(database, tasksSchema, 0);
-
-//   const stmt = database.mockNextStatement(`SELECT name FROM sqlite_master WHERE type = 'table'`);
-//   stmt.all.mockReturnValueOnce([]);
-//   db.initSchema();
-//   expect(stmt.all).toHaveBeenCalledTimes(1);
-//   expect(database.exec).toHaveBeenCalledTimes(3);
-//   expect(database.exec.mock.calls).toEqual([
-//     [
-//       'CREATE TABLE tasks (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL, completed INTEGER NOT NULL) STRICT',
-//     ],
-//     ['CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL) STRICT'],
-//     ['CREATE TABLE users_tasks (user_id TEXT NOT NULL, task_id TEXT NOT NULL, PRIMARY KEY (user_id, task_id)) STRICT'],
-//   ]);
-// });
+  expect(res).toEqual([
+    `CREATE TABLE tasks (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL, completed INTEGER NOT NULL) STRICT`,
+    `CREATE TABLE users (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL) STRICT`,
+    `CREATE TABLE users_tasks (user_id TEXT NOT NULL, task_id TEXT NOT NULL, PRIMARY KEY (user_id, task_id)) STRICT`,
+  ]);
+});
