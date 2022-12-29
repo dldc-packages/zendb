@@ -2,16 +2,11 @@ import { ISchemaAny } from '../Schema';
 import { SchemaColumn } from '../SchemaColumn';
 import { arrayEqual } from '../Utils';
 import { getColumnSchema } from './getColumnSchema';
-import { ResolvedJoinItem, ResolvedQuery } from './resolveQuery';
+import { ResolvedJoins } from './resolveQuery';
 import { transformJoin } from './transformJoin';
 import { dotCol } from './utils';
 
-export function groupRows(
-  schema: ISchemaAny,
-  query: ResolvedQuery,
-  joins: Array<ResolvedJoinItem>,
-  rows: Array<Record<string, unknown>>
-): Array<any> {
+export function groupRows(schema: ISchemaAny, [query, joins]: ResolvedJoins, rows: Array<Record<string, unknown>>): Array<any> {
   const colsKey = query.primaryColumns.map((col) => dotCol(query.tableAlias, col));
   const groups: Array<{ keys: Array<any>; rows: Array<Record<string, unknown>> }> = [];
   rows.forEach((row) => {
@@ -44,7 +39,7 @@ export function groupRows(
       return result;
     }
     const joinName = join.query.table;
-    const joinResult = groupRows(schema, join.query, nextJoins, group.rows);
+    const joinResult = groupRows(schema, [join.query, nextJoins], group.rows);
     const joinContent = transformJoin(joinResult, join.join.kind);
     if (query.columns === null) {
       return joinContent;

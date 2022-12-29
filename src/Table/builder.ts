@@ -1,10 +1,12 @@
 import { Expr } from '../Expr';
+import { IQueryOperation } from '../Operation';
 import { ISchemaAny } from '../Schema';
 import { SchemaColumnOutputValue } from '../SchemaColumn';
 import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
+import { groupRows } from './groupRows';
 import { resolve } from './resolve';
-import { ExtractTable, QueryResolved } from './types';
+import { ExtractTable, Result } from './types';
 
 export type JoinKind = 'many' | 'one' | 'maybeOne' | 'first' | 'maybeFirst';
 
@@ -81,7 +83,6 @@ export interface IQueryBuilder<
   Selection extends SelectionBase<SchemaTable> | null,
   Parent extends null | QueryParentBase<Schema>
 > {
-  // readonly resolved: Resolved | null;
   readonly [PRIV]: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>;
 
   select<Selection extends SelectionBase<SchemaTable>>(
@@ -161,7 +162,16 @@ export interface IQueryBuilder<
     QueryParent<Schema, 'maybeFirst', TableName, SchemaTable, Selection, Parent>
   >;
 
-  resolve(): QueryResolved<Schema, TableName, SchemaTable, Selection, Parent>;
+  // Returns an Array
+  all(): IQueryOperation<Array<Result<Schema, TableName, Selection, Parent>>>;
+  // Throw if result count is not === 1
+  one(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  // Throw if result count is > 1
+  maybeOne(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
+  // Throw if result count is === 0
+  first(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  // Never throws
+  maybeFirst(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
 }
 
 export type IQueryBuilderAny = IQueryBuilder<ISchemaAny, any, any, any, any>;
@@ -216,8 +226,67 @@ function createBuilder<
     joinMaybeFirst(currentCol, table, joinCol) {
       return joinInternal('maybeFirst', currentCol, table, joinCol);
     },
-    resolve() {
-      return resolve(internal);
+
+    all() {
+      const { sql, params, schema, resolvedJoins } = resolve(internal);
+      return { kind: 'Query', sql, params, parse: (data) => groupRows(schema, resolvedJoins, data) };
+    },
+    one() {
+      const { sql, params, schema, resolvedJoins } = resolve(internal);
+      return {
+        kind: 'Query',
+        sql,
+        params,
+        parse: (data) => {
+          const results = groupRows(schema, resolvedJoins, data);
+          if (results.length !== 1) {
+            throw new Error(`Expected 1 result, got ${results.length}`);
+          }
+          return results[0];
+        },
+      };
+    },
+    maybeOne() {
+      const { sql, params, schema, resolvedJoins } = resolve(internal);
+      return {
+        kind: 'Query',
+        sql,
+        params,
+        parse: (data) => {
+          const results = groupRows(schema, resolvedJoins, data);
+          if (results.length > 1) {
+            throw new Error(`Expected maybe 1 result, got ${results.length}`);
+          }
+          return results[0] ?? null;
+        },
+      };
+    },
+    first() {
+      const { sql, params, schema, resolvedJoins } = resolve(internal);
+      return {
+        kind: 'Query',
+        sql,
+        params,
+        parse: (data) => {
+          const results = groupRows(schema, resolvedJoins, data);
+          if (results.length === 0) {
+            throw new Error('Expected at least 1 result, got 0');
+          }
+          return results[0];
+        },
+      };
+    },
+    maybeFirst() {
+      const { sql, params, schema, resolvedJoins } = resolve(internal);
+      return {
+        kind: 'Query',
+        sql,
+        params,
+        parse: (data) => {
+          const results = groupRows(schema, resolvedJoins, data);
+          return results[0] ?? null;
+        },
+      };
     },
   };
 

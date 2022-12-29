@@ -1,4 +1,5 @@
 import { builder as b, printNode } from 'zensqlite';
+import { IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { Infer, ISchemaAny } from './Schema';
 import { ISchemaColumnAny, SchemaColumn } from './SchemaColumn';
 import { InferSchemaTableInput, InferSchemaTableResult, ISchemaTableAny } from './SchemaTable';
@@ -11,34 +12,18 @@ import { PRIV } from './Utils';
 
 export type DeleteOptions = { limit?: number };
 
-export type DeleteResolved = {
-  query: string;
-  params: Record<string, any> | null;
-};
-
 export type UpdateOptions<SchemaTable extends ISchemaTableAny> = {
   limit?: number;
   where?: WhereBase<SchemaTable>;
 };
 
-export type UpdateResolved = {
-  query: string;
-  params: Record<string, any> | null;
-};
-
-export interface InsertResolved<SchemaTable extends ISchemaTableAny> {
-  query: string;
-  params: Array<any>;
-  inserted: InferSchemaTableResult<SchemaTable>;
-}
-
 export interface ITable<Schema extends ISchemaAny, TableName extends keyof Schema['tables'], SchemaTable extends ISchemaTableAny> {
   query(): IQueryBuilder<Schema, TableName, ExtractTable<Schema, TableName>, null, null>;
-  insert(data: InferSchemaTableInput<SchemaTable>): InsertResolved<SchemaTable>;
-  delete(condition: WhereBase<SchemaTable>, options?: DeleteOptions): DeleteResolved;
-  deleteOne(condition: WhereBase<SchemaTable>): DeleteResolved;
-  update(data: Partial<Infer<SchemaTable>>, options?: UpdateOptions<SchemaTable>): UpdateResolved;
-  updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): UpdateResolved;
+  insert(data: InferSchemaTableInput<SchemaTable>): IInsertOperation<InferSchemaTableResult<SchemaTable>>;
+  delete(condition: WhereBase<SchemaTable>, options?: DeleteOptions): IDeleteOperation;
+  deleteOne(condition: WhereBase<SchemaTable>): IDeleteOperation;
+  update(data: Partial<Infer<SchemaTable>>, options?: UpdateOptions<SchemaTable>): IUpdateOperation;
+  updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): IUpdateOperation;
 }
 
 export const Table = (() => {
@@ -66,7 +51,7 @@ export const Table = (() => {
       return builder<Schema, TableName>(schema, _tableName);
     }
 
-    function insert(data: InferSchemaTableInput<SchemaTable>): InsertResolved<SchemaTable> {
+    function insert(data: InferSchemaTableInput<SchemaTable>): IInsertOperation<InferSchemaTableResult<SchemaTable>> {
       const resolvedData: Record<string, any> = {};
       const parsedData: Record<string, any> = {};
       columns.forEach(([name, column]) => {
@@ -77,13 +62,14 @@ export const Table = (() => {
       });
       const columnsArgs = columns.map(([name]) => resolvedData[name]);
       return {
-        query: getInsertStatement(),
+        kind: 'Insert',
+        sql: getInsertStatement(),
         params: columnsArgs,
-        inserted: parsedData as any,
+        parse: () => parsedData as any,
       };
     }
 
-    function deleteFn(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): DeleteResolved {
+    function deleteFn(condition: WhereBase<SchemaTable>, options: DeleteOptions = {}): IDeleteOperation {
       const paramsMap = new Map<any, string>();
       const queryNode = b.DeleteStmt(tableName, {
         where: createWhere(paramsMap, schemaTable, condition, tableName),
@@ -91,14 +77,14 @@ export const Table = (() => {
       });
       const queryText = printNode(queryNode);
       const params = paramsFromMap(paramsMap);
-      return { query: queryText, params };
+      return { kind: 'Delete', sql: queryText, params };
     }
 
-    function deleteOne(condition: WhereBase<SchemaTable>): DeleteResolved {
+    function deleteOne(condition: WhereBase<SchemaTable>): IDeleteOperation {
       return deleteFn(condition, { limit: 1 });
     }
 
-    function update(data: Partial<Infer<SchemaTable>>, { where, limit }: UpdateOptions<SchemaTable> = {}): UpdateResolved {
+    function update(data: Partial<Infer<SchemaTable>>, { where, limit }: UpdateOptions<SchemaTable> = {}): IUpdateOperation {
       const paramsMap = new Map<any, string>();
       // const table = this.schemaTable;
       const queryNode = b.UpdateStmt(tableName, {
@@ -108,10 +94,10 @@ export const Table = (() => {
       });
       const queryText = printNode(queryNode);
       const params = paramsFromMap(paramsMap);
-      return { query: queryText, params };
+      return { kind: 'Update', sql: queryText, params };
     }
 
-    function updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): UpdateResolved {
+    function updateOne(data: Partial<Infer<SchemaTable>>, where?: WhereBase<SchemaTable>): IUpdateOperation {
       return update(data, { where, limit: 1 });
     }
 
@@ -128,23 +114,4 @@ export const Table = (() => {
       return insertStatement;
     }
   }
-
-  // function insert<
-  // Schema extends SchemaAny,
-  // TableName extends keyof Schema['tables'],
-  // SchemaTable extends SchemaTableAny>(schema: Schema, name: TableName, data: InferSchemaTableInput<SchemaTable>): IsertResolved {
-
-  // }
-
-  // function getInsertStatement(schema: SchemaAny, name: string):  {
-  //   const schemaTable = (schema.tables as any)[name];
-  //   const columns = Object.entries(schemaTable[PRIV].columns);
-  //     const params = this.columns.map(() => b.Expr.BindParameter.Indexed());
-  //     const columns = this.columns.map(([col]) => b.Identifier(col));
-  //     const queryNode = b.InsertStmt(this.name as string, {
-  //       columnNames: columns,
-  //       data: b.InsertStmtData.Values([params]),
-  //     });
-  //     return (printNode(queryNode));
-  // }
 })();

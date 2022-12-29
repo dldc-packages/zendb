@@ -72,25 +72,3 @@ export type Result<
   Selection extends SelectionBase<ExtractTable<Schema, TableName>> | null,
   Parent extends null | QueryParentBase<Schema>
 > = WrapInParent<Schema, TableName, ResultSelf<Schema, TableName, Selection>, Parent>;
-
-export interface QueryResolved<
-  Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
-  SchemaTable extends ISchemaTableAny,
-  Selection extends SelectionBase<SchemaTable> | null,
-  Parent extends null | QueryParentBase<Schema>
-> {
-  readonly query: string;
-  readonly params: Record<string, any> | null;
-
-  // Returns an Array
-  parseAll(data: Array<Record<string, any>>): Array<Result<Schema, TableName, Selection, Parent>>;
-  // Throw if result count is not === 1
-  parseOne(data: Array<Record<string, any>>): Result<Schema, TableName, Selection, Parent>;
-  // Throw if result count is > 1
-  parseMaybeOne(data: Array<Record<string, any>>): Result<Schema, TableName, Selection, Parent> | null;
-  // Throw if result count is === 0
-  parseFirst(data: Array<Record<string, any>>): Result<Schema, TableName, Selection, Parent>;
-  // Never throws
-  parseMaybeFirst(data: Array<Record<string, any>>): Result<Schema, TableName, Selection, Parent> | null;
-}

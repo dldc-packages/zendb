@@ -46,8 +46,8 @@ test('Update One', () => {
 });
 
 test('Query', () => {
-  const result = tasksDatabase.tables.users.query().select({ id: true, email: true }).resolve();
-  expect(result.query).toEqual('SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0');
+  const result = tasksDatabase.tables.users.query().select({ id: true, email: true }).all();
+  expect(result.sql).toEqual('SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0');
   expect(result.params).toEqual(null);
 });
 
@@ -58,8 +58,8 @@ test('Query join', () => {
     .filter({ id: '1' })
     .join('id', 'users_tasks', 'user_id')
     .join('task_id', 'tasks', 'id')
-    .resolve();
-  expect(result.query).toEqual(
+    .all();
+  expect(result.sql).toEqual(
     'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id'
   );
   expect(result.params).toEqual({ id: '1' });
@@ -73,9 +73,9 @@ test('Query join multiple filter', () => {
     .join('id', 'users_tasks', 'user_id')
     .join('task_id', 'tasks', 'id')
     .filter({ id: '2' })
-    .resolve();
+    .all();
 
-  expect(result.query).toEqual(
+  expect(result.sql).toEqual(
     'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id WHERE _0.id == :id_1'
   );
   expect(result.params).toEqual({ id: '1', id_1: '2' });
@@ -113,15 +113,15 @@ describe('Expr', () => {
     const res = tasksDatabase.tables.tasks
       .query()
       .filter({ id: Expr.equal('1') })
-      .resolve();
-    expect(res.query).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id == :id');
+      .all();
+    expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id == :id');
   });
 
   test('Different', () => {
     const res = tasksDatabase.tables.tasks
       .query()
       .filter({ id: Expr.different('1') })
-      .resolve();
-    expect(res.query).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id != :id');
+      .all();
+    expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id != :id');
   });
 });
