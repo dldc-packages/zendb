@@ -31,7 +31,7 @@ export interface IQueryOperation<Result> {
 export interface ICreateTableOperation {
   kind: 'CreateTable';
   sql: string;
-  params: Record<string, any> | null;
+  params: null;
   parse: () => null;
 }
 

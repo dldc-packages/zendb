@@ -20,15 +20,15 @@ export const Database = (() => {
     listTables,
   };
 
-  function create<ISchema extends ISchemaAny, Mode extends ResultMode>(schema: ISchema): IDatabase<ISchema, 'Operation'>;
-  function create<ISchema extends ISchemaAny, Mode extends ResultMode>(
-    schema: ISchema,
+  function create<Schema extends ISchemaAny, Mode extends ResultMode>(schema: Schema): IDatabase<Schema, 'Operation'>;
+  function create<Schema extends ISchemaAny, Mode extends ResultMode>(
+    schema: Schema,
     operationResolver: (op: IOperation) => any
-  ): IDatabase<ISchema, Mode>;
-  function create<ISchema extends ISchemaAny, Mode extends ResultMode>(
-    schema: ISchema,
+  ): IDatabase<Schema, Mode>;
+  function create<Schema extends ISchemaAny, Mode extends ResultMode>(
+    schema: Schema,
     operationResolver: (op: IOperation) => any = (op) => op
-  ): IDatabase<ISchema, Mode> {
+  ): IDatabase<Schema, Mode> {
     return {
       tables: mapObject(schema.tables, (tableName) => {
         return Table.create(schema, operationResolver, tableName);
