@@ -3,12 +3,12 @@ import { IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operatio
 import { Infer, ISchemaAny } from './Schema';
 import { ISchemaColumnAny, SchemaColumn } from './SchemaColumn';
 import { InferSchemaTableInput, InferSchemaTableResult } from './SchemaTable';
-import { createSetItems } from './Table/create';
-import { createWhere } from './Table/createWhere';
-import { IQueryBuilder, queryBuilder, WhereBase } from './Table/queryBuilder';
-import { getSchemaTable, paramsFromMap } from './Table/utils';
+import { createSetItems, createWhere, getSchemaTable, ISelectBuilder, paramsFromMap, selectBuilder, WhereBase } from './Table/_internal';
+
 import { TablesNames } from './types';
 import { PRIV } from './Utils';
+
+export * from './Table/_internal';
 
 export type DeleteOptions = { limit?: number };
 
@@ -18,7 +18,7 @@ export type UpdateOptions<Schema extends ISchemaAny, TableName extends TablesNam
 };
 
 export interface ITable<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> {
-  query(): IQueryBuilder<Schema, TableName, null, null>;
+  select(): ISelectBuilder<Schema, TableName, null, null>;
   insert(data: InferSchemaTableInput<Schema, TableName>): IInsertOperation<InferSchemaTableResult<Schema, TableName>>;
   delete(condition: WhereBase<Schema, TableName>, options?: DeleteOptions): IDeleteOperation;
   deleteOne(condition: WhereBase<Schema, TableName>): IDeleteOperation;
@@ -30,7 +30,7 @@ export const Table = (() => {
   return {
     create,
 
-    query: queryBuilder,
+    query: selectBuilder,
     insert,
     delete: deleteFn,
     deleteOne: deleteOne,
@@ -43,7 +43,7 @@ export const Table = (() => {
     table: TableName
   ): ITable<Schema, TableName> {
     return {
-      query: () => queryBuilder(schema, table),
+      select: () => selectBuilder(schema, table),
       insert: (data) => insert(schema, table, data),
       delete: (condition, options) => deleteFn(schema, table, condition, options),
       deleteOne: (condition) => deleteOne(schema, table, condition),

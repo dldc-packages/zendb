@@ -43,15 +43,15 @@ test('Update One', () => {
 });
 
 test('Query', () => {
-  const result = tasksDatabase.tables.users.query().select({ id: true, email: true }).all();
+  const result = tasksDatabase.tables.users.select().fields({ id: true, email: true }).all();
   expect(result.sql).toEqual('SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0');
   expect(result.params).toEqual(null);
 });
 
 test('Query join', () => {
   const result = tasksDatabase.tables.users
-    .query()
-    .select({ id: true, email: true })
+    .select()
+    .fields({ id: true, email: true })
     .filter({ id: '1' })
     .join('id', 'users_tasks', 'user_id')
     .join('task_id', 'tasks', 'id')
@@ -64,8 +64,8 @@ test('Query join', () => {
 
 test('Query join multiple filter', () => {
   const result = tasksDatabase.tables.users
-    .query()
-    .select({ id: true, email: true })
+    .select()
+    .fields({ id: true, email: true })
     .filter({ id: '1' })
     .join('id', 'users_tasks', 'user_id')
     .join('task_id', 'tasks', 'id')
@@ -108,7 +108,7 @@ test('read and write datatypes', () => {
 describe('Expr', () => {
   test('Equal', () => {
     const res = tasksDatabase.tables.tasks
-      .query()
+      .select()
       .filter({ id: Expr.equal('1') })
       .all();
     expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id == :id');
@@ -116,7 +116,7 @@ describe('Expr', () => {
 
   test('Different', () => {
     const res = tasksDatabase.tables.tasks
-      .query()
+      .select()
       .filter({ id: Expr.different('1') })
       .all();
     expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id != :id');

@@ -1,4 +1,4 @@
-import { Expr } from '../Expr';
+import { IExpr } from '../Expr';
 import { IQueryOperation } from '../Operation';
 import { ISchemaAny } from '../Schema';
 import { SchemaColumnOutputValue } from '../SchemaColumn';
@@ -14,20 +14,20 @@ type QueryParent<
   Schema extends ISchemaAny,
   Kind extends JoinKind,
   TableName extends TablesNames<Schema>,
-  Selection extends SelectionBase<Schema, TableName> | null,
+  Fields extends FieldsBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
 > = {
   kind: Kind;
   currentCol: string;
   joinCol: string;
-  query: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>;
+  query: DatabaseTableQueryInternal<Schema, TableName, Fields, Parent>;
 };
 
 export type QueryParentBase<Schema extends ISchemaAny> = QueryParent<
   Schema,
   JoinKind,
   keyof Schema['tables'],
-  SelectionBase<Schema, keyof Schema['tables']> | null,
+  FieldsBase<Schema, keyof Schema['tables']> | null,
   any
 >;
 
@@ -43,14 +43,14 @@ export type ExtractColumnsNames<Schema extends ISchemaAny, TableName extends Tab
   TableName
 >[PRIV]['columns'];
 
-export type SelectionBase<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = {
+export type FieldsBase<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = {
   [K in ExtractColumnsNames<Schema, TableName>]?: true;
 };
 
 export type WhereBase<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = {
   [K in ExtractColumnsNames<Schema, TableName>]?:
     | SchemaColumnOutputValue<ExtractTable<Schema, TableName>[PRIV]['columns'][K]>
-    | Expr<SchemaColumnOutputValue<ExtractTable<Schema, TableName>[PRIV]['columns'][K]>>;
+    | IExpr<SchemaColumnOutputValue<ExtractTable<Schema, TableName>[PRIV]['columns'][K]>>;
 };
 
 /**
@@ -59,110 +59,110 @@ export type WhereBase<Schema extends ISchemaAny, TableName extends TablesNames<S
 export type DatabaseTableQueryInternal<
   Schema extends ISchemaAny,
   TableName extends TablesNames<Schema>,
-  Selection extends SelectionBase<Schema, TableName> | null,
+  Fields extends FieldsBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
 > = Readonly<{
   schema: Schema;
   table: TableName;
-  selection: Selection;
+  fields: Fields;
   filter: WhereBase<Schema, TableName> | null;
   take: null | { limit: number | null; offset: number | null };
   sort: null | Array<OrderingTerm<Schema, TableName>>;
   parent: Parent;
 }>;
 
-export interface IQueryBuilder<
+export interface ISelectBuilder<
   Schema extends ISchemaAny,
   TableName extends TablesNames<Schema>,
-  Selection extends SelectionBase<Schema, TableName> | null,
+  Fields extends FieldsBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
 > {
-  readonly [PRIV]: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>;
+  readonly [PRIV]: DatabaseTableQueryInternal<Schema, TableName, Fields, Parent>;
 
-  select<Selection extends SelectionBase<Schema, TableName>>(selection: Selection): IQueryBuilder<Schema, TableName, Selection, Parent>;
+  fields<Fields extends FieldsBase<Schema, TableName>>(fields: Fields): ISelectBuilder<Schema, TableName, Fields, Parent>;
 
-  filter(condition: WhereBase<Schema, TableName>): IQueryBuilder<Schema, TableName, Selection, Parent>;
+  filter(condition: WhereBase<Schema, TableName>): ISelectBuilder<Schema, TableName, Fields, Parent>;
 
-  take(limit: number | null, offset?: number | null): IQueryBuilder<Schema, TableName, Selection, Parent>;
+  take(limit: number | null, offset?: number | null): ISelectBuilder<Schema, TableName, Fields, Parent>;
 
-  sort(column: ExtractColumnsNames<Schema, TableName>, direction?: OrderDirection): IQueryBuilder<Schema, TableName, Selection, Parent>;
+  sort(column: ExtractColumnsNames<Schema, TableName>, direction?: OrderDirection): ISelectBuilder<Schema, TableName, Fields, Parent>;
   sort(
     arg1: OrderingTerm<Schema, TableName>,
     ...others: Array<OrderingTerm<Schema, TableName>>
-  ): IQueryBuilder<Schema, TableName, Selection, Parent>;
+  ): ISelectBuilder<Schema, TableName, Fields, Parent>;
 
   join<JoinTableName extends TablesNames<Schema>>(
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, JoinTableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'many', TableName, Selection, Parent>>;
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'many', TableName, Fields, Parent>>;
 
   joinOne<JoinTableName extends TablesNames<Schema>>(
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, JoinTableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'one', TableName, Selection, Parent>>;
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'one', TableName, Fields, Parent>>;
 
   joinMaybeOne<JoinTableName extends TablesNames<Schema>>(
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, JoinTableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'maybeOne', TableName, Selection, Parent>>;
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'maybeOne', TableName, Fields, Parent>>;
 
   joinFirst<JoinTableName extends TablesNames<Schema>>(
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, JoinTableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'first', TableName, Selection, Parent>>;
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'first', TableName, Fields, Parent>>;
 
   joinMaybeFirst<JoinTableName extends TablesNames<Schema>>(
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, JoinTableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'maybeFirst', TableName, Selection, Parent>>;
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, 'maybeFirst', TableName, Fields, Parent>>;
 
   // Returns an Array
-  all(): IQueryOperation<Array<Result<Schema, TableName, Selection, Parent>>>;
+  all(): IQueryOperation<Array<Result<Schema, TableName, Fields, Parent>>>;
   // Throw if result count is not === 1
-  one(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  one(): IQueryOperation<Result<Schema, TableName, Fields, Parent>>;
   // Throw if result count is > 1
-  maybeOne(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
+  maybeOne(): IQueryOperation<Result<Schema, TableName, Fields, Parent> | null>;
   // Throw if result count is === 0
-  first(): IQueryOperation<Result<Schema, TableName, Selection, Parent>>;
+  first(): IQueryOperation<Result<Schema, TableName, Fields, Parent>>;
   // Never throws
-  maybeFirst(): IQueryOperation<Result<Schema, TableName, Selection, Parent> | null>;
+  maybeFirst(): IQueryOperation<Result<Schema, TableName, Fields, Parent> | null>;
 }
 
-export type IQueryBuilderAny = IQueryBuilder<ISchemaAny, any, any, any>;
+export type ISelectBuilderAny = ISelectBuilder<ISchemaAny, any, any, any>;
 
-export function queryBuilder<Schema extends ISchemaAny, TableName extends TablesNames<Schema>>(
+export function selectBuilder<Schema extends ISchemaAny, TableName extends TablesNames<Schema>>(
   schema: Schema,
   table: TableName
-): IQueryBuilder<Schema, TableName, null, null> {
-  return createQueryBuilder({ schema, table, selection: null, filter: null, take: null, parent: null, sort: null });
+): ISelectBuilder<Schema, TableName, null, null> {
+  return createSelectBuilder({ schema, table, fields: null, filter: null, take: null, parent: null, sort: null });
 }
 
-function createQueryBuilder<
+function createSelectBuilder<
   Schema extends ISchemaAny,
   TableName extends TablesNames<Schema>,
-  Selection extends SelectionBase<Schema, TableName> | null,
+  Fields extends FieldsBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
->(internal: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>): IQueryBuilder<Schema, TableName, Selection, Parent> {
+>(internal: DatabaseTableQueryInternal<Schema, TableName, Fields, Parent>): ISelectBuilder<Schema, TableName, Fields, Parent> {
   return {
     [PRIV]: internal,
-    select(selection) {
-      return createQueryBuilder({ ...internal, selection });
+    fields(fields) {
+      return createSelectBuilder({ ...internal, fields: fields });
     },
     filter(condition) {
-      return createQueryBuilder({ ...internal, filter: condition });
+      return createSelectBuilder({ ...internal, filter: condition });
     },
     take(limit, offset = null) {
-      return createQueryBuilder({ ...internal, take: { limit, offset } });
+      return createSelectBuilder({ ...internal, take: { limit, offset } });
     },
     sort(arg1, arg2, ...others) {
       const start: Array<OrderingTerm<Schema, TableName>> =
         typeof arg1 === 'string' ? [[arg1, arg2 ?? 'Asc']] : arg2 ? [arg1, arg2 as any] : [arg1];
-      return createQueryBuilder({
+      return createSelectBuilder({
         ...internal,
         sort: [...start, ...others],
       });
@@ -251,12 +251,12 @@ function createQueryBuilder<
     currentCol: ExtractColumnsNames<Schema, TableName>,
     table: JoinTableName,
     joinCol: ExtractColumnsNames<Schema, TableName>
-  ): IQueryBuilder<Schema, JoinTableName, null, QueryParent<Schema, Kind, TableName, Selection, Parent>> {
-    return createQueryBuilder({
+  ): ISelectBuilder<Schema, JoinTableName, null, QueryParent<Schema, Kind, TableName, Fields, Parent>> {
+    return createSelectBuilder({
       schema: internal.schema,
       table,
       take: null,
-      selection: null,
+      fields: null,
       filter: null,
       sort: null,
       parent: {

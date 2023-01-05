@@ -9,8 +9,8 @@ export type CompareExpr<Val> = {
 export type CombineExpr<Val> = {
   [PRIV]: Val;
   kind: 'And' | 'Or';
-  left: Expr<Val>;
-  right: Expr<Val>;
+  left: IExpr<Val>;
+  right: IExpr<Val>;
 };
 
 export type SpecialExpr<Val> = {
@@ -24,55 +24,59 @@ export type InExpr<Val> = {
   values: Array<Val>;
 };
 
-export type Expr<Val> = CombineExpr<Val> | CompareExpr<Val> | SpecialExpr<Val> | InExpr<Val>;
+export type IExpr<Val> = CombineExpr<Val> | CompareExpr<Val> | SpecialExpr<Val> | InExpr<Val>;
 
-function createExpr<E extends Expr<any>>(data: Omit<E, PRIV>): E {
+export const Expr = (() => {
   return {
-    [PRIV]: 'Expr',
-    ...data,
-  } as any;
-}
+    is: isExpr,
 
-export function isExpr(maybe: unknown): maybe is Expr<any> {
-  return Boolean(maybe && (maybe as any)[PRIV] === 'Expr');
-}
+    equal,
+    eq: equal,
+    different: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'Different', val }),
+    lowerThan,
+    lt: lowerThan,
+    greaterThan,
+    gt: greaterThan,
+    lowerThanOrEqual,
+    lte: lowerThanOrEqual,
+    greaterThanOrEqual,
+    gte: greaterThanOrEqual,
+    isNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNull' }),
+    isNotNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNotNull' }),
+    and: <Val>(left: IExpr<Val>, right: IExpr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
+    or: <Val>(left: IExpr<Val>, right: IExpr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'Or', left, right }),
+    in: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'In', values }),
+    notIn: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'NotIn', values }),
+  };
 
-function equal<Val>(val: Val) {
-  return createExpr<CompareExpr<Val>>({ kind: 'Equal', val });
-}
+  function createExpr<E extends IExpr<any>>(data: Omit<E, PRIV>): E {
+    return {
+      [PRIV]: 'Expr',
+      ...data,
+    } as any;
+  }
 
-function lowerThan<Val>(val: Val) {
-  return createExpr<CompareExpr<Val>>({ kind: 'LowerThan', val });
-}
+  function isExpr(maybe: unknown): maybe is IExpr<any> {
+    return Boolean(maybe && (maybe as any)[PRIV] === 'Expr');
+  }
 
-function greaterThan<Val>(val: Val) {
-  return createExpr<CompareExpr<Val>>({ kind: 'GreaterThan', val });
-}
+  function equal<Val>(val: Val) {
+    return createExpr<CompareExpr<Val>>({ kind: 'Equal', val });
+  }
 
-function lowerThanOrEqual<Val>(val: Val) {
-  return createExpr<CompareExpr<Val>>({ kind: 'LowerThanOrEqual', val });
-}
+  function lowerThan<Val>(val: Val) {
+    return createExpr<CompareExpr<Val>>({ kind: 'LowerThan', val });
+  }
 
-function greaterThanOrEqual<Val>(val: Val) {
-  return createExpr<CompareExpr<Val>>({ kind: 'GreaterThanOrEqual', val });
-}
+  function greaterThan<Val>(val: Val) {
+    return createExpr<CompareExpr<Val>>({ kind: 'GreaterThan', val });
+  }
 
-export const Expr = {
-  equal,
-  eq: equal,
-  different: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'Different', val }),
-  lowerThan,
-  lt: lowerThan,
-  greaterThan,
-  gt: greaterThan,
-  lowerThanOrEqual,
-  lte: lowerThanOrEqual,
-  greaterThanOrEqual,
-  gte: greaterThanOrEqual,
-  isNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNull' }),
-  isNotNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNotNull' }),
-  and: <Val>(left: Expr<Val>, right: Expr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
-  or: <Val>(left: Expr<Val>, right: Expr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'Or', left, right }),
-  in: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'In', values }),
-  notIn: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'NotIn', values }),
-};
+  function lowerThanOrEqual<Val>(val: Val) {
+    return createExpr<CompareExpr<Val>>({ kind: 'LowerThanOrEqual', val });
+  }
+
+  function greaterThanOrEqual<Val>(val: Val) {
+    return createExpr<CompareExpr<Val>>({ kind: 'GreaterThanOrEqual', val });
+  }
+})();

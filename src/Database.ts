@@ -2,11 +2,12 @@ import { builder as b, Node, printNode } from 'zensqlite';
 import { ICreateTableOperation, IListTablesOperation } from './Operation';
 import { ISchemaAny } from './Schema';
 import { ITable, Table } from './Table';
+import { TablesNames } from './types';
 import { isNotNull, mapObject, PRIV } from './Utils';
 
 export interface IDatabase<Schema extends ISchemaAny> {
   readonly tables: {
-    [K in keyof Schema['tables']]: ITable<Schema, K>;
+    [K in TablesNames<Schema>]: ITable<Schema, K>;
   };
   init(): Array<ICreateTableOperation>;
 }

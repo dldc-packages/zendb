@@ -1,7 +1,7 @@
 import { ISchemaAny } from '../Schema';
 import { TablesNames } from '../types';
 import { isNotNull, PRIV } from '../Utils';
-import { DatabaseTableQueryInternal, JoinKind, OrderDirection, QueryParentBase, SelectionBase } from './queryBuilder';
+import { DatabaseTableQueryInternal, FieldsBase, JoinKind, OrderDirection, QueryParentBase } from './selectBuilder';
 import { getSchemaTable } from './utils';
 
 export type ResolvedQuery = {
@@ -29,11 +29,11 @@ export type ResolvedJoins = [query: ResolvedQuery, joins: Array<ResolvedJoinItem
 export function resolveQuery<
   Schema extends ISchemaAny,
   TableName extends TablesNames<Schema>,
-  Selection extends SelectionBase<Schema, TableName> | null,
+  Fields extends FieldsBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
 >(
   schema: Schema,
-  query: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>,
+  query: DatabaseTableQueryInternal<Schema, TableName, Fields, Parent>,
   parentJoinCol: string | null,
   depth: number
 ): ResolvedJoins {
@@ -46,7 +46,7 @@ export function resolveQuery<
   const resolved: ResolvedQuery = {
     table: query.table as string,
     tableAlias: `_${depth}`,
-    columns: query.selection ? Object.keys(query.selection) : null,
+    columns: query.fields ? Object.keys(query.fields) : null,
     joinColumns: [joinCol, parentJoinCol].filter(isNotNull),
     primaryColumns,
     limit: query.take?.limit ?? null,

@@ -1,11 +1,11 @@
 import { arrayToNonEmptyArray, builder as b, Expr as SqlExpr, Node } from 'zensqlite';
-import { Expr } from '../Expr';
+import { IExpr } from '../Expr';
 import { ISchemaColumnAny } from '../SchemaColumn';
 import { expectNever } from '../Utils';
 import { getValueParam } from './getValueParam';
 import { ParamsMap } from './utils';
 
-export function exprToSqlNode(paramsMap: ParamsMap, column: ISchemaColumnAny, expr: Expr<any>, col: Node<'Column'>): SqlExpr {
+export function exprToSqlNode(paramsMap: ParamsMap, column: ISchemaColumnAny, expr: IExpr<any>, col: Node<'Column'>): SqlExpr {
   const colName = col.columnName.name;
   if (expr.kind === 'And') {
     return b.Expr.And(exprToSqlNode(paramsMap, column, expr.left, col), exprToSqlNode(paramsMap, column, expr.right, col));

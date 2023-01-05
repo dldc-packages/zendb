@@ -2,8 +2,8 @@ import { arrayToOptionalNonEmptyArray, builder as b, createNode, Node, SetItem }
 import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
 import { getValueParam } from './getValueParam';
-import { OrderDirection } from './queryBuilder';
 import { ResolvedJoin, ResolvedQuery } from './resolveQuery';
+import { OrderDirection } from './selectBuilder';
 import { SelectFrom, SelectOrderBy } from './types';
 import { dotCol, ParamsMap } from './utils';
 

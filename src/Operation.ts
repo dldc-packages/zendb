@@ -49,3 +49,17 @@ export type IOperation =
   | IListTablesOperation;
 
 export type IOperationKind = IOperation['kind'];
+
+export type IOperationResult<T extends IOperation> = T extends IDeleteOperation
+  ? { deleted: number }
+  : T extends IUpdateOperation
+  ? { updated: number }
+  : T extends IInsertOperation<infer Inserted>
+  ? Inserted
+  : T extends IQueryOperation<infer Result>
+  ? Result
+  : T extends ICreateTableOperation
+  ? null
+  : T extends IListTablesOperation
+  ? Array<string>
+  : never;

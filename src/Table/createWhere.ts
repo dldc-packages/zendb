@@ -1,5 +1,5 @@
 import { builder as b, Expr as SqlExpr } from 'zensqlite';
-import { isExpr } from '../Expr';
+import { Expr } from '../Expr';
 import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
 import { exprToSqlNode } from './exprToSqlNode';
@@ -21,7 +21,7 @@ export function createWhere(
       return b.Expr.Is(col, b.LiteralValue.Null);
     }
     const column = table[PRIV].columns[key];
-    if (isExpr(value)) {
+    if (Expr.is(value)) {
       return exprToSqlNode(paramsMap, column, value, col);
     }
     return b.Expr.Equal(col, getValueParam(paramsMap, column, col.columnName.name, value));

@@ -1,5 +1,5 @@
 import { expectNever } from '../Utils';
-import { JoinKind } from './queryBuilder';
+import { JoinKind } from './selectBuilder';
 
 export function transformJoin(results: Array<any>, kind: JoinKind): any {
   if (kind === 'many') {
