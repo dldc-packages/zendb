@@ -1,7 +1,7 @@
 import { Node } from 'zensqlite';
 import { Infer, ISchemaAny } from '../Schema';
-import { ISchemaTableAny } from '../SchemaTable';
-import { JoinKind, QueryParentBase, SelectionBase } from './builder';
+import { TablesNames } from '../types';
+import { JoinKind, QueryParentBase, SelectionBase } from './queryBuilder';
 
 export type Rows = Array<Record<string, unknown>>;
 export type SelectFrom = Extract<Node<'SelectCore'>, { variant: 'Select' }>['from'];
@@ -15,24 +15,21 @@ export type KindMapper<Inner, Kind extends JoinKind> = {
   maybeFirst: Inner | null;
 }[Kind];
 
-export type ExtractTable<Schema extends ISchemaAny, TableName extends keyof Schema['tables']> = Schema['tables'][TableName];
-
 export type SelectionPick<
-  SchemaTable extends ISchemaTableAny,
-  Selection extends SelectionBase<SchemaTable>
-> = keyof Selection extends keyof Infer<SchemaTable> ? Pick<Infer<SchemaTable>, keyof Selection> : undefined;
+  Schema extends ISchemaAny,
+  TableName extends TablesNames<Schema>,
+  Selection extends SelectionBase<Schema, TableName>
+> = keyof Selection extends keyof Infer<Schema, TableName> ? Pick<Infer<Schema, TableName>, keyof Selection> : undefined;
 
 export type ResultSelf<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
-  Selection extends SelectionBase<ExtractTable<Schema, TableName>> | null
-> = Selection extends SelectionBase<ExtractTable<Schema, TableName>>
-  ? SelectionPick<ExtractTable<Schema, TableName>, Selection>
-  : undefined;
+  TableName extends TablesNames<Schema>,
+  Selection extends SelectionBase<Schema, TableName> | null
+> = Selection extends SelectionBase<Schema, TableName> ? SelectionPick<Schema, TableName, Selection> : undefined;
 
 export type MergeInnerAndParent<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
+  TableName extends TablesNames<Schema>,
   Kind extends JoinKind,
   Parent,
   Inner
@@ -46,7 +43,7 @@ export type MergeInnerAndParent<
 
 export type ParentResult<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
+  TableName extends TablesNames<Schema>,
   Parent extends QueryParentBase<Schema>,
   Inner
 > = MergeInnerAndParent<
@@ -59,7 +56,7 @@ export type ParentResult<
 
 export type WrapInParent<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
+  TableName extends TablesNames<Schema>,
   Inner,
   Parent extends null | QueryParentBase<Schema>
 > = Parent extends QueryParentBase<Schema>
@@ -68,7 +65,7 @@ export type WrapInParent<
 
 export type Result<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
-  Selection extends SelectionBase<ExtractTable<Schema, TableName>> | null,
+  TableName extends TablesNames<Schema>,
+  Selection extends SelectionBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
 > = WrapInParent<Schema, TableName, ResultSelf<Schema, TableName, Selection>, Parent>;

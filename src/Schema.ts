@@ -1,16 +1,17 @@
 import { SchemaColumn } from './SchemaColumn';
 import { InferSchemaTableResult, ISchemaTableAny, SchemaTable } from './SchemaTable';
+import { TablesNames } from './types';
 
 export type SchemaTablesAny = Record<string, ISchemaTableAny>;
 
 export type ISchema<Tables extends SchemaTablesAny> = {
-  tables: Tables;
-  strict?: boolean;
+  readonly tables: Tables;
+  readonly strict?: boolean;
 };
 
 export type ISchemaAny = Required<ISchema<SchemaTablesAny>>;
 
-export type Infer<Table extends ISchemaTableAny> = InferSchemaTableResult<Table>;
+export type Infer<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = InferSchemaTableResult<Schema, TableName>;
 
 export const Schema = (() => {
   return {

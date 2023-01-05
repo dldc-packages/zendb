@@ -1,8 +1,8 @@
 import { arrayToOptionalNonEmptyArray, builder as b, createNode, Node, SetItem } from 'zensqlite';
 import { ISchemaTableAny } from '../SchemaTable';
 import { PRIV } from '../Utils';
-import { OrderDirection } from './builder';
 import { getValueParam } from './getValueParam';
+import { OrderDirection } from './queryBuilder';
 import { ResolvedJoin, ResolvedQuery } from './resolveQuery';
 import { SelectFrom, SelectOrderBy } from './types';
 import { dotCol, ParamsMap } from './utils';

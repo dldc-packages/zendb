@@ -1,6 +1,8 @@
 import { ISchemaAny } from '../Schema';
+import { TablesNames } from '../types';
 import { isNotNull, PRIV } from '../Utils';
-import { DatabaseTableQueryInternalAny, JoinKind, OrderDirection } from './builder';
+import { DatabaseTableQueryInternal, JoinKind, OrderDirection, QueryParentBase, SelectionBase } from './queryBuilder';
+import { getSchemaTable } from './utils';
 
 export type ResolvedQuery = {
   table: string;
@@ -24,20 +26,25 @@ export type ResolvedJoinItem = { query: ResolvedQuery; join: ResolvedJoin };
 
 export type ResolvedJoins = [query: ResolvedQuery, joins: Array<ResolvedJoinItem>];
 
-export function resolveQuery(
-  schema: ISchemaAny,
-  query: DatabaseTableQueryInternalAny,
+export function resolveQuery<
+  Schema extends ISchemaAny,
+  TableName extends TablesNames<Schema>,
+  Selection extends SelectionBase<Schema, TableName> | null,
+  Parent extends null | QueryParentBase<Schema>
+>(
+  schema: Schema,
+  query: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>,
   parentJoinCol: string | null,
   depth: number
 ): ResolvedJoins {
   const joinCol = query.parent?.joinCol ?? null;
-  const table = schema.tables[query.table];
-  const primaryColumns = Object.entries(table[PRIV].columns)
+  const tableSchema = getSchemaTable(schema, query.table);
+  const primaryColumns = Object.entries(tableSchema[PRIV].columns)
     .filter(([_, column]) => column[PRIV].primary)
     .map(([key]) => key);
 
   const resolved: ResolvedQuery = {
-    table: query.table,
+    table: query.table as string,
     tableAlias: `_${depth}`,
     columns: query.selection ? Object.keys(query.selection) : null,
     joinColumns: [joinCol, parentJoinCol].filter(isNotNull),

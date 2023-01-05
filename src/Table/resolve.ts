@@ -1,7 +1,7 @@
 import { Node, printNode } from 'zensqlite';
 import { ISchemaAny } from '../Schema';
-import { ISchemaTableAny } from '../SchemaTable';
-import { DatabaseTableQueryInternal, QueryParentBase, SelectionBase } from './builder';
+import { TablesNames } from '../types';
+import { DatabaseTableQueryInternal, QueryParentBase, SelectionBase } from './queryBuilder';
 import { resolvedQueryToSelect } from './resolvedQueryToSelect';
 import { ResolvedJoins, resolveQuery } from './resolveQuery';
 import { paramsFromMap } from './utils';
@@ -15,11 +15,10 @@ export interface ResolveResult {
 
 export function resolve<
   Schema extends ISchemaAny,
-  TableName extends keyof Schema['tables'],
-  SchemaTable extends ISchemaTableAny,
-  Selection extends SelectionBase<SchemaTable> | null,
+  TableName extends TablesNames<Schema>,
+  Selection extends SelectionBase<Schema, TableName> | null,
   Parent extends null | QueryParentBase<Schema>
->(builder: DatabaseTableQueryInternal<Schema, TableName, SchemaTable, Selection, Parent>): ResolveResult {
+>(builder: DatabaseTableQueryInternal<Schema, TableName, Selection, Parent>): ResolveResult {
   const schema = builder.schema;
   // map values to params names
   const paramsMap = new Map<any, string>();

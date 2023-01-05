@@ -1,4 +1,6 @@
+import { ISchemaAny } from './Schema';
 import { ISchemaColumnAny, SchemaColumnInputValue, SchemaColumnOutputValue } from './SchemaColumn';
+import { ExtractTable, TablesNames } from './types';
 import { PRIV } from './Utils';
 
 export type SchemaColumnsBase = Record<string, ISchemaColumnAny>;
@@ -13,7 +15,9 @@ export type InferSchemaColumnsResult<Columns extends SchemaColumnsBase> = {
   [K in keyof Columns]: SchemaColumnOutputValue<Columns[K]>;
 };
 
-export type InferSchemaTableResult<Table extends ISchemaTableAny> = InferSchemaColumnsResult<Table[PRIV]['columns']>;
+export type InferSchemaTableResult<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = InferSchemaColumnsResult<
+  ExtractTable<Schema, TableName>[PRIV]['columns']
+>;
 
 export type ExtractUndefinedKeys<Data extends Record<string, any>> = {
   [K in keyof Data]: undefined extends Data[K] ? K : never;
@@ -30,7 +34,9 @@ export type InferSchemaColumnsInput<Columns extends SchemaColumnsBase> = {
   [K in keyof Columns]: SchemaColumnInputValue<Columns[K]>;
 };
 
-export type InferSchemaTableInput<Table extends ISchemaTableAny> = MarkUndefinedOptional<InferSchemaColumnsInput<Table[PRIV]['columns']>>;
+export type InferSchemaTableInput<Schema extends ISchemaAny, TableName extends TablesNames<Schema>> = MarkUndefinedOptional<
+  InferSchemaColumnsInput<ExtractTable<Schema, TableName>[PRIV]['columns']>
+>;
 
 export interface ISchemaTable<Columns extends SchemaColumnsBase> {
   readonly [PRIV]: SchemaTableInternal<Columns>;

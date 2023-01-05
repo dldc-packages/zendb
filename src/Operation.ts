@@ -1,5 +1,3 @@
-import { ResultMode } from './Database';
-
 export interface IDeleteOperation {
   kind: 'Delete';
   sql: string;
@@ -51,11 +49,3 @@ export type IOperation =
   | IListTablesOperation;
 
 export type IOperationKind = IOperation['kind'];
-
-export type ResultFromMode<Mode extends ResultMode, Op extends IOperation> = Mode extends 'Operation'
-  ? Op
-  : Mode extends 'Result'
-  ? ReturnType<Op['parse']>
-  : Mode extends 'AsyncResult'
-  ? Promise<ReturnType<Op['parse']>>
-  : never;

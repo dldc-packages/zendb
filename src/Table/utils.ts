@@ -1,3 +1,6 @@
+import { ISchemaAny } from '../Schema';
+import { TablesNames } from '../types';
+
 export type ParamsMap = Map<string, unknown>;
 
 export function dotCol(table: string, col: string): string {
@@ -10,4 +13,11 @@ export function paramsFromMap(paramsMap: ParamsMap): Record<string, any> | null 
     return null;
   }
   return Object.fromEntries(entries);
+}
+
+export function getSchemaTable<Schema extends ISchemaAny, TableName extends TablesNames<Schema>>(
+  schema: Schema,
+  table: TableName
+): Schema['tables'][TableName] {
+  return (schema.tables as any)[table];
 }
