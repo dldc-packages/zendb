@@ -26,8 +26,8 @@ type QueryParent<
 export type QueryParentBase<Schema extends ISchemaAny> = QueryParent<
   Schema,
   JoinKind,
-  keyof Schema['tables'],
-  FieldsBase<Schema, keyof Schema['tables']> | null,
+  any,
+  FieldsBase<Schema, TablesNames<Schema>> | null,
   any
 >;
 
