@@ -2,7 +2,7 @@ import { PRIV } from './Utils';
 
 export type CompareExpr<Val> = {
   [PRIV]: Val;
-  kind: 'LowerThan' | 'GreaterThan' | 'LowerThanOrEqual' | 'GreaterThanOrEqual' | 'Equal' | 'Different';
+  kind: 'LowerThan' | 'GreaterThan' | 'LowerThanOrEqual' | 'GreaterThanOrEqual' | 'Equal' | 'Different' | 'Like' | 'NotLike';
   val: Val;
 };
 
@@ -41,6 +41,8 @@ export const Expr = (() => {
     lte: lowerThanOrEqual,
     greaterThanOrEqual,
     gte: greaterThanOrEqual,
+    like: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'Like', val }),
+    notLike: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'NotLike', val }),
     isNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNull' }),
     isNotNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNotNull' }),
     and: <Val>(left: IExpr<Val>, right: IExpr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
