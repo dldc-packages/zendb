@@ -31,6 +31,12 @@ export function exprToSqlNode(paramsMap: ParamsMap, column: ISchemaColumnAny, ex
   if (expr.kind === 'LowerThanOrEqual') {
     return b.Expr.LowerThanOrEqual(col, getValueParam(paramsMap, column, colName, expr.val));
   }
+  if (expr.kind === 'Like') {
+    return b.Expr.Like(col, getValueParam(paramsMap, column, colName, expr.val));
+  }
+  if (expr.kind === 'NotLike') {
+    return b.Expr.NotLike(col, getValueParam(paramsMap, column, colName, expr.val));
+  }
   if (expr.kind === 'In') {
     return b.Expr.In.List(col, arrayToNonEmptyArray(expr.values.map((val, i) => getValueParam(paramsMap, column, `${colName}_${i}`, val))));
   }
@@ -46,5 +52,6 @@ export function exprToSqlNode(paramsMap: ParamsMap, column: ISchemaColumnAny, ex
   if (expr.kind === 'IsNotNull') {
     return b.Expr.IsNot(col, b.LiteralValue.Null);
   }
+
   return expectNever(expr.kind);
 }
