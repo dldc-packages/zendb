@@ -30,7 +30,7 @@ export const Table = (() => {
   return {
     create,
 
-    query: selectBuilder,
+    select: selectBuilder,
     insert,
     delete: deleteFn,
     deleteOne: deleteOne,
