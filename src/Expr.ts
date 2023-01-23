@@ -1,84 +1,58 @@
-import { PRIV } from './Utils';
+import { Ast, builder } from 'zensqlite';
+import { Random } from './Random';
+import { PRIV, TYPES } from './utils/constants';
 
-export type CompareExpr<Val> = {
-  [PRIV]: Val;
-  kind: 'LowerThan' | 'GreaterThan' | 'LowerThanOrEqual' | 'GreaterThanOrEqual' | 'Equal' | 'Different' | 'Like' | 'NotLike';
-  val: Val;
+export type IExprInternal_Param = { readonly name?: string; readonly value: any };
+
+export interface IExprInternal {
+  readonly param?: IExprInternal_Param;
+}
+
+type InnerExpr = Ast.Expr;
+
+export type IExpr<Val> = InnerExpr & { readonly [TYPES]: Val; readonly [PRIV]?: IExprInternal };
+
+export type IColumnRef<Val> = Ast.Node<'Column'> & { readonly [TYPES]: Val };
+
+export interface IJson<Value> {
+  readonly [TYPES]: Value;
+}
+
+type ExprBuilder = {
+  functionInvocation: (name: string, ...params: IExpr<any>[]) => IExpr<any>;
+  literal: <Val extends string | number | boolean | null>(val: Val) => IExpr<Val>;
+  add: <Val extends number>(left: IExpr<Val>, right: IExpr<Val>) => IExpr<Val>;
+  equal: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
+  different: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
+  like: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
+  or: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
+  and: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
+  notNull: (expr: IExpr<any>) => IExpr<boolean>;
+  AggregateFunctions: {
+    json_group_array: <Val>(expr: IExpr<Val>) => IExpr<IJson<Array<Val>>>;
+  };
+  ScalarFunctions: {
+    json_array_length: (expr: IExpr<IJson<Array<any>>>) => IExpr<number>;
+    json_object: <Items extends Record<string, IExpr<any>>>(items: Items) => IExpr<IJson<{ [K in keyof Items]: Items[K][TYPES] }>>;
+  };
 };
-
-export type CombineExpr<Val> = {
-  [PRIV]: Val;
-  kind: 'And' | 'Or';
-  left: IExpr<Val>;
-  right: IExpr<Val>;
-};
-
-export type SpecialExpr<Val> = {
-  [PRIV]: Val;
-  kind: 'IsNull' | 'IsNotNull';
-};
-
-export type InExpr<Val> = {
-  [PRIV]: Val;
-  kind: 'In' | 'NotIn';
-  values: Array<Val>;
-};
-
-export type IExpr<Val> = CombineExpr<Val> | CompareExpr<Val> | SpecialExpr<Val> | InExpr<Val>;
 
 export const Expr = (() => {
   return {
-    is: isExpr,
+    ...(builder.Expr as any as ExprBuilder),
 
-    equal,
-    eq: equal,
-    different: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'Different', val }),
-    lowerThan,
-    lt: lowerThan,
-    greaterThan,
-    gt: greaterThan,
-    lowerThanOrEqual,
-    lte: lowerThanOrEqual,
-    greaterThanOrEqual,
-    gte: greaterThanOrEqual,
-    like: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'Like', val }),
-    notLike: <Val>(val: Val) => createExpr<CompareExpr<Val>>({ kind: 'NotLike', val }),
-    isNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNull' }),
-    isNotNull: <Val>() => createExpr<SpecialExpr<Val>>({ kind: 'IsNotNull' }),
-    and: <Val>(left: IExpr<Val>, right: IExpr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'And', left, right }),
-    or: <Val>(left: IExpr<Val>, right: IExpr<Val>) => createExpr<CombineExpr<Val>>({ kind: 'Or', left, right }),
-    in: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'In', values }),
-    notIn: <Val>(values: Array<Val>) => createExpr<InExpr<Val>>({ kind: 'NotIn', values }),
+    external: <Val extends string | number | boolean | null>(val: Val, name?: string): IExpr<Val> => {
+      const paramName = (name ?? '') + '_' + Random.createId();
+      return create(builder.Expr.BindParameter.colonNamed(paramName), { name: paramName, value: val });
+    },
+
+    column: <Val>(table: string, column: string): IColumnRef<Val> => {
+      return create<Val>(builder.Expr.column({ column, table })) as IColumnRef<Val>;
+    },
   };
 
-  function createExpr<E extends IExpr<any>>(data: Omit<E, PRIV>): E {
-    return {
-      [PRIV]: 'Expr',
-      ...data,
-    } as any;
-  }
-
-  function isExpr(maybe: unknown): maybe is IExpr<any> {
-    return Boolean(maybe && (maybe as any)[PRIV] === 'Expr');
-  }
-
-  function equal<Val>(val: Val) {
-    return createExpr<CompareExpr<Val>>({ kind: 'Equal', val });
-  }
-
-  function lowerThan<Val>(val: Val) {
-    return createExpr<CompareExpr<Val>>({ kind: 'LowerThan', val });
-  }
-
-  function greaterThan<Val>(val: Val) {
-    return createExpr<CompareExpr<Val>>({ kind: 'GreaterThan', val });
-  }
-
-  function lowerThanOrEqual<Val>(val: Val) {
-    return createExpr<CompareExpr<Val>>({ kind: 'LowerThanOrEqual', val });
-  }
-
-  function greaterThanOrEqual<Val>(val: Val) {
-    return createExpr<CompareExpr<Val>>({ kind: 'GreaterThanOrEqual', val });
+  function create<Val>(expr: InnerExpr, param?: IExprInternal_Param): IExpr<Val> {
+    const internal: IExprInternal = { param };
+    return Object.assign(expr, { [PRIV]: internal }) as IExpr<Val>;
   }
 })();

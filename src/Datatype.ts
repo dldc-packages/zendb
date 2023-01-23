@@ -1,18 +1,18 @@
-import { PRIV } from './Utils';
+import { TYPES } from './utils/constants';
 
 export type SqliteDatatype = 'INTEGER' | 'TEXT' | 'REAL' | 'BLOB';
 
 export type DatatypeAny = Datatype<any, any>;
 
 export type Datatype<External, Internal> = {
-  [PRIV]: External;
+  [TYPES]: External;
   name: string;
   parse: (value: Internal) => External;
   serialize: (value: External) => Internal;
   type: SqliteDatatype;
 };
 
-function createDatatype<External, Internal>(dt: Omit<Datatype<External, Internal>, PRIV>): Datatype<External, Internal> {
+function createDatatype<External, Internal>(dt: Omit<Datatype<External, Internal>, TYPES>): Datatype<External, Internal> {
   return dt as any;
 }
 
