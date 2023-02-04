@@ -1,12 +1,13 @@
 import { Ast, builder as b, printNode } from 'zensqlite';
 import { ColumnDef, IColumnDefAny } from './ColumnDef';
+import { Expr, IColumnRef } from './Expr';
 import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { ITableQuery, TableQuery } from './TableQuery';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
-import { extractExprParams } from './utils/extractExprParams';
-import { ColsBase, ColumnsDefsBase, ExprFromTable, ITableInput, ITableResult } from './utils/types';
-import { isNotNull, paramsFromMap } from './utils/utils';
+import { extractParams } from './utils/params';
+import { ColsBase, ColumnsDefsBase, ColumnsRef, ExprFromTable, ITableInput, ITableResult } from './utils/types';
+import { isNotNull, mapObject } from './utils/utils';
 
 export type DeleteOptions = { limit?: number };
 
@@ -30,6 +31,11 @@ export interface ITable<InputCols extends ColsBase, OutputCols extends ColsBase>
   updateOne(data: Partial<OutputCols>, where?: ExprFromTable<OutputCols>): IUpdateOperation;
 }
 
+interface TableInfos<Cols extends ColsBase> {
+  table: Ast.Identifier;
+  columnsRefs: ColumnsRef<Cols>;
+}
+
 export const Table = (() => {
   return Object.assign(create, {
     insert,
@@ -37,7 +43,32 @@ export const Table = (() => {
     deleteOne,
     update,
     updateOne,
+    createTable,
+    query,
   });
+
+  function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): TableInfos<ITableResult<ColumnsDefs>> {
+    const tableIdentifier = b.Expr.identifier(table);
+    const columnsRefs = mapObject(columns, (key, _colDef): IColumnRef<any> => {
+      return Expr.column(tableIdentifier, key);
+    });
+    return { table: tableIdentifier, columnsRefs };
+  }
+
+  function create<ColumnsDefs extends ColumnsDefsBase>(
+    table: string,
+    columns: ColumnsDefs
+  ): ITable<ITableInput<ColumnsDefs>, ITableResult<ColumnsDefs>> {
+    return {
+      createTable: (options) => createTable(table, columns, options),
+      query: () => query(table, columns),
+      insert: (data) => insert(table, columns, data),
+      delete: (condition, options) => deleteFn(table, columns, condition, options),
+      deleteOne: (condition) => deleteOne(table, columns, condition),
+      update: (data, options) => update(table, columns, data, options),
+      updateOne: (data, where) => updateOne(table, columns, data, where),
+    };
+  }
 
   function createTable<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
@@ -105,21 +136,6 @@ export const Table = (() => {
     return { kind: 'CreateTable', sql: printNode(node), params: null, parse: () => null };
   }
 
-  function create<ColumnsDefs extends ColumnsDefsBase>(
-    table: string,
-    columns: ColumnsDefs
-  ): ITable<ITableInput<ColumnsDefs>, ITableResult<ColumnsDefs>> {
-    return {
-      createTable: (options) => createTable(table, columns, options),
-      query: () => query(table, columns),
-      insert: (data) => insert(table, columns, data),
-      delete: (condition, options) => deleteFn(table, columns, condition, options),
-      deleteOne: (condition) => deleteOne(table, columns, condition),
-      update: (data, options) => update(table, columns, data, options),
-      updateOne: (data, where) => updateOne(table, columns, data, where),
-    };
-  }
-
   function insert<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
@@ -156,14 +172,13 @@ export const Table = (() => {
     condition: ExprFromTable<ITableResult<ColumnsDefs>>,
     options: DeleteOptions = {}
   ): IDeleteOperation {
-    const paramsMap = new Map<any, string>();
-    const tableQuery = TableQuery.createFromTable(table, columns);
-    const queryNode = b.DeleteStmt(table, {
-      where: condition ? extractExprParams(condition(tableQuery[PRIV].columnsRef), paramsMap) : undefined,
+    const { columnsRefs } = getTableInfos(table, columns);
+    const node = b.DeleteStmt(table, {
+      where: condition(columnsRefs),
       limit: options.limit,
     });
-    const queryText = printNode(queryNode);
-    const params = paramsFromMap(paramsMap);
+    const queryText = printNode(node);
+    const params = extractParams(node);
     return { kind: 'Delete', sql: queryText, params, parse: (raw) => raw };
   }
 
@@ -181,15 +196,14 @@ export const Table = (() => {
     data: Partial<ITableInput<ColumnsDefs>>,
     { where, limit }: UpdateOptions<ITableResult<ColumnsDefs>> = {}
   ): IUpdateOperation {
-    const paramsMap = new Map<any, string>();
-    const tableQuery = TableQuery.createFromTable(table, columns);
+    const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
-      where: where ? extractExprParams(where(tableQuery[PRIV].columnsRef), paramsMap) : undefined,
+      where: where ? where(columnsRefs) : undefined,
       limit: limit,
-      setItems: createSetItems(paramsMap, columns, data),
+      setItems: createSetItems(columns, data),
     });
+    const params = extractParams(queryNode);
     const queryText = printNode(queryNode);
-    const params = paramsFromMap(paramsMap);
     return { kind: 'Update', sql: queryText, params, parse: (raw) => raw };
   }
 
@@ -203,6 +217,7 @@ export const Table = (() => {
   }
 
   function query<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): ITableQuery<ITableResult<ColumnsDefs>> {
-    return TableQuery.createFromTable(table, columns);
+    const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
+    return TableQuery.createFromTable(tableIdentifier, columnsRefs);
   }
 })();

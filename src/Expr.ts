@@ -28,6 +28,7 @@ type ExprBuilder = {
   or: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
   and: (left: IExpr<any>, right: IExpr<any>) => IExpr<boolean>;
   notNull: (expr: IExpr<any>) => IExpr<boolean>;
+  concatenate: (left: IExpr<string>, right: IExpr<string>) => IExpr<string>;
   AggregateFunctions: {
     json_group_array: <Val>(expr: IExpr<Val>) => IExpr<IJson<Array<Val>>>;
   };
@@ -46,8 +47,8 @@ export const Expr = (() => {
       return create(builder.Expr.BindParameter.colonNamed(paramName), { name: paramName, value: val });
     },
 
-    column: <Val>(table: string, column: string): IColumnRef<Val> => {
-      return create<Val>(builder.Expr.column({ column, table })) as IColumnRef<Val>;
+    column: <Val>(table: Ast.Identifier, column: string): IColumnRef<Val> => {
+      return create<Val>(builder.Expr.column({ column, table: { table } })) as IColumnRef<Val>;
     },
   };
 

@@ -2,9 +2,15 @@ import { Expr, Random } from '../src/mod';
 import { allDatatypesDb } from './utils/allDatatypesDb';
 import { tasksDb } from './utils/tasksDb';
 
+let nextRandomId = 0;
+
 beforeAll(() => {
   // disable random suffix for testing
-  Random.setCreateId(() => 'test');
+  Random.setCreateId(() => `test_${nextRandomId++}`);
+});
+
+beforeEach(() => {
+  nextRandomId = 0;
 });
 
 test('Insert', () => {
@@ -26,8 +32,8 @@ test('Delete with external value', () => {
   const result = tasksDb.users.delete((cols) => Expr.equal(cols.id, Expr.external('1', 'delete_id')));
   expect(result).toMatchObject({
     kind: 'Delete',
-    params: { delete_id_test: '1' },
-    sql: 'DELETE FROM users WHERE users.id == :delete_id_test',
+    params: { delete_id_test_0: '1' },
+    sql: 'DELETE FROM users WHERE users.id == :delete_id_test_0',
   });
 });
 
@@ -40,8 +46,8 @@ test('Update', () => {
   const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.literal('1234')) });
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { name: 'Paul' },
-    sql: "UPDATE users SET name = :name WHERE users.id == '1234'",
+    params: { name_test_0: 'Paul' },
+    sql: "UPDATE users SET name = :name_test_0 WHERE users.id == '1234'",
   });
 });
 
@@ -49,8 +55,8 @@ test('Update with external', () => {
   const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) });
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { filter_id_test: '1234', name: 'Paul' },
-    sql: 'UPDATE users SET name = :name WHERE users.id == :filter_id_test',
+    params: { filter_id_test_0: '1234', name_test_1: 'Paul' },
+    sql: 'UPDATE users SET name = :name_test_1 WHERE users.id == :filter_id_test_0',
   });
 });
 
@@ -58,17 +64,29 @@ test('Update One', () => {
   const result = tasksDb.users.updateOne({ name: 'Paul' }, (cols) => Expr.equal(cols.id, Expr.literal('1234')));
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { name: 'Paul' },
-    sql: "UPDATE users SET name = :name WHERE users.id == '1234' LIMIT 1",
+    params: { name_test_0: 'Paul' },
+    sql: "UPDATE users SET name = :name_test_0 WHERE users.id == '1234' LIMIT 1",
   });
 });
 
-test.skip('Query', () => {
+test('Query', () => {
   const result = tasksDb.users
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
     .all();
-  expect(result.sql).toEqual(null);
+  expect(result.sql).toEqual(`SELECT users.id AS id, users.email AS email FROM users`);
+  expect(result.params).toEqual(null);
+});
+
+test('Query select twice (cte)', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id, email: cols.email }))
+    .select((cols) => ({ idEmail: Expr.concatenate(cols.id, cols.email), ...cols }))
+    .all();
+  expect(result.sql).toEqual(
+    `WITH cte_test_1 AS (SELECT users.id AS id, users.email AS email FROM users) SELECT cte_test_1.id || cte_test_1.email AS idEmail, cte_test_1.id AS id, cte_test_1.email AS email FROM cte_test_1`
+  );
   expect(result.params).toEqual(null);
 });
 

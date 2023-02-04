@@ -21,18 +21,8 @@ export function arrayEqual<T>(a: Array<T>, b: Array<T>): boolean {
   return a.length === b.length && a.every((val, i) => val === b[i]);
 }
 
-export type ParamsMap = Map<string, unknown>;
-
 export function dotCol(table: string, col: string): string {
   return `${table}__${col}`;
-}
-
-export function paramsFromMap(paramsMap: ParamsMap): Record<string, any> | null {
-  const entries = Array.from(paramsMap.entries());
-  if (entries.length === 0) {
-    return null;
-  }
-  return Object.fromEntries(entries);
 }
 
 const urlAlphabet = 'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict';
