@@ -25,7 +25,7 @@ export const TestDatabase = (() => {
         return opResult<zen.ICreateTableOperation>(null);
       }
       if (op.kind === 'Insert') {
-        sqlDb.prepare(op.sql).run(...op.params);
+        sqlDb.prepare(op.sql).run(op.params);
         return opResult<zen.IInsertOperation<any>>(op.parse());
       }
       if (op.kind === 'Delete') {

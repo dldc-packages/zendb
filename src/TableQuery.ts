@@ -32,7 +32,7 @@ export interface ITableQuery<Cols extends ColsBase> {
 
   select<NewCols extends SelectBase>(fn: (cols: ColumnsRef<Cols>) => NewCols): ITableQuery<ColsFromSelect<NewCols>>;
 
-  join<RTable extends ITableQuery<any>, NewCols extends ColsBase>(
+  join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
     table: RTable,
     expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr<any>,
     select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
@@ -81,8 +81,15 @@ export const TableQuery = (() => {
       maybeFirst,
     };
 
-    function filter(_fn: (cols: ColumnsRef<Cols>) => IExpr<any>): ITableQuery<Cols> {
-      throw new Error('Not implemented');
+    function filter(fn: (cols: ColumnsRef<Cols>) => IExpr<any>): ITableQuery<Cols> {
+      if (internal.where) {
+        // already have a where, create a cte
+        return asCte().filter(fn);
+      }
+      return create({
+        ...internal,
+        where: fn(internal.columnsRef),
+      });
     }
 
     function filterEqual(_filters: FilterEqual<Cols>): ITableQuery<Cols> {
@@ -94,13 +101,7 @@ export const TableQuery = (() => {
         // already have a select, create a cte
         return asCte().select(fn);
       }
-      const table = internal.from;
-      const columns: Array<Ast.Node<'ResultColumn'>> = [];
-      const columnsRef: ColumnsRef<any> = {};
-      Object.entries(fn(internal.columnsRef)).forEach(([key, expr]) => {
-        columns.push(builder.ResultColumn.Expr(expr, key));
-        columnsRef[key] = Expr.column(table, key);
-      });
+      const { columns, columnsRef } = resolvedColumns(internal.from, fn(internal.columnsRef));
       return create({
         ...internal,
         columns,
@@ -108,12 +109,32 @@ export const TableQuery = (() => {
       });
     }
 
-    function join<RTable extends ITableQuery<any>, NewCols extends ColsBase>(
-      _table: RTable,
-      _expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr<any>,
-      _select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
+    function join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
+      table: RTable,
+      expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr<any>,
+      select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
     ): ITableQuery<NewCols> {
-      throw new Error('Not implemented');
+      if (internal.columns || internal.where || internal.join) {
+        return asCte().join(table, expr, select);
+      }
+      const { columns, columnsRef } = resolvedColumns(internal.from, select(internal.columnsRef, table[PRIV].columnsRef));
+      const join: Ast.Node<'JoinClause'> = {
+        kind: 'JoinClause',
+        tableOrSubquery: { kind: 'TableOrSubquery', variant: 'Table', table: internal.from },
+        joins: [
+          {
+            joinOperator: { kind: 'JoinOperator', variant: 'Join', join: 'Left' },
+            tableOrSubquery: { kind: 'TableOrSubquery', variant: 'Table', table: table[PRIV].from },
+            joinConstraint: { kind: 'JoinConstraint', variant: 'On', expr: expr(internal.columnsRef, table[PRIV].columnsRef) },
+          },
+        ],
+      };
+      return create({
+        ...internal,
+        columns,
+        columnsRef,
+        join,
+      });
     }
 
     function groupBy(_group: (cols: ColumnsRef<Cols>) => IExpr<any> | Array<IExpr<any>>): ITableQuery<Cols> {
@@ -203,8 +224,22 @@ export const TableQuery = (() => {
     return {
       kind: 'SelectCore',
       variant: 'Select',
-      from: { variant: 'TablesOrSubqueries', tablesOrSubqueries: [{ variant: 'Table', kind: 'TableOrSubquery', table: internal.from }] },
+      from: internal.join
+        ? { variant: 'Join', joinClause: internal.join }
+        : { variant: 'TablesOrSubqueries', tablesOrSubqueries: [{ variant: 'Table', kind: 'TableOrSubquery', table: internal.from }] },
       resultColumns: internal.columns ? Utils.arrayToNonEmptyArray(internal.columns) : [builder.ResultColumn.Star()],
+      where: internal.where,
     };
+  }
+
+  function resolvedColumns(
+    table: Ast.Identifier,
+    select: SelectBase
+  ): { columns: Array<Ast.Node<'ResultColumn'>>; columnsRef: ColumnsRef<any> } {
+    const columns = Object.entries(select).map(([key, expr]): Ast.Node<'ResultColumn'> => {
+      return builder.ResultColumn.Expr(expr, key);
+    });
+    const columnsRef = mapObject(select, (col) => Expr.column(table, col));
+    return { columns, columnsRef };
   }
 })();

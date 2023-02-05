@@ -150,18 +150,18 @@ export const Table = (() => {
       resolvedData[name] = serialized;
       parsedData[name] = ColumnDef.parse(column, serialized);
     });
-    const columnsArgs = columnsEntries.map(([name]) => resolvedData[name]);
-    const params = columnsEntries.map(() => b.Expr.BindParameter.indexed());
-    const cols = columnsEntries.map(([col]) => b.Expr.identifier(col));
+    const values = columnsEntries.map(([name]) => Expr.external(resolvedData[name], name));
+    const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
     const queryNode = b.InsertStmt(table, {
       columnNames: cols,
-      data: b.InsertStmtData.Values([params]),
+      data: b.InsertStmtData.Values([values]),
     });
+    const params = extractParams(queryNode);
     const insertStatement = printNode(queryNode);
     return {
       kind: 'Insert',
       sql: insertStatement,
-      params: columnsArgs,
+      params,
       parse: () => parsedData as any,
     };
   }

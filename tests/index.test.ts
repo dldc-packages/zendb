@@ -1,12 +1,20 @@
+import dedent from 'dedent';
+import { format } from 'sql-formatter';
 import { Expr, Random } from '../src/mod';
 import { allDatatypesDb } from './utils/allDatatypesDb';
 import { tasksDb } from './utils/tasksDb';
+
+function formatSqlite(content: string) {
+  return format(content, { language: 'sqlite' });
+}
+
+const sql = dedent;
 
 let nextRandomId = 0;
 
 beforeAll(() => {
   // disable random suffix for testing
-  Random.setCreateId(() => `test_${nextRandomId++}`);
+  Random.setCreateId(() => `id${nextRandomId++}`);
 });
 
 beforeEach(() => {
@@ -17,8 +25,12 @@ test('Insert', () => {
   const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
   expect(result).toMatchObject({
     kind: 'Insert',
-    params: ['1', 'John Doe', 'john@exemple.com'],
-    sql: 'INSERT INTO users (id, name, email) VALUES (?, ?, ?)',
+    sql: 'INSERT INTO users (id, name, email) VALUES (:id_id0, :name_id1, :email_id2)',
+    params: {
+      email_id2: 'john@exemple.com',
+      id_id0: '1',
+      name_id1: 'John Doe',
+    },
   });
   expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe' });
 });
@@ -32,8 +44,8 @@ test('Delete with external value', () => {
   const result = tasksDb.users.delete((cols) => Expr.equal(cols.id, Expr.external('1', 'delete_id')));
   expect(result).toMatchObject({
     kind: 'Delete',
-    params: { delete_id_test_0: '1' },
-    sql: 'DELETE FROM users WHERE users.id == :delete_id_test_0',
+    params: { delete_id_id0: '1' },
+    sql: 'DELETE FROM users WHERE users.id == :delete_id_id0',
   });
 });
 
@@ -46,8 +58,8 @@ test('Update', () => {
   const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.literal('1234')) });
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { name_test_0: 'Paul' },
-    sql: "UPDATE users SET name = :name_test_0 WHERE users.id == '1234'",
+    params: { name_id0: 'Paul' },
+    sql: "UPDATE users SET name = :name_id0 WHERE users.id == '1234'",
   });
 });
 
@@ -55,8 +67,8 @@ test('Update with external', () => {
   const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) });
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { filter_id_test_0: '1234', name_test_1: 'Paul' },
-    sql: 'UPDATE users SET name = :name_test_1 WHERE users.id == :filter_id_test_0',
+    params: { filter_id_id0: '1234', name_id1: 'Paul' },
+    sql: 'UPDATE users SET name = :name_id1 WHERE users.id == :filter_id_id0',
   });
 });
 
@@ -64,8 +76,8 @@ test('Update One', () => {
   const result = tasksDb.users.updateOne({ name: 'Paul' }, (cols) => Expr.equal(cols.id, Expr.literal('1234')));
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { name_test_0: 'Paul' },
-    sql: "UPDATE users SET name = :name_test_0 WHERE users.id == '1234' LIMIT 1",
+    params: { name_id0: 'Paul' },
+    sql: "UPDATE users SET name = :name_id0 WHERE users.id == '1234' LIMIT 1",
   });
 });
 
@@ -82,27 +94,63 @@ test('Query select twice (cte)', () => {
   const result = tasksDb.users
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
-    .select((cols) => ({ idEmail: Expr.concatenate(cols.id, cols.email), ...cols }))
+    .select((cols) => {
+      return { idEmail: Expr.concatenate(cols.id, cols.email), ...cols };
+    })
     .all();
-  expect(result.sql).toEqual(
-    `WITH cte_test_1 AS (SELECT users.id AS id, users.email AS email FROM users) SELECT cte_test_1.id || cte_test_1.email AS idEmail, cte_test_1.id AS id, cte_test_1.email AS email FROM cte_test_1`
-  );
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    WITH
+      cte_id1 AS (
+        SELECT
+          users.id AS id,
+          users.email AS email
+        FROM
+          users
+      )
+    SELECT
+      cte_id1.id || cte_id1.email AS idEmail,
+      cte_id1.id AS id,
+      cte_id1.email AS email
+    FROM
+      cte_id1
+  `);
   expect(result.params).toEqual(null);
 });
 
-// test('Query join', () => {
-//   const result = tasksDb.users.query()
-//     .select(({ id, email }) => ({ id, email }))
-//     .filter(c => Expr.equal(c.id, Expr.literal('1')))
-//     .join(tasksDb.users_tasks.query(), (c, t) => Expr.equal(c.id, t.user_id), '')
-//     .join('id', 'users_tasks', 'user_id')
-//     .join('task_id', 'tasks', 'id')
-//     .all();
-//   expect(result.sql).toEqual(
-//     'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id'
-//   );
-//   expect(result.params).toEqual({ id: '1' });
-// });
+test('Query join', () => {
+  const result = tasksDb.users
+    .query()
+    .select(({ id, email }) => ({ id, email }))
+    .filter((c) => Expr.equal(c.id, Expr.literal('1')))
+    .join(
+      tasksDb.users_tasks.query(),
+      (c, t) => Expr.equal(c.id, t.user_id),
+      (l, r) => ({ ...l, ...r })
+    )
+    .all();
+
+  expect(formatSqlite(result.sql)).toEqual(sql`
+      WITH
+        cte_id2 AS (
+          SELECT
+            users.id AS id,
+            users.email AS email
+          FROM
+            users
+          WHERE
+            users.id == '1'
+        )
+      SELECT
+        cte_id2.id AS id,
+        cte_id2.email AS email,
+        users_tasks.user_id AS user_id,
+        users_tasks.task_id AS task_id
+      FROM
+        cte_id2
+        LEFT JOIN users_tasks ON cte_id2.id == users_tasks.user_id
+  `);
+  expect(result.params).toEqual(null);
+});
 
 // test('Query join multiple filter', () => {
 //   const result = tasksDb.users
@@ -131,8 +179,16 @@ test('read and write datatypes', () => {
     json: { foo: 'bar', baz: true },
   });
   expect(result).toMatchObject({
-    sql: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    params: ['1', 'test', 42, 1, 1663075512250, '{"foo":"bar","baz":true}', 3.14],
+    sql: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (:id_id0, :text_id1, :integer_id2, :boolean_id3, :date_id4, :json_id5, :number_id6)',
+    params: {
+      boolean_id3: 1,
+      date_id4: 1663075512250,
+      id_id0: '1',
+      integer_id2: 42,
+      json_id5: '{"foo":"bar","baz":true}',
+      number_id6: 3.14,
+      text_id1: 'test',
+    },
   });
   expect(result.parse()).toEqual({
     boolean: true,
