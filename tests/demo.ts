@@ -1,4 +1,4 @@
-import { ColumnDef, Database, Expr, Populate, QueryResult } from '../src/mod';
+import { ColumnDef, Database, Expr, Populate } from '../src/mod';
 import { TYPES } from '../src/utils/constants';
 
 const db = Database({
@@ -55,10 +55,12 @@ const tasksByUser2 = db.users.query().join(
   })
 );
 
-const res: Array<QueryResult<typeof tasksByUser2[TYPES]>> = {} as any;
+const res: Array<(typeof tasksByUser2)[TYPES]> = {} as any;
 
-res.forEach((item) => {
-  item.tasks.forEach((task) => {
-    console.log(task.completed);
-  });
-});
+console.log(res);
+
+// res.forEach((item) => {
+//   item.tasks.forEach((task) => {
+//     console.log(task.completed);
+//   });
+// });

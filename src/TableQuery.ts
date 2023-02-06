@@ -4,7 +4,7 @@ import { IQueryOperation } from './Operation';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
-import { ColsBase, ColsFromSelect, ColumnsRef, FilterEqual, QueryResult, SelectBase } from './utils/types';
+import { ColsBase, ColsFromSelect, ColumnsRef, FilterEqual, SelectBase } from './utils/types';
 import { mapObject } from './utils/utils';
 
 export interface ITableQueryInternalParent {
@@ -13,7 +13,7 @@ export interface ITableQueryInternalParent {
   parents: Array<ITableQueryInternalParent>;
 }
 
-export interface ITableQueryInternal<Cols extends ColsBase> {
+export interface ITableQueryInternalBase<Cols extends ColsBase> {
   readonly columnsRef: ColumnsRef<Cols>;
   readonly from: Ast.Identifier; // table or cte name
   readonly parents: Array<ITableQueryInternalParent>;
@@ -22,6 +22,11 @@ export interface ITableQueryInternal<Cols extends ColsBase> {
   readonly join?: Ast.Node<'JoinClause'>;
   readonly where?: Ast.Expr;
   readonly groupBy?: Array<Ast.Expr>;
+}
+
+export interface ITableQueryInternal<Cols extends ColsBase> extends ITableQueryInternalBase<Cols> {
+  // The current query as a cte
+  readonly cte: ITableQueryInternalBase<Cols>;
 }
 
 export interface ITableQuery<Cols extends ColsBase> {
@@ -37,20 +42,20 @@ export interface ITableQuery<Cols extends ColsBase> {
     table: RTable,
     expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr<any>,
     select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
-  ): ITableQuery<NewCols>;
+  ): ITableQuery<ColsFromSelect<NewCols>>;
 
   groupBy(group: (cols: ColumnsRef<Cols>) => IExpr<any> | Array<IExpr<any>>): ITableQuery<Cols>;
 
   // Returns an Array
-  all(): IQueryOperation<Array<QueryResult<Cols>>>;
+  all(): IQueryOperation<Array<Cols>>;
   // Throw if result count is not === 1
-  one(): IQueryOperation<QueryResult<Cols>>;
+  one(): IQueryOperation<Cols>;
   // Throw if result count is > 1
-  maybeOne(): IQueryOperation<QueryResult<Cols> | null>;
+  maybeOne(): IQueryOperation<Cols | null>;
   // Throw if result count is === 0
-  first(): IQueryOperation<QueryResult<Cols>>;
+  first(): IQueryOperation<Cols>;
   // Never throws
-  maybeFirst(): IQueryOperation<QueryResult<Cols> | null>;
+  maybeFirst(): IQueryOperation<Cols | null>;
 }
 
 export const TableQuery = (() => {
@@ -64,11 +69,13 @@ export const TableQuery = (() => {
     });
   }
 
-  function create<Cols extends ColsBase>(internal: Omit<ITableQueryInternal<any>, 'cteName'>): ITableQuery<any> {
+  function create<Cols extends ColsBase>(internal: ITableQueryInternalBase<Cols>): ITableQuery<any> {
     const cteFrom = builder.Expr.identifier(`cte_${Random.createId()}`);
 
+    const cte = buildCte(cteFrom, internal);
+
     return {
-      [PRIV]: internal,
+      [PRIV]: { ...internal, cte },
       [TYPES]: {} as any,
       filter,
       filterEqual,
@@ -84,8 +91,8 @@ export const TableQuery = (() => {
 
     function filter(fn: (cols: ColumnsRef<Cols>) => IExpr<any>): ITableQuery<Cols> {
       if (internal.where) {
-        // already have a where, create a cte
-        return asCte().filter(fn);
+        // already have a where
+        return create(cte).filter(fn);
       }
       return create({
         ...internal,
@@ -100,7 +107,7 @@ export const TableQuery = (() => {
     function select<NewCols extends SelectBase>(fn: (cols: ColumnsRef<Cols>) => NewCols): ITableQuery<ColsFromSelect<NewCols>> {
       if (internal.columns) {
         // already have a select, create a cte
-        return asCte().select(fn);
+        return create(cte).select(fn);
       }
       const { columns, columnsRef } = resolvedColumns(internal.from, fn(internal.columnsRef));
       return create({
@@ -114,19 +121,20 @@ export const TableQuery = (() => {
       table: RTable,
       expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr<any>,
       select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
-    ): ITableQuery<NewCols> {
+    ): ITableQuery<ColsFromSelect<NewCols>> {
       if (internal.columns || internal.where || internal.join) {
-        return asCte().join(table, expr, select);
+        return create(cte).join(table, expr, select);
       }
-      const { columns, columnsRef } = resolvedColumns(internal.from, select(internal.columnsRef, table[PRIV].columnsRef));
+      const tableCte = table[PRIV].cte;
+      const { columns, columnsRef } = resolvedColumns(internal.from, select(internal.columnsRef, tableCte.columnsRef));
       const join: Ast.Node<'JoinClause'> = {
         kind: 'JoinClause',
         tableOrSubquery: { kind: 'TableOrSubquery', variant: 'Table', table: internal.from },
         joins: [
           {
             joinOperator: { kind: 'JoinOperator', variant: 'Join', join: 'Left' },
-            tableOrSubquery: { kind: 'TableOrSubquery', variant: 'Table', table: table[PRIV].from },
-            joinConstraint: { kind: 'JoinConstraint', variant: 'On', expr: expr(internal.columnsRef, table[PRIV].columnsRef) },
+            tableOrSubquery: { kind: 'TableOrSubquery', variant: 'Table', table: tableCte.from },
+            joinConstraint: { kind: 'JoinConstraint', variant: 'On', expr: expr(internal.columnsRef, tableCte.columnsRef) },
           },
         ],
       };
@@ -135,12 +143,13 @@ export const TableQuery = (() => {
         columns,
         columnsRef,
         join,
+        parents: [...internal.parents, toParent(tableCte.from, tableCte)],
       });
     }
 
     function groupBy(group: (cols: ColumnsRef<Cols>) => IExpr<any> | Array<IExpr<any>>): ITableQuery<Cols> {
       if (internal.columns || internal.groupBy) {
-        return asCte().groupBy(group);
+        return create(cte).groupBy(group);
       }
       const groupByRes = group(internal.columnsRef);
       const groupBy = Array.isArray(groupByRes) ? groupByRes : [groupByRes];
@@ -150,7 +159,7 @@ export const TableQuery = (() => {
       });
     }
 
-    function all(): IQueryOperation<Array<QueryResult<Cols>>> {
+    function all(): IQueryOperation<Array<Cols>> {
       const node = buildFinalNode(internal);
       const params = extractParams(node);
       const sql = printNode(node);
@@ -159,49 +168,50 @@ export const TableQuery = (() => {
         sql,
         params,
         parse: (rows) => {
-          console.log('rows', rows);
-          throw new Error('Not implemented');
+          return rows.map((row) => mapObject(internal.columnsRef, (key, col) => col[PRIV].parse(row[key], false)));
         },
       };
     }
 
-    function one(): IQueryOperation<QueryResult<Cols>> {
+    function one(): IQueryOperation<Cols> {
       throw new Error('Not implemented');
     }
 
-    function maybeOne(): IQueryOperation<QueryResult<Cols> | null> {
+    function maybeOne(): IQueryOperation<Cols | null> {
       throw new Error('Not implemented');
     }
 
-    function first(): IQueryOperation<QueryResult<Cols>> {
+    function first(): IQueryOperation<Cols> {
       throw new Error('Not implemented');
     }
 
-    function maybeFirst(): IQueryOperation<QueryResult<Cols> | null> {
+    function maybeFirst(): IQueryOperation<Cols | null> {
       throw new Error('Not implemented');
-    }
-
-    function asCte(): ITableQuery<Cols> {
-      const columnsRef = mapObject(internal.columnsRef, (key) => Expr.column(cteFrom, key));
-      return create({
-        from: cteFrom,
-        parents: [
-          {
-            name: cteFrom.name,
-            cte: {
-              kind: 'CommonTableExpression',
-              tableName: cteFrom,
-              select: { kind: 'SelectStmt', select: buildSelectCodeNode(internal) },
-            },
-            parents: internal.parents,
-          },
-        ],
-        columnsRef,
-      });
     }
   }
 
-  function buildFinalNode(internal: ITableQueryInternal<any>): Ast.Node<'SelectStmt'> {
+  function buildCte(cteFrom: Ast.Identifier, internal: ITableQueryInternalBase<any>): ITableQueryInternalBase<any> {
+    const columnsRef = mapObject(internal.columnsRef, (key, col) => Expr.column(cteFrom, key, col[PRIV].parse));
+    return {
+      from: cteFrom,
+      parents: [toParent(cteFrom, internal)],
+      columnsRef,
+    };
+  }
+
+  function toParent(cteFrom: Ast.Identifier, internal: ITableQueryInternalBase<any>): ITableQueryInternalParent {
+    return {
+      name: cteFrom.name,
+      cte: {
+        kind: 'CommonTableExpression',
+        tableName: cteFrom,
+        select: { kind: 'SelectStmt', select: buildSelectCodeNode(internal) },
+      },
+      parents: internal.parents,
+    };
+  }
+
+  function buildFinalNode(internal: ITableQueryInternalBase<any>): Ast.Node<'SelectStmt'> {
     const ctes = extractCtes(internal.parents);
     const selectCore = buildSelectCodeNode(internal);
     return {
@@ -229,7 +239,7 @@ export const TableQuery = (() => {
     }
   }
 
-  function buildSelectCodeNode(internal: ITableQueryInternal<any>): Ast.Node<'SelectCore'> {
+  function buildSelectCodeNode(internal: ITableQueryInternalBase<any>): Ast.Node<'SelectCore'> {
     return {
       kind: 'SelectCore',
       variant: 'Select',
@@ -249,7 +259,7 @@ export const TableQuery = (() => {
     const columns = Object.entries(select).map(([key, expr]): Ast.Node<'ResultColumn'> => {
       return builder.ResultColumn.Expr(expr, key);
     });
-    const columnsRef = mapObject(select, (col) => Expr.column(table, col));
+    const columnsRef = mapObject(select, (col, expr) => Expr.column(table, col, expr[PRIV].parse));
     return { columns, columnsRef };
   }
 })();

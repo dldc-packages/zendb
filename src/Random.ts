@@ -1,7 +1,7 @@
-import { nanoid } from './utils/utils';
+import { createNanoid } from './utils/utils';
 
 export const Random = (() => {
-  let createId = () => nanoid(12);
+  let createId = createNanoid('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 10);
 
   return {
     // used for testing

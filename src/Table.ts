@@ -1,6 +1,6 @@
 import { Ast, builder as b, printNode } from 'zensqlite';
 import { ColumnDef, IColumnDefAny } from './ColumnDef';
-import { Expr, IColumnRef } from './Expr';
+import { Expr, IExpr } from './Expr';
 import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { ITableQuery, TableQuery } from './TableQuery';
 import { PRIV } from './utils/constants';
@@ -49,8 +49,8 @@ export const Table = (() => {
 
   function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): TableInfos<ITableResult<ColumnsDefs>> {
     const tableIdentifier = b.Expr.identifier(table);
-    const columnsRefs = mapObject(columns, (key, _colDef): IColumnRef<any> => {
-      return Expr.column(tableIdentifier, key);
+    const columnsRefs = mapObject(columns, (key, colDef): IExpr<any> => {
+      return Expr.column(tableIdentifier, key, colDef[PRIV].datatype.parse);
     });
     return { table: tableIdentifier, columnsRefs };
   }

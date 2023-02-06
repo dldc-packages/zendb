@@ -1,4 +1,4 @@
-import { IColumnRef, IExpr, IJson } from './Expr';
+import { IExpr } from './Expr';
 import { ITableQuery } from './TableQuery';
 import { TYPES } from './utils/constants';
 import { ColumnsRef } from './utils/types';
@@ -17,7 +17,7 @@ export const Populate = (() => {
     _table: RT,
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
-  ): IColumnRef<IJson<Array<ResultColumn>>> {
+  ): IExpr<Array<ResultColumn>> {
     // const subTable = table.groupBy()
     throw new Error('Not implemented');
   }
@@ -27,7 +27,7 @@ export const Populate = (() => {
     _table: RT,
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
-  ): IColumnRef<IJson<ResultColumn>> {
+  ): IExpr<ResultColumn> {
     throw new Error('Not implemented');
   }
 
@@ -36,7 +36,7 @@ export const Populate = (() => {
     _table: RT,
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
-  ): IColumnRef<IJson<ResultColumn>> {
+  ): IExpr<ResultColumn> {
     throw new Error('Not implemented');
   }
 
@@ -45,7 +45,7 @@ export const Populate = (() => {
     _table: RT,
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
-  ): IColumnRef<IJson<ResultColumn | null>> {
+  ): IExpr<ResultColumn | null> {
     throw new Error('Not implemented');
   }
 
@@ -54,7 +54,7 @@ export const Populate = (() => {
     _table: RT,
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
-  ): IColumnRef<IJson<ResultColumn | null>> {
+  ): IExpr<ResultColumn | null> {
     throw new Error('Not implemented');
   }
 })();

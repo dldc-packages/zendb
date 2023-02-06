@@ -12,7 +12,7 @@ export function extractParams(expr: Ast.Node): Record<string, any> | null {
   const paramsMap = new Map<any, string>();
   Utils.traverse(expr, (node) => {
     if (node.kind === 'BindParameter' && node.variant === 'ColonNamed') {
-      const internal = (node as any)[PRIV] as IExprInternal;
+      const internal = (node as any)[PRIV] as IExprInternal<any> | undefined;
       if (internal && internal.param) {
         paramsMap.set(internal.param.name, internal.param.value);
       }

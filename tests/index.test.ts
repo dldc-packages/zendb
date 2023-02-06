@@ -130,24 +130,30 @@ test('Query join', () => {
     .all();
 
   expect(formatSqlite(result.sql)).toEqual(sql`
-      WITH
-        cte_id2 AS (
-          SELECT
-            users.id AS id,
-            users.email AS email
-          FROM
-            users
-          WHERE
-            users.id == '1'
-        )
-      SELECT
-        cte_id2.id AS id,
-        cte_id2.email AS email,
-        users_tasks.user_id AS user_id,
-        users_tasks.task_id AS task_id
-      FROM
-        cte_id2
-        LEFT JOIN users_tasks ON cte_id2.id == users_tasks.user_id
+    WITH
+      cte_id2 AS (
+        SELECT
+          users.id AS id,
+          users.email AS email
+        FROM
+          users
+        WHERE
+          users.id == '1'
+      ),
+      cte_id3 AS (
+        SELECT
+          *
+        FROM
+          users_tasks
+      )
+    SELECT
+      cte_id2.id AS id,
+      cte_id2.email AS email,
+      cte_id3.user_id AS user_id,
+      cte_id3.task_id AS task_id
+    FROM
+      cte_id2
+      LEFT JOIN cte_id3 ON cte_id2.id == cte_id3.user_id
   `);
   expect(result.params).toEqual(null);
 });
@@ -156,14 +162,9 @@ test(`Query groupBy`, () => {
   const result = tasksDb.users
     .query()
     .groupBy((cols) => cols.email)
-    .select((cols) => {
-      console.log(cols);
-      return {
-        count: Expr.AggregateFunctions.count(cols.id),
-      };
-    })
+    .select((cols) => ({ count: Expr.AggregateFunctions.count(cols.id) }))
     .all();
-  expect(result.sql).toEqual(`SELECT count(users.id) as count AS email FROM users GROUP BY users.email`);
+  expect(result.sql).toEqual(`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
   expect(result.params).toEqual(null);
 });
 
