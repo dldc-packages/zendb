@@ -21,6 +21,7 @@ export interface ITableQueryInternal<Cols extends ColsBase> {
   readonly columns?: Array<Ast.Node<'ResultColumn'>>;
   readonly join?: Ast.Node<'JoinClause'>;
   readonly where?: Ast.Expr;
+  readonly groupBy?: Array<Ast.Expr>;
 }
 
 export interface ITableQuery<Cols extends ColsBase> {
@@ -137,8 +138,16 @@ export const TableQuery = (() => {
       });
     }
 
-    function groupBy(_group: (cols: ColumnsRef<Cols>) => IExpr<any> | Array<IExpr<any>>): ITableQuery<Cols> {
-      throw new Error('Not implemented');
+    function groupBy(group: (cols: ColumnsRef<Cols>) => IExpr<any> | Array<IExpr<any>>): ITableQuery<Cols> {
+      if (internal.columns || internal.groupBy) {
+        return asCte().groupBy(group);
+      }
+      const groupByRes = group(internal.columnsRef);
+      const groupBy = Array.isArray(groupByRes) ? groupByRes : [groupByRes];
+      return create({
+        ...internal,
+        groupBy,
+      });
     }
 
     function all(): IQueryOperation<Array<QueryResult<Cols>>> {
@@ -229,6 +238,7 @@ export const TableQuery = (() => {
         : { variant: 'TablesOrSubqueries', tablesOrSubqueries: [{ variant: 'Table', kind: 'TableOrSubquery', table: internal.from }] },
       resultColumns: internal.columns ? Utils.arrayToNonEmptyArray(internal.columns) : [builder.ResultColumn.Star()],
       where: internal.where,
+      groupBy: internal.groupBy ? { exprs: Utils.arrayToNonEmptyArray(internal.groupBy) } : undefined,
     };
   }
 

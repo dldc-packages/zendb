@@ -18,6 +18,7 @@ export const Populate = (() => {
     _rightCol: keyof RT[TYPES],
     _select: (cols: ColumnsRef<RT[TYPES]>) => IExpr<ResultColumn>
   ): IColumnRef<IJson<Array<ResultColumn>>> {
+    // const subTable = table.groupBy()
     throw new Error('Not implemented');
   }
 

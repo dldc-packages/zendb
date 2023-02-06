@@ -152,6 +152,21 @@ test('Query join', () => {
   expect(result.params).toEqual(null);
 });
 
+test(`Query groupBy`, () => {
+  const result = tasksDb.users
+    .query()
+    .groupBy((cols) => cols.email)
+    .select((cols) => {
+      console.log(cols);
+      return {
+        count: Expr.AggregateFunctions.count(cols.id),
+      };
+    })
+    .all();
+  expect(result.sql).toEqual(`SELECT count(users.id) as count AS email FROM users GROUP BY users.email`);
+  expect(result.params).toEqual(null);
+});
+
 // test('Query join multiple filter', () => {
 //   const result = tasksDb.users
 //     .select()
