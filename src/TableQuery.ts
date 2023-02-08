@@ -485,7 +485,36 @@ export const TableQuery = (() => {
     return { select, columnsRef };
   }
 
-  function createCteFrom() {
-    throw new Error('Not implemented');
+  function createCteFrom<OutCols extends ColsBase>(table: ITableQuery<ColsBase, OutCols>): ITableQuery<OutCols, OutCols> {
+    const internal = table[PRIV];
+    if (
+      !internal.where &&
+      !internal.groupBy &&
+      !internal.having &&
+      !internal.select &&
+      !internal.orderBy &&
+      !internal.limit &&
+      !internal.offset
+    ) {
+      // Nothing was done to the table, so we can just return it
+      return table as any;
+    }
+    const parent: ITableQueryInternalParent = {
+      cte: {
+        kind: 'CommonTableExpression',
+        tableName: internal.asCteName,
+        select: buildSelectNode(internal),
+      },
+      name: internal.asCteName.name,
+      parents: internal.parents,
+    };
+    const colsRef = mapObject(internal.outputCols, (key, col) => Expr.column(key, col[PRIV].parse, internal.asCteName));
+
+    return create({
+      from: internal.asCteName,
+      parents: [parent],
+      inputCols: colsRef,
+      outputCols: colsRef,
+    });
   }
 })();

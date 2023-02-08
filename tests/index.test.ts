@@ -1,6 +1,6 @@
 import dedent from 'dedent';
 import { format } from 'sql-formatter';
-import { Expr, Random } from '../src/mod';
+import { Expr, Random, Table } from '../src/mod';
 import { allDatatypesDb } from './utils/allDatatypesDb';
 import { tasksDb } from './utils/tasksDb';
 
@@ -158,6 +158,44 @@ test('read and write datatypes', () => {
     number: 3.14,
     text: 'test',
   });
+});
+
+test('Query CTE', () => {
+  const query1 = tasksDb.users
+    .query()
+    .select((cols) => ({ demo: cols.id, id: cols.id }))
+    .groupBy((cols) => [cols.name])
+    .limit(Expr.literal(10));
+
+  const result = Table.from(query1)
+    .select((cols) => ({ demo2: cols.demo, id: cols.id }))
+    .where((cols) => Expr.equal(cols.id, Expr.literal(2)))
+    .one();
+
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT
+          users.id AS demo,
+          users.id AS id
+        FROM
+          users
+        GROUP BY
+          users.name
+        LIMIT
+          10
+      )
+    SELECT
+      cte_id3.demo AS demo2,
+      cte_id3.id AS id
+    FROM
+      cte_id3
+    WHERE
+      cte_id3.id == 2
+    LIMIT
+      1
+  `);
+  expect(result.params).toEqual(null);
 });
 
 // test('Query groupBy after select', () => {
