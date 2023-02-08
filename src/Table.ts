@@ -6,7 +6,7 @@ import { ITableQuery, TableQuery } from './TableQuery';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
-import { ColsBase, ColumnsDefsBase, ColumnsRef, ExprFromTable, ITableInput, ITableResult } from './utils/types';
+import { ColsBase, ColumnsDefsBase, ExprFromTable, ExprRecordFrom, ITableInput, ITableResult } from './utils/types';
 import { isNotNull, mapObject } from './utils/utils';
 
 export type DeleteOptions = { limit?: number };
@@ -23,7 +23,7 @@ export interface ICreateTableOptions {
 
 export interface ITable<InputCols extends ColsBase, OutputCols extends ColsBase> {
   createTable(options?: ICreateTableOptions): ICreateTableOperation;
-  query(): ITableQuery<OutputCols, OutputCols>;
+  query(): ITableQuery<ExprRecordFrom<OutputCols>, OutputCols>;
   insert(data: InputCols): IInsertOperation<OutputCols>;
   delete(condition: ExprFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
   deleteOne(condition: ExprFromTable<OutputCols>): IDeleteOperation;
@@ -33,7 +33,7 @@ export interface ITable<InputCols extends ColsBase, OutputCols extends ColsBase>
 
 interface TableInfos<Cols extends ColsBase> {
   table: Ast.Identifier;
-  columnsRefs: ColumnsRef<Cols>;
+  columnsRefs: ExprRecordFrom<Cols>;
 }
 
 export const Table = (() => {
@@ -222,7 +222,7 @@ export const Table = (() => {
   function query<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs
-  ): ITableQuery<ITableResult<ColumnsDefs>, ITableResult<ColumnsDefs>> {
+  ): ITableQuery<ExprRecordFrom<ITableResult<ColumnsDefs>>, ITableResult<ColumnsDefs>> {
     const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
     return TableQuery.createFromTable(tableIdentifier, columnsRefs);
   }

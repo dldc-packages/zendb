@@ -27,7 +27,11 @@ export type SelectBase = Record<string, IExpr<any>>;
 
 export type ColsFromSelect<Select extends SelectBase> = { [K in keyof Select]: Select[K][TYPES] };
 
-export type ColumnsRef<Cols extends ColsBase> = { [K in keyof Cols]: IExpr<Cols[K]> };
+export type ColsRefBase = {
+  [key: string]: IExpr | ColsRefBase;
+};
+
+export type ExprRecordFrom<Cols extends ColsBase> = { [K in keyof Cols]: IExpr<Cols[K]> };
 
 export type FilterEqual<Cols extends ColsBase> = { [K in keyof Cols]?: Cols[K] extends QueryColumnValuePrimitive ? Cols[K] : never };
 
@@ -46,4 +50,4 @@ export type ColumnDefOutputValue<Column extends IColumnDefAny> =
   | Column[PRIV]['datatype'][TYPES]
   | (Column[PRIV]['nullable'] extends true ? null : never);
 
-export type ExprFromTable<Cols extends ColsBase> = (cols: ColumnsRef<Cols>) => IExpr<any>;
+export type ExprFromTable<Cols extends ColsBase> = (cols: ExprRecordFrom<Cols>) => IExpr<any>;

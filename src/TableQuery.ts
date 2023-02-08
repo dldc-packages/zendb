@@ -4,7 +4,7 @@ import { IQueryOperation } from './Operation';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
-import { ColsBase, ColsFromSelect, ColumnsRef, SelectBase } from './utils/types';
+import { ColsBase, ColsFromSelect, ColsRefBase, ExprRecordFrom, SelectBase } from './utils/types';
 import { mapObject } from './utils/utils';
 
 export interface ITableQueryInternalParent {
@@ -13,12 +13,7 @@ export interface ITableQueryInternalParent {
   parents: Array<ITableQueryInternalParent>;
 }
 
-export interface ITableQueryInternalBase<InCols extends ColsBase, OutCols extends ColsBase> {
-  readonly inputCols: ColumnsRef<InCols>;
-  readonly outputCols: ColumnsRef<OutCols>;
-  readonly from: Ast.Identifier; // table or cte name
-  readonly parents: Array<ITableQueryInternalParent>;
-
+export interface ITableQueryState {
   readonly where?: IExpr;
   readonly groupBy?: Array<IExpr>;
   readonly having?: IExpr;
@@ -28,7 +23,20 @@ export interface ITableQueryInternalBase<InCols extends ColsBase, OutCols extend
   readonly offset?: IExpr;
 }
 
-export interface ITableQueryInternal<InCols extends ColsBase, OutCols extends ColsBase> extends ITableQueryInternalBase<InCols, OutCols> {
+export interface ITableQueryInternalBase<InColsRefs extends ColsRefBase, OutCols extends ColsBase> {
+  readonly inputColsRefs: InColsRefs;
+  // Identifiers of the columns of the current query
+  readonly outputColsRefs: ExprRecordFrom<OutCols>;
+  // Selected expressions of the current query
+  readonly outputColsExprs: ExprRecordFrom<OutCols>;
+  readonly from: Ast.Identifier; // table or cte name
+  readonly parents: Array<ITableQueryInternalParent>;
+
+  readonly state: ITableQueryState;
+}
+
+export interface ITableQueryInternal<InColsRefs extends ColsRefBase, OutCols extends ColsBase>
+  extends ITableQueryInternalBase<InColsRefs, OutCols> {
   // The current query as a cte
   readonly asCteName: Ast.Identifier;
 }
@@ -47,27 +55,37 @@ export type OrderByItem<Cols extends ColsBase> = [keyof Cols, 'Asc' | 'Desc'];
 
 export type OrderingTerms = Array<Ast.Node<'OrderingTerm'>>;
 
-export type ColsFn<InCols extends ColsBase, Result> = (cols: ColumnsRef<InCols>) => Result;
-export type ColsFnOrRes<InCols extends ColsBase, Result> = ColsFn<InCols, Result> | Result;
-
-export type AllColsFn<InCols extends ColsBase, OutCols extends ColsBase, Result> = (
-  outCols: ColumnsRef<OutCols>,
-  inCols: ColumnsRef<InCols>
+export type SelectFn<InColsRef extends ColsRefBase, CurrentColsRefs extends ColsRefBase, Result> = (
+  cols: InColsRef,
+  current: CurrentColsRefs
 ) => Result;
-export type AllColsFnOrRes<InCols extends ColsBase, OutCols extends ColsBase, Result> = AllColsFn<InCols, OutCols, Result> | Result;
 
-export interface ITableQuery<InCols extends ColsBase, OutCols extends ColsBase> {
-  readonly [TYPES]: { input: InCols; output: OutCols };
-  readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
+export type ColsFn<InColsRef extends ColsRefBase, Result> = (cols: InColsRef) => Result;
+export type ColsFnOrRes<InColsRef extends ColsRefBase, Result> = ColsFn<InColsRef, Result> | Result;
+
+export type AllColsFn<InColsRef extends ColsRefBase, OutCols extends ColsBase, Result> = (
+  inCols: InColsRef,
+  outCols: ExprRecordFrom<OutCols>
+) => Result;
+export type AllColsFnOrRes<InColsRef extends ColsRefBase, OutCols extends ColsBase, Result> =
+  | AllColsFn<InColsRef, OutCols, Result>
+  | Result;
+
+export interface ITableQuery<InColsRefs extends ColsRefBase, OutCols extends ColsBase> {
+  readonly [TYPES]: OutCols;
+  readonly [PRIV]: ITableQueryInternal<InColsRefs, OutCols>;
 
   // base operations (in order of execution)
-  where(whereFn: ColsFn<InCols, IExpr>): ITableQuery<InCols, OutCols>;
-  groupBy(groupFn: ColsFn<InCols, Array<IExpr>>): ITableQuery<InCols, OutCols>;
-  having(havingFn: ColsFn<InCols, IExpr>): ITableQuery<InCols, OutCols>;
-  select<NewCols extends SelectBase>(fn: ColsFn<InCols, NewCols>): ITableQuery<InCols, ColsFromSelect<NewCols>>;
-  orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
-  limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExpr>): ITableQuery<InCols, OutCols>;
-  offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExpr>): ITableQuery<InCols, OutCols>;
+  where(whereFn: ColsFn<InColsRefs, IExpr>): ITableQuery<InColsRefs, OutCols>;
+  groupBy(groupFn: ColsFn<InColsRefs, Array<IExpr>>): ITableQuery<InColsRefs, OutCols>;
+  having(havingFn: ColsFn<InColsRefs, IExpr>): ITableQuery<InColsRefs, OutCols>;
+  select<NewCols extends SelectBase>(
+    selectFn: SelectFn<InColsRefs, ExprRecordFrom<OutCols>, NewCols>
+  ): ITableQuery<InColsRefs, ColsFromSelect<NewCols>>;
+
+  orderBy(orderByFn: AllColsFnOrRes<InColsRefs, OutCols, OrderingTerms>): ITableQuery<InColsRefs, OutCols>;
+  limit(limitFn: AllColsFnOrRes<InColsRefs, OutCols, IExpr>): ITableQuery<InColsRefs, OutCols>;
+  offset(offsetFn: AllColsFnOrRes<InColsRefs, OutCols, IExpr>): ITableQuery<InColsRefs, OutCols>;
 
   // join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
   //   table: RTable,
@@ -100,24 +118,29 @@ export interface ITableQuery<InCols extends ColsBase, OutCols extends ColsBase> 
 export const TableQuery = (() => {
   return { createFromTable, createCteFrom };
 
-  function createFromTable<Cols extends ColsBase>(table: Ast.Identifier, columnsRef: ColumnsRef<Cols>): ITableQuery<Cols, Cols> {
+  function createFromTable<Cols extends ColsBase>(
+    table: Ast.Identifier,
+    columnsRef: ExprRecordFrom<Cols>
+  ): ITableQuery<ExprRecordFrom<Cols>, Cols> {
     return create({
       parents: [],
       from: table,
-      inputCols: columnsRef,
-      outputCols: columnsRef,
+      inputColsRefs: columnsRef,
+      outputColsRefs: columnsRef,
+      outputColsExprs: columnsRef,
+      state: {},
     });
   }
 
-  function create<InCols extends ColsBase, OutCols extends ColsBase>(
-    internalBase: ITableQueryInternalBase<InCols, OutCols>
-  ): ITableQuery<InCols, OutCols> {
-    const internal: ITableQueryInternal<InCols, OutCols> = {
+  function create<InColsRefs extends ColsRefBase, OutCols extends ColsBase>(
+    internalBase: ITableQueryInternalBase<InColsRefs, OutCols>
+  ): ITableQuery<InColsRefs, OutCols> {
+    const internal: ITableQueryInternal<InColsRefs, OutCols> = {
       ...internalBase,
       asCteName: builder.Expr.identifier(`cte_${Random.createId()}`),
     };
 
-    const self: ITableQuery<InCols, OutCols> = {
+    const self: ITableQuery<InColsRefs, OutCols> = {
       [PRIV]: internal,
       [TYPES]: {} as any,
 
@@ -144,58 +167,68 @@ export const TableQuery = (() => {
 
     return self;
 
-    function where(whereFn: ColsFn<InCols, IExpr>): ITableQuery<InCols, OutCols> {
-      const result = resolveColFn(whereFn)(internal.inputCols);
-      if (result === internal.where) {
+    function where(whereFn: ColsFn<InColsRefs, IExpr>): ITableQuery<InColsRefs, OutCols> {
+      const result = resolveColFn(whereFn)(internal.inputColsRefs);
+      if (result === internal.state.where) {
         return self;
       }
-      return create({ ...internal, where: result });
+      return create({ ...internal, state: updateState(internal.state, { where: result }) });
     }
 
-    function groupBy(groupFn: ColsFn<InCols, Array<IExpr>>): ITableQuery<InCols, OutCols> {
-      const groupBy = resolveColFn(groupFn)(internal.inputCols);
-      if (groupBy === internal.groupBy) {
+    function groupBy(groupFn: ColsFn<InColsRefs, Array<IExpr>>): ITableQuery<InColsRefs, OutCols> {
+      const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
+      if (groupBy === internal.state.groupBy) {
         return self;
       }
-      return create({ ...internal, groupBy });
+      return create({ ...internal, state: updateState(internal.state, { groupBy }) });
     }
 
-    function having(havingFn: ColsFn<InCols, IExpr>): ITableQuery<InCols, OutCols> {
-      const having = resolveColFn(havingFn)(internal.inputCols);
-      if (having === internal.having) {
+    function having(havingFn: ColsFn<InColsRefs, IExpr>): ITableQuery<InColsRefs, OutCols> {
+      const having = resolveColFn(havingFn)(internal.inputColsRefs);
+      if (having === internal.state.having) {
         return self;
       }
-      return create({ ...internal, having });
+      return create({ ...internal, state: updateState(internal.state, { having }) });
     }
 
-    function select<NewCols extends SelectBase>(selectFn: ColsFn<InCols, NewCols>): ITableQuery<InCols, ColsFromSelect<NewCols>> {
-      const result = resolveColFn(selectFn)(internal.inputCols);
-      const { select, columnsRef } = resolvedColumns(internal.from, result);
-      return create({ ...internal, select, outputCols: columnsRef });
+    function select<NewCols extends SelectBase>(
+      selectFn: SelectFn<InColsRefs, ExprRecordFrom<OutCols>, NewCols>
+    ): ITableQuery<InColsRefs, ColsFromSelect<NewCols>> {
+      const nextOutputColsExprs = selectFn(internal.inputColsRefs, internal.outputColsExprs);
+      if (nextOutputColsExprs === internal.outputColsExprs) {
+        return self as any;
+      }
+      const { select, columnsRef } = resolvedColumns(internal.from, nextOutputColsExprs);
+      return create({
+        ...internal,
+        outputColsRefs: nextOutputColsExprs,
+        outputColsExprs: columnsRef,
+        state: updateState(internal.state, { select }),
+      });
     }
 
-    function orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(orderByFn)(internal.outputCols, internal.inputCols);
-      if (result === internal.orderBy) {
+    function orderBy(orderByFn: AllColsFnOrRes<InColsRefs, OutCols, OrderingTerms>): ITableQuery<InColsRefs, OutCols> {
+      const result = resolveAllColFn(orderByFn)(internal.inputColsRefs, internal.outputColsRefs);
+      if (result === internal.state.orderBy) {
         return self;
       }
-      return create({ ...internal, orderBy: result });
+      return create({ ...internal, state: updateState(internal.state, { orderBy: result }) });
     }
 
-    function limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExpr>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(limitFn)(internal.outputCols, internal.inputCols);
-      if (result === internal.limit) {
+    function limit(limitFn: AllColsFnOrRes<InColsRefs, OutCols, IExpr>): ITableQuery<InColsRefs, OutCols> {
+      const result = resolveAllColFn(limitFn)(internal.inputColsRefs, internal.outputColsRefs);
+      if (result === internal.state.limit) {
         return self;
       }
-      return create({ ...internal, limit: result });
+      return create({ ...internal, state: updateState(internal.state, { limit: result }) });
     }
 
-    function offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExpr>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(offsetFn)(internal.outputCols, internal.inputCols);
-      if (result === internal.offset) {
+    function offset(offsetFn: AllColsFnOrRes<InColsRefs, OutCols, IExpr>): ITableQuery<InColsRefs, OutCols> {
+      const result = resolveAllColFn(offsetFn)(internal.inputColsRefs, internal.outputColsRefs);
+      if (result === internal.state.offset) {
         return self;
       }
-      return create({ ...internal, offset: result });
+      return create({ ...internal, state: updateState(internal.state, { offset: result }) });
     }
 
     // function join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
@@ -329,7 +362,7 @@ export const TableQuery = (() => {
         sql,
         params,
         parse: (rows) => {
-          return rows.map((row) => mapObject(internalBase.outputCols, (key, col) => col[PRIV].parse(row[key], false)));
+          return rows.map((row) => mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false)));
         },
       };
     }
@@ -458,18 +491,19 @@ export const TableQuery = (() => {
   }
 
   function buildSelectNode(internal: ITableQueryInternalBase<ColsBase, ColsBase>): Ast.Node<'SelectStmt'> {
+    const { state } = internal;
     return {
       kind: 'SelectStmt',
       select: {
         kind: 'SelectCore',
         variant: 'Select',
         from: builder.From.Table(internal.from.name),
-        resultColumns: internal.select ? Utils.arrayToNonEmptyArray(internal.select) : [builder.ResultColumn.Star()],
-        where: internal.where,
-        groupBy: internal.groupBy ? { exprs: Utils.arrayToNonEmptyArray(internal.groupBy) } : undefined,
+        resultColumns: state.select ? Utils.arrayToNonEmptyArray(state.select) : [builder.ResultColumn.Star()],
+        where: state.where,
+        groupBy: state.groupBy ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy) } : undefined,
       },
-      limit: internal.limit
-        ? { expr: internal.limit, offset: internal.offset ? { separator: 'Offset', expr: internal.offset } : undefined }
+      limit: state.limit
+        ? { expr: state.limit, offset: state.offset ? { separator: 'Offset', expr: state.offset } : undefined }
         : undefined,
     };
   }
@@ -477,7 +511,7 @@ export const TableQuery = (() => {
   function resolvedColumns(
     table: Ast.Identifier | null,
     selected: SelectBase
-  ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ColumnsRef<any> } {
+  ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecordFrom<any> } {
     const select = Object.entries(selected).map(([key, expr]): Ast.Node<'ResultColumn'> => {
       return builder.ResultColumn.Expr(expr, key);
     });
@@ -485,17 +519,9 @@ export const TableQuery = (() => {
     return { select, columnsRef };
   }
 
-  function createCteFrom<OutCols extends ColsBase>(table: ITableQuery<ColsBase, OutCols>): ITableQuery<OutCols, OutCols> {
+  function createCteFrom<OutCols extends ColsBase>(table: ITableQuery<ColsBase, OutCols>): ITableQuery<ExprRecordFrom<OutCols>, OutCols> {
     const internal = table[PRIV];
-    if (
-      !internal.where &&
-      !internal.groupBy &&
-      !internal.having &&
-      !internal.select &&
-      !internal.orderBy &&
-      !internal.limit &&
-      !internal.offset
-    ) {
+    if (Object.values(internal.state).filter(Boolean).length === 0) {
       // Nothing was done to the table, so we can just return it
       return table as any;
     }
@@ -508,13 +534,37 @@ export const TableQuery = (() => {
       name: internal.asCteName.name,
       parents: internal.parents,
     };
-    const colsRef = mapObject(internal.outputCols, (key, col) => Expr.column(key, col[PRIV].parse, internal.asCteName));
+    const colsRef = mapObject(internal.outputColsRefs, (key, col) => Expr.column(key, col[PRIV].parse, internal.asCteName));
 
     return create({
       from: internal.asCteName,
       parents: [parent],
-      inputCols: colsRef,
-      outputCols: colsRef,
+      inputColsRefs: colsRef,
+      outputColsRefs: colsRef,
+      outputColsExprs: colsRef,
+      state: {},
     });
   }
+
+  /**
+   * Merge state and prevent invalid state update (e.g. select after orderBy)
+   */
+  function updateState(prevState: ITableQueryState, update: Partial<ITableQueryState>): ITableQueryState {
+    // const hasSelect =
+
+    return {
+      ...prevState,
+      ...update,
+    };
+  }
+
+  // join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
+  //   table: RTable,
+  //   expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr,
+  //   select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
+  // ): ITableQuery<ColsFromSelect<NewCols>>;
+
+  // function join<LeftTable extends ITableQuery<any, any>, RightTable extends ITableQuery<any, any>>() {
+
+  // }
 })();
