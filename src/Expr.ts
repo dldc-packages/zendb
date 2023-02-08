@@ -18,7 +18,7 @@ export interface IExprInternal<Val> {
 
 type InnerExpr = Ast.Expr;
 
-export type IExpr<Val> = InnerExpr & { readonly [TYPES]: Val; readonly [PRIV]: IExprInternal<Val> };
+export type IExpr<Val = any> = InnerExpr & { readonly [TYPES]: Val; readonly [PRIV]: IExprInternal<Val> };
 
 export const Expr = (() => {
   return {
@@ -34,14 +34,15 @@ export const Expr = (() => {
     notNull: (expr: IExpr<any>) => create(builder.Expr.notNull(expr), Datatype.boolean.parse),
     concatenate: (left: IExpr<string>, right: IExpr<string>): IExpr<string> =>
       create(builder.Expr.concatenate(left, right), Datatype.text.parse),
+    isNull: (expr: IExpr<any>) => create(builder.Expr.isnull(expr), Datatype.boolean.parse),
 
     external: <Val extends string | number | boolean | null>(val: Val, name?: string): IExpr<Val> => {
       const paramName = (name ?? '') + '_' + Random.createId();
       return create(builder.Expr.BindParameter.colonNamed(paramName), Datatype.fromLiteral(val).parse, { name: paramName, value: val });
     },
 
-    column: <Val>(table: Ast.Identifier, column: string, parse: ExprParser<Val>) => {
-      return create<Val>(builder.Expr.column({ column, table: { table } }), parse);
+    column: <Val>(column: string, parse: ExprParser<Val>, table?: Ast.Identifier) => {
+      return create<Val>(builder.Expr.column({ column, table: table ? { table } : undefined }), parse);
     },
 
     AggregateFunctions: {

@@ -23,7 +23,7 @@ export interface ICreateTableOptions {
 
 export interface ITable<InputCols extends ColsBase, OutputCols extends ColsBase> {
   createTable(options?: ICreateTableOptions): ICreateTableOperation;
-  query(): ITableQuery<OutputCols>;
+  query(): ITableQuery<OutputCols, OutputCols>;
   insert(data: InputCols): IInsertOperation<OutputCols>;
   delete(condition: ExprFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
   deleteOne(condition: ExprFromTable<OutputCols>): IDeleteOperation;
@@ -37,7 +37,8 @@ interface TableInfos<Cols extends ColsBase> {
 }
 
 export const Table = (() => {
-  return Object.assign(create, {
+  return {
+    create,
     insert,
     delete: deleteFn,
     deleteOne,
@@ -45,12 +46,14 @@ export const Table = (() => {
     updateOne,
     createTable,
     query,
-  });
+
+    from: TableQuery.createCteFrom,
+  };
 
   function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): TableInfos<ITableResult<ColumnsDefs>> {
     const tableIdentifier = b.Expr.identifier(table);
     const columnsRefs = mapObject(columns, (key, colDef): IExpr<any> => {
-      return Expr.column(tableIdentifier, key, colDef[PRIV].datatype.parse);
+      return Expr.column(key, colDef[PRIV].datatype.parse, tableIdentifier);
     });
     return { table: tableIdentifier, columnsRefs };
   }
@@ -216,7 +219,10 @@ export const Table = (() => {
     return update(table, columns, data, { where, limit: 1 });
   }
 
-  function query<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): ITableQuery<ITableResult<ColumnsDefs>> {
+  function query<ColumnsDefs extends ColumnsDefsBase>(
+    table: string,
+    columns: ColumnsDefs
+  ): ITableQuery<ITableResult<ColumnsDefs>, ITableResult<ColumnsDefs>> {
     const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
     return TableQuery.createFromTable(tableIdentifier, columnsRefs);
   }

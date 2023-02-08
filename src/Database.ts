@@ -12,7 +12,7 @@ export const Database = (() => {
   function create<Tables extends Record<string, ColumnsDefsBase>>(
     tables: Tables
   ): { [TableName in keyof Tables]: ITable<ITableInput<Tables[TableName]>, ITableResult<Tables[TableName]>> } {
-    return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table(tableName, columns)])) as any;
+    return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table.create(tableName, columns)])) as any;
   }
 
   function createTables<Tables extends Record<string, ITable<any, any>>>(
