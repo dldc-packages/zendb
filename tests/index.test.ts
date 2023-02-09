@@ -160,6 +160,36 @@ test('read and write datatypes', () => {
   });
 });
 
+test('Query simple CTE', () => {
+  const query1 = tasksDb.users
+    .query()
+    .select((cols) => ({ demo: cols.id, id: cols.id }))
+    .groupBy((cols) => [cols.name])
+    .limit(Expr.literal(10));
+
+  const result = Table.from(query1).all();
+
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT
+          users.id AS demo,
+          users.id AS id
+        FROM
+          users
+        GROUP BY
+          users.name
+        LIMIT
+          10
+      )
+    SELECT
+      *
+    FROM
+      cte_id3
+  `);
+  expect(result.params).toEqual(null);
+});
+
 test('Query CTE', () => {
   const query1 = tasksDb.users
     .query()
@@ -198,89 +228,170 @@ test('Query CTE', () => {
   expect(result.params).toEqual(null);
 });
 
-// test('Query groupBy after select', () => {
-//   const result = tasksDb.users
-//     .query()
-//     .select((cols) => ({ demo: cols.id }))
-//     .groupBy((cols) => [cols.demo])
-//     .all();
+test('Query join', () => {
+  const result = tasksDb.users
+    .query()
+    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
+    .select((cols) => ({ id: cols.id, email: cols.email, taskId: cols.usersTasks.task_id }))
+    .all();
 
-//   expect(formatSqlite(result.sql)).toEqual(sql`
-//     WITH
-//       cte_id1 AS (
-//         SELECT
-//           users.id AS demo
-//         FROM
-//           users
-//       )
-//     SELECT
-//       *
-//     FROM
-//       cte_id1
-//     GROUP BY
-//       cte_id1.demo
-//   `);
-//   expect(result.params).toEqual(null);
-// });
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    SELECT
+      users.id AS id,
+      users.email AS email,
+      users_tasks.task_id AS taskId
+    FROM
+      users
+      LEFT JOIN users_tasks ON users_tasks.user_id == users.id
+  `);
+});
 
-// test('Query groupBy after select and where', () => {
-//   const result = tasksDb.users
-//     .query()
-//     .where((cols) => Expr.equal(cols.id, Expr.literal('1')))
-//     .select((cols) => ({ demo: cols.id }))
-//     .groupBy((cols) => [cols.demo])
-//     .all();
+test('Query joins', () => {
+  const result = tasksDb.users
+    .query()
+    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
+    .join(tasksDb.tasks.query(), 'tasks', (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id))
+    .select((cols) => ({ id: cols.id, email: cols.email, taskName: cols.tasks.title }))
+    .all();
 
-//   expect(formatSqlite(result.sql)).toEqual(null);
-//   expect(result.params).toEqual(null);
-// });
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    SELECT
+      users.id AS id,
+      users.email AS email,
+      tasks.title AS taskName
+    FROM
+      users
+      LEFT JOIN users_tasks ON users_tasks.user_id == users.id,
+      LEFT JOIN tasks ON tasks.id == users_tasks.task_id
+  `);
+});
 
-// test('Query join', () => {
-//   const result = tasksDb.users
-//     .query()
-//     .select(({ id, email }) => ({ id, email }))
-//     .where((c) => Expr.equal(c.id, Expr.literal('1')))
-//     .join(
-//       tasksDb.users_tasks.query(),
-//       (c, t) => Expr.equal(c.id, t.user_id),
-//       (l, r) => ({ ...l, ...r })
-//     )
-//     .all();
+test('Query add select column', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .select((cols, current) => ({ ...current, email: cols.email }))
+    .all();
 
-//   expect(formatSqlite(result.sql)).toEqual(null);
-//   expect(result.params).toEqual(null);
-// });
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    SELECT
+      users.id AS id,
+      users.email AS email
+    FROM
+      users
+  `);
+});
 
-// test('Query join multiple filter', () => {
-//   const result = tasksDb.users
-//     .select()
-//     .fields({ id: true, email: true })
-//     .filter({ id: '1' })
-//     .join('id', 'users_tasks', 'user_id')
-//     .join('task_id', 'tasks', 'id')
-//     .filter({ id: '2' })
-//     .all();
+test('Query with json', () => {
+  const result = tasksDb.users_tasks
+    .query()
+    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }))
+    .all();
 
-//   expect(result.sql).toEqual(
-//     'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id WHERE _0.id == :id_1'
-//   );
-//   expect(result.params).toEqual({ id: '1', id_1: '2' });
-// });
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    SELECT
+      users_tasks.user_id AS userId,
+      json_object(
+        'id',
+        tasks.id,
+        'title',
+        tasks.title,
+        'description',
+        tasks.description,
+        'completed',
+        tasks.completed
+      ) AS task
+    FROM
+      users_tasks
+      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+  `);
+});
 
-// describe('Expr', () => {
-//   test('Equal', () => {
-//     const res = tasksDb.tasks
-//       .select()
-//       .filter({ id: Expr.equal('1') })
-//       .all();
-//     expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id == :id');
-//   });
+test('Query populate tasksIds', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .populate(
+      'taskIds',
+      (c) => c.id,
+      tasksDb.users_tasks.query(),
+      (c) => c.user_id,
+      (c) => c.task_id
+    )
+    .all();
 
-//   test('Different', () => {
-//     const res = tasksDb.tasks
-//       .select()
-//       .filter({ id: Expr.different('1') })
-//       .all();
-//     expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id != :id');
-//   });
-// });
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    WITH
+      cte_id4 AS (
+        SELECT
+          users_tasks.user_id AS key,
+          json_group_array(users_tasks.task_id) AS value
+        FROM
+          users_tasks
+        GROUP BY
+          users_tasks.user_id
+      )
+    SELECT
+      users.id AS id,
+      json_group_array(users_tasks.task_id) AS taskIds
+    FROM
+      users
+      LEFT JOIN users_tasks ON users.id == users_tasks.user_id
+  `);
+});
+
+test('Query populate', () => {
+  const tasksWithUserId = tasksDb.users_tasks
+    .query()
+    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
+
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .populate(
+      'tasks',
+      (c) => c.id,
+      tasksWithUserId,
+      (c) => c.userId,
+      (c) => c.task
+    )
+    .all();
+
+  expect(formatSqlite(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT
+          users_tasks.user_id AS userId,
+          json_object(
+            'id',
+            tasks.id,
+            'title',
+            tasks.title,
+            'description',
+            tasks.description,
+            'completed',
+            tasks.completed
+          ) AS task
+        FROM
+          users_tasks
+          LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+      ),
+      cte_id8 AS (
+        SELECT
+          cte_id3.userId AS key,
+          json_group_array(cte_id3.task) AS value
+        FROM
+          cte_id3
+        GROUP BY
+          cte_id3.userId
+      )
+    SELECT
+      users.id AS id,
+      json_group_array(cte_id3.task) AS tasks
+    FROM
+      users
+      LEFT JOIN users_tasks ON users.id == cte_id3.userId
+  `);
+});
