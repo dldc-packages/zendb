@@ -38,7 +38,7 @@
     "typecheck:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
-    "zensqlite": "^2.0.0-3"
+    "zensqlite": "^2.0.0-4"
   },
   "devDependencies": {
     "@swc/core": "^1.3.32",

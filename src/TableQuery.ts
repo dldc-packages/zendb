@@ -1,5 +1,5 @@
 import { Ast, builder, JoinItem, printNode, Utils } from 'zensqlite';
-import { Expr, IExpr } from './Expr';
+import { Expr, IExpr, JsonMode } from './Expr';
 import { IQueryOperation } from './Operation';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
@@ -478,14 +478,22 @@ export const TableQuery = (() => {
   }
 
   function resolvedColumns(
-    table: Ast.Identifier | null,
+    table: Ast.Identifier,
     selected: SelectBase
   ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecordFrom<any> } {
     const select = Object.entries(selected).map(([key, expr]): Ast.Node<'ResultColumn'> => {
       return builder.ResultColumn.Expr(expr, key);
     });
-    const columnsRef = mapObject(selected, (col, expr) => Expr.column(col, expr[PRIV].parse, table ?? undefined));
+    const columnsRef = exprsToRefs(table, selected);
     return { select, columnsRef };
+  }
+
+  function exprsToRefs(table: Ast.Identifier, exprs: SelectBase): ExprRecordFrom<any> {
+    return mapObject(exprs, (col, expr) => {
+      const exprJsonMode = expr[PRIV].jsonMode;
+      const jsonMode: JsonMode | undefined = exprJsonMode === 'JsonExpr' || exprJsonMode === 'JsonRef' ? 'JsonRef' : undefined;
+      return Expr.column(table, col, { parse: expr[PRIV].parse, jsonMode });
+    });
   }
 
   function createCteFrom<OutCols extends ColsBase>(table: ITableQuery<ColsBase, OutCols>): ITableQuery<ExprRecordFrom<OutCols>, OutCols> {
@@ -498,7 +506,10 @@ export const TableQuery = (() => {
       return table as any;
     }
 
-    const colsRef = mapObject(parentInternal.outputColsRefs, (key, col) => Expr.column(key, col[PRIV].parse, parentInternal.asCteName));
+    const colsRef = mapObject(parentInternal.outputColsRefs, (key, col) => {
+      const jsonMode: JsonMode | undefined = col[PRIV].jsonMode === undefined ? undefined : 'JsonRef';
+      return Expr.column(parentInternal.asCteName, key, { parse: col[PRIV].parse, jsonMode });
+    });
 
     return create({
       from: parentInternal.asCteName,

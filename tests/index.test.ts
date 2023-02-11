@@ -1,14 +1,7 @@
-import dedent from 'dedent';
-import { format } from 'sql-formatter';
 import { Expr, Random, Table } from '../src/mod';
 import { allDatatypesDb } from './utils/allDatatypesDb';
+import { format, sql } from './utils/sql';
 import { tasksDb } from './utils/tasksDb';
-
-function formatSqlite(content: string) {
-  return format(content, { language: 'sqlite' });
-}
-
-const sql = dedent;
 
 let nextRandomId = 0;
 
@@ -68,8 +61,8 @@ test('Update with external', () => {
   expect(result).toMatchObject({
     kind: 'Update',
     params: { filter_id_id0: '1234', name_id1: 'Paul' },
-    sql: sql`UPDATE users SET name = :name_id1 WHERE users.id == :filter_id_id0`,
   });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id1 WHERE users.id == :filter_id_id0`);
 });
 
 test('Update One', () => {
@@ -77,8 +70,8 @@ test('Update One', () => {
   expect(result).toMatchObject({
     kind: 'Update',
     params: { name_id0: 'Paul' },
-    sql: sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234' LIMIT 1`,
   });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234' LIMIT 1`);
 });
 
 test('Query', () => {
@@ -86,7 +79,7 @@ test('Query', () => {
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
     .all();
-  expect(result.sql).toEqual(sql`SELECT users.id AS id, users.email AS email FROM users`);
+  expect(format(result.sql)).toEqual(sql`SELECT users.id AS id, users.email AS email FROM users`);
   expect(result.params).toEqual(null);
 });
 
@@ -98,7 +91,7 @@ test('Query select twice (override)', () => {
       return { idEmail: Expr.concatenate(cols.id, cols.email) };
     })
     .all();
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     SELECT
       users.id || users.email AS idEmail
     FROM
@@ -169,7 +162,7 @@ test('Query simple CTE', () => {
 
   const result = Table.from(query1).all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id3 AS (
         SELECT
@@ -202,7 +195,7 @@ test('Query CTE', () => {
     .where((cols) => Expr.equal(cols.id, Expr.literal(2)))
     .one();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id3 AS (
         SELECT
@@ -235,7 +228,7 @@ test('Query join', () => {
     .select((cols) => ({ id: cols.id, email: cols.email, taskId: cols.usersTasks.task_id }))
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     SELECT
       users.id AS id,
       users.email AS email,
@@ -254,7 +247,7 @@ test('Query joins', () => {
     .select((cols) => ({ id: cols.id, email: cols.email, taskName: cols.tasks.title }))
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     SELECT
       users.id AS id,
       users.email AS email,
@@ -273,7 +266,7 @@ test('Query add select column', () => {
     .select((cols, current) => ({ ...current, email: cols.email }))
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     SELECT
       users.id AS id,
       users.email AS email
@@ -289,7 +282,7 @@ test('Query with json', () => {
     .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }))
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     SELECT
       users_tasks.user_id AS userId,
       json_object(
@@ -321,7 +314,7 @@ test('Query populate tasksIds', () => {
     )
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id4 AS (
         SELECT
@@ -359,7 +352,7 @@ test('Query populate', () => {
     )
     .all();
 
-  expect(formatSqlite(result.sql)).toEqual(sql`
+  expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id3 AS (
         SELECT
@@ -381,7 +374,7 @@ test('Query populate', () => {
       cte_id8 AS (
         SELECT
           cte_id3.userId AS key,
-          json_group_array(cte_id3.task) AS value
+          json_group_array(json(cte_id3.task)) AS value
         FROM
           cte_id3
         GROUP BY
@@ -389,7 +382,7 @@ test('Query populate', () => {
       )
     SELECT
       users.id AS id,
-      json_group_array(cte_id3.task) AS tasks
+      json_group_array(json(cte_id3.task)) AS tasks
     FROM
       users
       LEFT JOIN users_tasks ON users.id == cte_id3.userId

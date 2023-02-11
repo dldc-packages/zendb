@@ -10,6 +10,7 @@ export type Datatype<External, Internal = any> = {
   parse: (value: Internal) => External;
   serialize: (value: External) => Internal;
   type: SqliteDatatype;
+  isJson?: boolean;
 };
 
 export const Datatype = (() => {
@@ -52,6 +53,7 @@ export const Datatype = (() => {
       parse: (value: string) => JSON.parse(value),
       serialize: (value: any) => JSON.stringify(value),
       type: 'TEXT',
+      isJson: true,
     }),
     null: createDatatype<null, null>({
       name: 'null',

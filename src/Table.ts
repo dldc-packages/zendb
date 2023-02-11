@@ -53,7 +53,10 @@ export const Table = (() => {
   function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): TableInfos<ITableResult<ColumnsDefs>> {
     const tableIdentifier = b.Expr.identifier(table);
     const columnsRefs = mapObject(columns, (key, colDef): IExpr<any> => {
-      return Expr.column(key, colDef[PRIV].datatype.parse, tableIdentifier);
+      return Expr.column(tableIdentifier, key, {
+        parse: colDef[PRIV].datatype.parse,
+        jsonMode: colDef[PRIV].datatype.isJson ? 'JsonRef' : undefined,
+      });
     });
     return { table: tableIdentifier, columnsRefs };
   }
