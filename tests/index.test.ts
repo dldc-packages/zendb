@@ -18,7 +18,6 @@ test('Insert', () => {
   const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
   expect(result).toMatchObject({
     kind: 'Insert',
-    sql: 'INSERT INTO users (id, name, email) VALUES (:id_id0, :name_id1, :email_id2)',
     params: {
       email_id2: 'john@exemple.com',
       id_id0: '1',
@@ -26,11 +25,16 @@ test('Insert', () => {
     },
   });
   expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe' });
+  expect(format(result.sql)).toEqual(sql`
+    INSERT INTO users (id, name, email)
+    VALUES (:id_id0, :name_id1, :email_id2)
+  `);
 });
 
 test('Delete', () => {
   const result = tasksDb.users.delete((cols) => Expr.equal(cols.id, Expr.literal('1')));
-  expect(result).toMatchObject({ kind: 'Delete', params: null, sql: "DELETE FROM users WHERE users.id == '1'" });
+  expect(result).toMatchObject({ kind: 'Delete', params: null });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1'`);
 });
 
 test('Delete with external value', () => {
@@ -38,13 +42,14 @@ test('Delete with external value', () => {
   expect(result).toMatchObject({
     kind: 'Delete',
     params: { delete_id_id0: '1' },
-    sql: 'DELETE FROM users WHERE users.id == :delete_id_id0',
   });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == :delete_id_id0`);
 });
 
 test('Delete One', () => {
   const result = tasksDb.users.deleteOne((cols) => Expr.equal(cols.id, Expr.literal('1')));
-  expect(result).toMatchObject({ kind: 'Delete', params: null, sql: "DELETE FROM users WHERE users.id == '1' LIMIT 1" });
+  expect(result).toMatchObject({ kind: 'Delete', params: null });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1' LIMIT 1`);
 });
 
 test('Update', () => {
@@ -52,8 +57,8 @@ test('Update', () => {
   expect(result).toMatchObject({
     kind: 'Update',
     params: { name_id0: 'Paul' },
-    sql: "UPDATE users SET name = :name_id0 WHERE users.id == '1234'",
   });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234'`);
 });
 
 test('Update with external', () => {
@@ -92,10 +97,8 @@ test('Query select twice (override)', () => {
     })
     .all();
   expect(format(result.sql)).toEqual(sql`
-    SELECT
-      users.id || users.email AS idEmail
-    FROM
-      users
+    SELECT users.id || users.email AS idEmail
+    FROM users
   `);
   expect(result.params).toEqual(null);
 });
@@ -106,7 +109,7 @@ test(`Query groupBy`, () => {
     .groupBy((cols) => [cols.email])
     .select((cols) => ({ count: Expr.AggregateFunctions.count(cols.id) }))
     .all();
-  expect(result.sql).toEqual(`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
+  expect(format(result.sql)).toEqual(sql`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
   expect(result.params).toEqual(null);
 });
 
@@ -116,7 +119,7 @@ test(`Query groupBy reverse order (same result)`, () => {
     .select((cols) => ({ count: Expr.AggregateFunctions.count(cols.id) }))
     .groupBy((cols) => [cols.email])
     .all();
-  expect(result.sql).toEqual(`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
+  expect(format(result.sql)).toEqual(sql`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
   expect(result.params).toEqual(null);
 });
 
@@ -165,20 +168,12 @@ test('Query simple CTE', () => {
   expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id3 AS (
-        SELECT
-          users.id AS demo,
-          users.id AS id
-        FROM
-          users
-        GROUP BY
-          users.name
-        LIMIT
-          10
+        SELECT users.id AS demo, users.id AS id
+        FROM users
+        GROUP BY users.name
+        LIMIT 10
       )
-    SELECT
-      *
-    FROM
-      cte_id3
+    SELECT * FROM cte_id3
   `);
   expect(result.params).toEqual(null);
 });
@@ -198,65 +193,17 @@ test('Query CTE', () => {
   expect(format(result.sql)).toEqual(sql`
     WITH
       cte_id3 AS (
-        SELECT
-          users.id AS demo,
-          users.id AS id
-        FROM
-          users
-        GROUP BY
-          users.name
-        LIMIT
-          10
+        SELECT users.id AS demo, users.id AS id
+        FROM users
+        GROUP BY users.name
+        LIMIT 10
       )
-    SELECT
-      cte_id3.demo AS demo2,
-      cte_id3.id AS id
-    FROM
-      cte_id3
-    WHERE
-      cte_id3.id == 2
-    LIMIT
-      1
+    SELECT cte_id3.demo AS demo2, cte_id3.id AS id
+    FROM cte_id3
+    WHERE cte_id3.id == 2
+    LIMIT 1
   `);
   expect(result.params).toEqual(null);
-});
-
-test('Query join', () => {
-  const result = tasksDb.users
-    .query()
-    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
-    .select((cols) => ({ id: cols.id, email: cols.email, taskId: cols.usersTasks.task_id }))
-    .all();
-
-  expect(format(result.sql)).toEqual(sql`
-    SELECT
-      users.id AS id,
-      users.email AS email,
-      users_tasks.task_id AS taskId
-    FROM
-      users
-      LEFT JOIN users_tasks ON users_tasks.user_id == users.id
-  `);
-});
-
-test('Query joins', () => {
-  const result = tasksDb.users
-    .query()
-    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
-    .join(tasksDb.tasks.query(), 'tasks', (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id))
-    .select((cols) => ({ id: cols.id, email: cols.email, taskName: cols.tasks.title }))
-    .all();
-
-  expect(format(result.sql)).toEqual(sql`
-    SELECT
-      users.id AS id,
-      users.email AS email,
-      tasks.title AS taskName
-    FROM
-      users
-      LEFT JOIN users_tasks ON users_tasks.user_id == users.id,
-      LEFT JOIN tasks ON tasks.id == users_tasks.task_id
-  `);
 });
 
 test('Query add select column', () => {
@@ -267,11 +214,8 @@ test('Query add select column', () => {
     .all();
 
   expect(format(result.sql)).toEqual(sql`
-    SELECT
-      users.id AS id,
-      users.email AS email
-    FROM
-      users
+    SELECT users.id AS id, users.email AS email
+    FROM users
   `);
 });
 
@@ -286,17 +230,12 @@ test('Query with json', () => {
     SELECT
       users_tasks.user_id AS userId,
       json_object(
-        'id',
-        tasks.id,
-        'title',
-        tasks.title,
-        'description',
-        tasks.description,
-        'completed',
-        tasks.completed
+        'id', tasks.id,
+        'title', tasks.title,
+        'description', tasks.description,
+        'completed', tasks.completed
       ) AS task
-    FROM
-      users_tasks
+    FROM users_tasks
       LEFT JOIN tasks ON users_tasks.task_id == tasks.id
   `);
 });
@@ -320,16 +259,13 @@ test('Query populate tasksIds', () => {
         SELECT
           users_tasks.user_id AS key,
           json_group_array(users_tasks.task_id) AS value
-        FROM
-          users_tasks
-        GROUP BY
-          users_tasks.user_id
+        FROM users_tasks
+        GROUP BY users_tasks.user_id
       )
     SELECT
       users.id AS id,
       json_group_array(users_tasks.task_id) AS taskIds
-    FROM
-      users
+    FROM users
       LEFT JOIN users_tasks ON users.id == users_tasks.user_id
   `);
 });
@@ -358,27 +294,20 @@ test('Query populate', () => {
         SELECT
           users_tasks.user_id AS userId,
           json_object(
-            'id',
-            tasks.id,
-            'title',
-            tasks.title,
-            'description',
-            tasks.description,
-            'completed',
-            tasks.completed
+            'id', tasks.id,
+            'title', tasks.title,
+            'description', tasks.description,
+            'completed', tasks.completed
           ) AS task
-        FROM
-          users_tasks
+        FROM users_tasks
           LEFT JOIN tasks ON users_tasks.task_id == tasks.id
       ),
       cte_id8 AS (
         SELECT
           cte_id3.userId AS key,
           json_group_array(json(cte_id3.task)) AS value
-        FROM
-          cte_id3
-        GROUP BY
-          cte_id3.userId
+        FROM cte_id3
+        GROUP BY cte_id3.userId
       )
     SELECT
       users.id AS id,

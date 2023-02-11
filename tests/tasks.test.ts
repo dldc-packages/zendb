@@ -1,4 +1,4 @@
-import { Database } from '../src/mod';
+import { Database, Expr } from '../src/mod';
 import { tasksDb } from './utils/tasksDb';
 import { TestDatabase } from './utils/TestDatabase';
 
@@ -34,6 +34,22 @@ test('create user', () => {
 test('link task and user', () => {
   const res = db.exec(tasksDb.users_tasks.insert({ user_id: '1', task_id: '1' }));
   expect(res).toEqual({ user_id: '1', task_id: '1' });
+});
+
+test('Query tasks as object', () => {
+  const res = db.exec(
+    tasksDb.tasks
+      .query()
+      .select((c) => ({
+        id: c.id,
+        data: Expr.jsonObj(c),
+      }))
+      .all()
+  );
+  res.forEach((r) => {
+    expect(typeof r.data.completed).toBe('boolean');
+  });
+  expect(res).toEqual([{ data: { completed: false, description: 'First task', id: '1', title: 'Task 1' }, id: '1' }]);
 });
 
 // test('tasks grouped by userId', () => {
