@@ -1,87 +1,130 @@
-import { Database, Expr } from '../src/mod';
-import { allDatatypesSchema } from './utils/allDatatypesSchema';
-import { tasksSchema } from './utils/tasksSchema';
+import { Expr, Random, Table } from '../src/mod';
+import { allDatatypesDb } from './utils/allDatatypesDb';
+import { format, sql } from './utils/sql';
+import { tasksDb } from './utils/tasksDb';
 
-const tasksDatabase = Database.create(tasksSchema);
+let nextRandomId = 0;
+
+beforeAll(() => {
+  // disable random suffix for testing
+  Random.setCreateId(() => `id${nextRandomId++}`);
+});
+
+beforeEach(() => {
+  nextRandomId = 0;
+});
 
 test('Insert', () => {
-  const result = tasksDatabase.tables.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
+  const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
   expect(result).toMatchObject({
     kind: 'Insert',
-    params: ['1', 'John Doe', 'john@exemple.com'],
-    sql: 'INSERT INTO users (id, name, email) VALUES (?, ?, ?)',
+    params: {
+      email_id2: 'john@exemple.com',
+      id_id0: '1',
+      name_id1: 'John Doe',
+    },
   });
   expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe' });
+  expect(format(result.sql)).toEqual(sql`
+    INSERT INTO users (id, name, email)
+    VALUES (:id_id0, :name_id1, :email_id2)
+  `);
 });
 
 test('Delete', () => {
-  const result = tasksDatabase.tables.users.delete({ id: '1' });
-  expect(result).toMatchObject({ kind: 'Delete', params: { id: '1' }, sql: 'DELETE FROM users WHERE users.id == :id' });
+  const result = tasksDb.users.delete((cols) => Expr.equal(cols.id, Expr.literal('1')));
+  expect(result).toMatchObject({ kind: 'Delete', params: null });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1'`);
+});
+
+test('Delete with external value', () => {
+  const result = tasksDb.users.delete((cols) => Expr.equal(cols.id, Expr.external('1', 'delete_id')));
+  expect(result).toMatchObject({
+    kind: 'Delete',
+    params: { delete_id_id0: '1' },
+  });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == :delete_id_id0`);
 });
 
 test('Delete One', () => {
-  const result = tasksDatabase.tables.users.deleteOne({ id: '1' });
-  expect(result).toMatchObject({ kind: 'Delete', params: { id: '1' }, sql: 'DELETE FROM users WHERE users.id == :id LIMIT 1' });
+  const result = tasksDb.users.deleteOne((cols) => Expr.equal(cols.id, Expr.literal('1')));
+  expect(result).toMatchObject({ kind: 'Delete', params: null });
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1' LIMIT 1`);
 });
 
 test('Update', () => {
-  const result = tasksDatabase.tables.users.update({ name: 'Paul' }, { where: { id: '1234' } });
+  const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.literal('1234')) });
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { id: '1234', name: 'Paul' },
-    sql: 'UPDATE users SET name = :name WHERE users.id == :id',
+    params: { name_id0: 'Paul' },
   });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234'`);
+});
+
+test('Update with external', () => {
+  const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) });
+  expect(result).toMatchObject({
+    kind: 'Update',
+    params: { filter_id_id0: '1234', name_id1: 'Paul' },
+  });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id1 WHERE users.id == :filter_id_id0`);
 });
 
 test('Update One', () => {
-  const result = tasksDatabase.tables.users.updateOne({ name: 'Paul' }, { id: '1234' });
+  const result = tasksDb.users.updateOne({ name: 'Paul' }, (cols) => Expr.equal(cols.id, Expr.literal('1234')));
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { id: '1234', name: 'Paul' },
-    sql: 'UPDATE users SET name = :name WHERE users.id == :id LIMIT 1',
+    params: { name_id0: 'Paul' },
   });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234' LIMIT 1`);
 });
 
 test('Query', () => {
-  const result = tasksDatabase.tables.users.select().fields({ id: true, email: true }).all();
-  expect(result.sql).toEqual('SELECT _0.id AS _0__id, _0.email AS _0__email FROM users AS _0');
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id, email: cols.email }))
+    .all();
+  expect(format(result.sql)).toEqual(sql`SELECT users.id AS id, users.email AS email FROM users`);
   expect(result.params).toEqual(null);
 });
 
-test('Query join', () => {
-  const result = tasksDatabase.tables.users
-    .select()
-    .fields({ id: true, email: true })
-    .filter({ id: '1' })
-    .join('id', 'users_tasks', 'user_id')
-    .join('task_id', 'tasks', 'id')
+test('Query select twice (override)', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id, email: cols.email }))
+    .select((cols) => {
+      return { idEmail: Expr.concatenate(cols.id, cols.email) };
+    })
     .all();
-  expect(result.sql).toEqual(
-    'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id'
-  );
-  expect(result.params).toEqual({ id: '1' });
+  expect(format(result.sql)).toEqual(sql`
+    SELECT users.id || users.email AS idEmail
+    FROM users
+  `);
+  expect(result.params).toEqual(null);
 });
 
-test('Query join multiple filter', () => {
-  const result = tasksDatabase.tables.users
-    .select()
-    .fields({ id: true, email: true })
-    .filter({ id: '1' })
-    .join('id', 'users_tasks', 'user_id')
-    .join('task_id', 'tasks', 'id')
-    .filter({ id: '2' })
+test(`Query groupBy`, () => {
+  const result = tasksDb.users
+    .query()
+    .groupBy((cols) => [cols.email])
+    .select((cols) => ({ count: Expr.AggregateFunctions.count(cols.id) }))
     .all();
+  expect(format(result.sql)).toEqual(sql`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
+  expect(result.params).toEqual(null);
+});
 
-  expect(result.sql).toEqual(
-    'SELECT _0.id AS _0__id, _1.* FROM (SELECT _1.user_id AS _1__user_id, _1.task_id AS _1__task_id, _2.* FROM (SELECT _2.id AS _2__id, _2.email AS _2__email FROM users AS _2 WHERE _2.id == :id) AS _2 LEFT JOIN users_tasks AS _1 ON _2__id == _1__user_id) AS _1 LEFT JOIN tasks AS _0 ON _1__task_id == _0__id WHERE _0.id == :id_1'
-  );
-  expect(result.params).toEqual({ id: '1', id_1: '2' });
+test(`Query groupBy reverse order (same result)`, () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ count: Expr.AggregateFunctions.count(cols.id) }))
+    .groupBy((cols) => [cols.email])
+    .all();
+  expect(format(result.sql)).toEqual(sql`SELECT count(users.id) AS count FROM users GROUP BY users.email`);
+  expect(result.params).toEqual(null);
 });
 
 test('read and write datatypes', () => {
-  const db = Database.create(allDatatypesSchema);
-
-  const result = db.tables.datatype.insert({
+  const result = allDatatypesDb.datatype.insert({
     id: '1',
     text: 'test',
     boolean: true,
@@ -91,8 +134,16 @@ test('read and write datatypes', () => {
     json: { foo: 'bar', baz: true },
   });
   expect(result).toMatchObject({
-    sql: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    params: ['1', 'test', 42, 1, 1663075512250, '{"foo":"bar","baz":true}', 3.14],
+    sql: 'INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (:id_id0, :text_id1, :integer_id2, :boolean_id3, :date_id4, :json_id5, :number_id6)',
+    params: {
+      boolean_id3: 1,
+      date_id4: 1663075512250,
+      id_id0: '1',
+      integer_id2: 42,
+      json_id5: '{"foo":"bar","baz":true}',
+      number_id6: 3.14,
+      text_id1: 'test',
+    },
   });
   expect(result.parse()).toEqual({
     boolean: true,
@@ -105,20 +156,164 @@ test('read and write datatypes', () => {
   });
 });
 
-describe('Expr', () => {
-  test('Equal', () => {
-    const res = tasksDatabase.tables.tasks
-      .select()
-      .filter({ id: Expr.equal('1') })
-      .all();
-    expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id == :id');
-  });
+test('Query simple CTE', () => {
+  const query1 = tasksDb.users
+    .query()
+    .select((cols) => ({ demo: cols.id, id: cols.id }))
+    .groupBy((cols) => [cols.name])
+    .limit(Expr.literal(10));
 
-  test('Different', () => {
-    const res = tasksDatabase.tables.tasks
-      .select()
-      .filter({ id: Expr.different('1') })
-      .all();
-    expect(res.sql).toEqual('SELECT _0.id AS _0__id FROM tasks AS _0 WHERE _0.id != :id');
-  });
+  const result = Table.from(query1).all();
+
+  expect(format(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT users.id AS demo, users.id AS id
+        FROM users
+        GROUP BY users.name
+        LIMIT 10
+      )
+    SELECT * FROM cte_id3
+  `);
+  expect(result.params).toEqual(null);
+});
+
+test('Query CTE', () => {
+  const query1 = tasksDb.users
+    .query()
+    .select((cols) => ({ demo: cols.id, id: cols.id }))
+    .groupBy((cols) => [cols.name])
+    .limit(Expr.literal(10));
+
+  const result = Table.from(query1)
+    .select((cols) => ({ demo2: cols.demo, id: cols.id }))
+    .where((cols) => Expr.equal(cols.id, Expr.literal(2)))
+    .one();
+
+  expect(format(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT users.id AS demo, users.id AS id
+        FROM users
+        GROUP BY users.name
+        LIMIT 10
+      )
+    SELECT cte_id3.demo AS demo2, cte_id3.id AS id
+    FROM cte_id3
+    WHERE cte_id3.id == 2
+    LIMIT 1
+  `);
+  expect(result.params).toEqual(null);
+});
+
+test('Query add select column', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .select((cols, current) => ({ ...current, email: cols.email }))
+    .all();
+
+  expect(format(result.sql)).toEqual(sql`
+    SELECT users.id AS id, users.email AS email
+    FROM users
+  `);
+});
+
+test('Query with json', () => {
+  const result = tasksDb.users_tasks
+    .query()
+    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }))
+    .all();
+
+  expect(format(result.sql)).toEqual(sql`
+    SELECT
+      users_tasks.user_id AS userId,
+      json_object(
+        'id', tasks.id,
+        'title', tasks.title,
+        'description', tasks.description,
+        'completed', tasks.completed
+      ) AS task
+    FROM users_tasks
+      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+  `);
+});
+
+test('Query populate tasksIds', () => {
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .populate(
+      'taskIds',
+      (c) => c.id,
+      tasksDb.users_tasks.query(),
+      (c) => c.user_id,
+      (c) => c.task_id
+    )
+    .all();
+
+  expect(format(result.sql)).toEqual(sql`
+    WITH
+      cte_id4 AS (
+        SELECT
+          users_tasks.user_id AS key,
+          json_group_array(users_tasks.task_id) AS value
+        FROM users_tasks
+        GROUP BY users_tasks.user_id
+      )
+    SELECT
+      users.id AS id,
+      json_group_array(users_tasks.task_id) AS taskIds
+    FROM users
+      LEFT JOIN users_tasks ON users.id == users_tasks.user_id
+  `);
+});
+
+test('Query populate', () => {
+  const tasksWithUserId = tasksDb.users_tasks
+    .query()
+    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
+
+  const result = tasksDb.users
+    .query()
+    .select((cols) => ({ id: cols.id }))
+    .populate(
+      'tasks',
+      (c) => c.id,
+      tasksWithUserId,
+      (c) => c.userId,
+      (c) => c.task
+    )
+    .all();
+
+  expect(format(result.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT
+          users_tasks.user_id AS userId,
+          json_object(
+            'id', tasks.id,
+            'title', tasks.title,
+            'description', tasks.description,
+            'completed', tasks.completed
+          ) AS task
+        FROM users_tasks
+          LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+      ),
+      cte_id8 AS (
+        SELECT
+          cte_id3.userId AS key,
+          json_group_array(json(cte_id3.task)) AS value
+        FROM cte_id3
+        GROUP BY cte_id3.userId
+      )
+    SELECT
+      users.id AS id,
+      json_group_array(json(cte_id3.task)) AS tasks
+    FROM
+      users
+      LEFT JOIN users_tasks ON users.id == cte_id3.userId
+  `);
 });

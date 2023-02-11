@@ -15,7 +15,7 @@ export interface IUpdateOperation {
 export interface IInsertOperation<Inserted> {
   kind: 'Insert';
   sql: string;
-  params: Array<any>;
+  params: Record<string, any> | null;
   parse: () => Inserted;
 }
 
