@@ -224,7 +224,7 @@ test('Query with json', () => {
   const result = tasksDb.users_tasks
     .query()
     .innerJoin(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
-    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }))
+    .select((c) => ({ userId: c.user_id, task: Expr.jsonObj(c.tasks) }))
     .all();
 
   expect(format(result.sql)).toEqual(sql`
