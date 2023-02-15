@@ -1,6 +1,6 @@
 {
   "name": "zendb",
-  "version": "5.0.0-12",
+  "version": "5.0.0-13",
   "description": "Type safe SQLite",
   "keywords": [],
   "homepage": "https://github.com/etienne-dldc/zendb#readme",
