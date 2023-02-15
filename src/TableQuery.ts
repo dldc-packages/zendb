@@ -494,6 +494,7 @@ export const TableQuery = (() => {
         where: state.where,
         groupBy: state.groupBy ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy) } : undefined,
       },
+      orderBy: state.orderBy ? Utils.arrayToNonEmptyArray(state.orderBy) : undefined,
       limit: state.limit
         ? { expr: state.limit, offset: state.offset ? { separator: 'Offset', expr: state.offset } : undefined }
         : undefined,
@@ -553,14 +554,4 @@ export const TableQuery = (() => {
     }
     return [...prevParents, parent];
   }
-
-  // join<RTable extends ITableQuery<any>, NewCols extends SelectBase>(
-  //   table: RTable,
-  //   expr: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => IExpr,
-  //   select: (lCols: ColumnsRef<Cols>, rCols: ColumnsRef<RTable[TYPES]>) => NewCols
-  // ): ITableQuery<ColsFromSelect<NewCols>>;
-
-  // function join<LeftTable extends ITableQuery<any, any>, RightTable extends ITableQuery<any, any>>() {
-
-  // }
 })();

@@ -1,4 +1,3 @@
-import {} from 'zensqlite';
 import { Expr } from '../src/mod';
 
 test('Expr', () => {
