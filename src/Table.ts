@@ -1,19 +1,28 @@
 import { Ast, builder as b, printNode } from 'zensqlite';
 import { ColumnDef, IColumnDefAny } from './ColumnDef';
-import { Expr, IExpr } from './Expr';
+import { Expr, IExprUnknow } from './Expr';
 import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { ITableQuery, TableQuery } from './TableQuery';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
-import { ColsBase, ColumnsDefsBase, ExprFromTable, ExprRecordFrom, ITableInput, ITableResult } from './utils/types';
+import {
+  AnyRecord,
+  ColumnsDefsBase,
+  ColumnsDefsToExprRecord,
+  ColumnsDefToInput,
+  ExprFnFromTable,
+  ExprRecord,
+  ExprRecordOutput,
+  Prettify,
+} from './utils/types';
 import { isNotNull, mapObject } from './utils/utils';
 
 export type DeleteOptions = { limit?: number };
 
-export type UpdateOptions<Cols extends ColsBase> = {
+export type UpdateOptions<Cols extends AnyRecord> = {
   limit?: number;
-  where?: ExprFromTable<Cols>;
+  where?: ExprFnFromTable<Cols>;
 };
 
 export interface ICreateTableOptions {
@@ -21,41 +30,45 @@ export interface ICreateTableOptions {
   strict?: boolean;
 }
 
-export interface ITable<InputCols extends ColsBase, OutputCols extends ColsBase> {
+export interface ITable<InputData extends AnyRecord, OutputCols extends ExprRecord> {
   createTable(options?: ICreateTableOptions): ICreateTableOperation;
-  query(): ITableQuery<ExprRecordFrom<OutputCols>, OutputCols>;
-  insert(data: InputCols): IInsertOperation<OutputCols>;
-  delete(condition: ExprFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
-  deleteOne(condition: ExprFromTable<OutputCols>): IDeleteOperation;
-  update(data: Partial<OutputCols>, options?: UpdateOptions<OutputCols>): IUpdateOperation;
-  updateOne(data: Partial<OutputCols>, where?: ExprFromTable<OutputCols>): IUpdateOperation;
+  query(): ITableQuery<OutputCols, OutputCols>;
+  insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  delete(condition: ExprFnFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
+  deleteOne(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
+  update(data: Partial<InputData>, options?: UpdateOptions<OutputCols>): IUpdateOperation;
+  updateOne(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
 }
 
-interface TableInfos<Cols extends ColsBase> {
+interface TableInfos<Cols extends ExprRecord> {
   table: Ast.Identifier;
-  columnsRefs: ExprRecordFrom<Cols>;
+  columnsRefs: Cols;
 }
 
 export const Table = (() => {
   return {
     create,
+    createTable,
+    query,
     insert,
     delete: deleteFn,
     deleteOne,
     update,
     updateOne,
-    createTable,
-    query,
 
     from: TableQuery.createCteFrom,
   };
 
-  function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(table: string, columns: ColumnsDefs): TableInfos<ITableResult<ColumnsDefs>> {
+  function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(
+    table: string,
+    columns: ColumnsDefs
+  ): TableInfos<ColumnsDefsToExprRecord<ColumnsDefs>> {
     const tableIdentifier = b.Expr.identifier(table);
-    const columnsRefs = mapObject(columns, (key, colDef): IExpr<any> => {
+    const columnsRefs = mapObject(columns, (key, colDef): IExprUnknow => {
       return Expr.column(tableIdentifier, key, {
         parse: colDef[PRIV].datatype.parse,
         jsonMode: colDef[PRIV].datatype.isJson ? 'JsonRef' : undefined,
+        nullable: colDef[PRIV].nullable,
       });
     });
     return { table: tableIdentifier, columnsRefs };
@@ -64,7 +77,7 @@ export const Table = (() => {
   function create<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs
-  ): ITable<ITableInput<ColumnsDefs>, ITableResult<ColumnsDefs>> {
+  ): ITable<ColumnsDefToInput<ColumnsDefs>, ColumnsDefsToExprRecord<ColumnsDefs>> {
     return {
       createTable: (options) => createTable(table, columns, options),
       query: () => query(table, columns),
@@ -145,8 +158,8 @@ export const Table = (() => {
   function insert<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
-    data: ITableInput<ColumnsDefs>
-  ): IInsertOperation<ITableResult<ColumnsDefs>> {
+    data: ColumnsDefToInput<ColumnsDefs>
+  ): IInsertOperation<ExprRecordOutput<ColumnsDefsToExprRecord<ColumnsDefs>>> {
     const columnsEntries: Array<[string, IColumnDefAny]> = Object.entries(columns);
     const resolvedData: Record<string, any> = {};
     const parsedData: Record<string, any> = {};
@@ -175,7 +188,7 @@ export const Table = (() => {
   function deleteFn<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
-    condition: ExprFromTable<ITableResult<ColumnsDefs>>,
+    condition: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>,
     options: DeleteOptions = {}
   ): IDeleteOperation {
     const { columnsRefs } = getTableInfos(table, columns);
@@ -191,7 +204,7 @@ export const Table = (() => {
   function deleteOne<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
-    condition: ExprFromTable<ITableResult<ColumnsDefs>>
+    condition: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>
   ): IDeleteOperation {
     return deleteFn(table, columns, condition, { limit: 1 });
   }
@@ -199,8 +212,8 @@ export const Table = (() => {
   function update<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
-    data: Partial<ITableInput<ColumnsDefs>>,
-    { where, limit }: UpdateOptions<ITableResult<ColumnsDefs>> = {}
+    data: Partial<ColumnsDefToInput<ColumnsDefs>>,
+    { where, limit }: UpdateOptions<ColumnsDefsToExprRecord<ColumnsDefs>> = {}
   ): IUpdateOperation {
     const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
@@ -216,8 +229,8 @@ export const Table = (() => {
   function updateOne<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs,
-    data: Partial<ITableInput<ColumnsDefs>>,
-    where?: ExprFromTable<ITableResult<ColumnsDefs>>
+    data: Partial<ColumnsDefToInput<ColumnsDefs>>,
+    where?: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>
   ): IUpdateOperation {
     return update(table, columns, data, { where, limit: 1 });
   }
@@ -225,7 +238,7 @@ export const Table = (() => {
   function query<ColumnsDefs extends ColumnsDefsBase>(
     table: string,
     columns: ColumnsDefs
-  ): ITableQuery<ExprRecordFrom<ITableResult<ColumnsDefs>>, ITableResult<ColumnsDefs>> {
+  ): ITableQuery<ColumnsDefsToExprRecord<ColumnsDefs>, ColumnsDefsToExprRecord<ColumnsDefs>> {
     const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
     return TableQuery.createFromTable(tableIdentifier, columnsRefs);
   }

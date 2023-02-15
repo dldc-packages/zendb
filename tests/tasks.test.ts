@@ -27,8 +27,8 @@ test('find tasks', () => {
 });
 
 test('create user', () => {
-  const res = db.exec(tasksDb.users.insert({ id: '1', name: 'John', email: 'john@example.com' }));
-  expect(res).toEqual({ id: '1', name: 'John', email: 'john@example.com' });
+  const res = db.exec(tasksDb.users.insert({ id: '1', name: 'John', email: 'john@example.com', displayName: null }));
+  expect(res).toEqual({ id: '1', name: 'John', email: 'john@example.com', displayName: null });
 });
 
 test('link task and user', () => {
@@ -50,6 +50,32 @@ test('Query tasks as object', () => {
     expect(typeof r.data.completed).toBe('boolean');
   });
   expect(res).toEqual([{ data: { completed: false, description: 'First task', id: '1', title: 'Task 1' }, id: '1' }]);
+});
+
+test('Query users as object', () => {
+  const res = db.exec(
+    tasksDb.users
+      .query()
+      .select((c) => ({
+        id: c.id,
+        data: Expr.jsonObj(c),
+      }))
+      .all()
+  );
+  expect(res).toEqual([{ data: { displayName: null, email: 'john@example.com', id: '1', name: 'John' }, id: '1' }]);
+});
+
+test('Concatenate nullable should return nullable', () => {
+  const res = db.exec(
+    tasksDb.users
+      .query()
+      .select((c) => ({
+        id: c.id,
+        name: Expr.concatenate(c.name, c.displayName),
+      }))
+      .first()
+  );
+  expect(res).toEqual({ id: '1', name: null });
 });
 
 // test('tasks grouped by userId', () => {

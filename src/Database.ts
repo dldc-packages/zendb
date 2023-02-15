@@ -1,7 +1,7 @@
 import { builder as b, printNode } from 'zensqlite';
 import { ICreateTableOperation, IListTablesOperation } from './Operation';
 import { ICreateTableOptions, ITable, Table } from './Table';
-import { ColumnsDefsBase, ITableInput, ITableResult } from './utils/types';
+import { ColumnsDefsBase, ColumnsDefsToExprRecord, ColumnsDefToInput } from './utils/types';
 
 export const Database = (() => {
   return Object.assign(create, {
@@ -11,7 +11,7 @@ export const Database = (() => {
 
   function create<Tables extends Record<string, ColumnsDefsBase>>(
     tables: Tables
-  ): { [TableName in keyof Tables]: ITable<ITableInput<Tables[TableName]>, ITableResult<Tables[TableName]>> } {
+  ): { [TableName in keyof Tables]: ITable<ColumnsDefToInput<Tables[TableName]>, ColumnsDefsToExprRecord<Tables[TableName]>> } {
     return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table.create(tableName, columns)])) as any;
   }
 

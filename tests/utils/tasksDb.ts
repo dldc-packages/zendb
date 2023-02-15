@@ -11,6 +11,7 @@ export const tasksDb = Database({
     id: ColumnDef.dt.text().primary(),
     name: ColumnDef.dt.text(),
     email: ColumnDef.dt.text(),
+    displayName: ColumnDef.dt.text().nullable(),
   },
   users_tasks: {
     user_id: ColumnDef.dt.text().primary(),

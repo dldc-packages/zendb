@@ -13,10 +13,10 @@ beforeEach(() => {
   nextRandomId = 0;
 });
 
-test('Query join', () => {
+test('Query innerJoin', () => {
   const result = tasksDb.users
     .query()
-    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
+    .innerJoin(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
     .select((cols) => ({ id: cols.id, email: cols.email, taskId: cols.usersTasks.task_id }))
     .all();
 
@@ -27,15 +27,15 @@ test('Query join', () => {
       users_tasks.task_id AS taskId
     FROM
       users
-      LEFT JOIN users_tasks ON users_tasks.user_id == users.id
+      INNER JOIN users_tasks ON users_tasks.user_id == users.id
   `);
 });
 
 test('Query joins', () => {
   const result = tasksDb.users
     .query()
-    .join(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
-    .join(tasksDb.tasks.query(), 'tasks', (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id))
+    .innerJoin(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
+    .innerJoin(tasksDb.tasks.query(), 'tasks', (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id))
     .select((cols) => ({ id: cols.id, email: cols.email, taskName: cols.tasks.title }))
     .all();
 
@@ -46,7 +46,7 @@ test('Query joins', () => {
       tasks.title AS taskName
     FROM
       users
-      LEFT JOIN users_tasks ON users_tasks.user_id == users.id,
-      LEFT JOIN tasks ON tasks.id == users_tasks.task_id
+      INNER JOIN users_tasks ON users_tasks.user_id == users.id,
+      INNER JOIN tasks ON tasks.id == users_tasks.task_id
   `);
 });

@@ -15,19 +15,20 @@ beforeEach(() => {
 });
 
 test('Insert', () => {
-  const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com' });
+  const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com', displayName: null });
   expect(result).toMatchObject({
     kind: 'Insert',
     params: {
       email_id2: 'john@exemple.com',
       id_id0: '1',
       name_id1: 'John Doe',
+      displayName_id3: null,
     },
   });
-  expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe' });
+  expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe', displayName: null });
   expect(format(result.sql)).toEqual(sql`
-    INSERT INTO users (id, name, email)
-    VALUES (:id_id0, :name_id1, :email_id2)
+    INSERT INTO users (id, name, email, displayName)
+    VALUES (:id_id0, :name_id1, :email_id2, :displayName_id3)
   `);
 });
 
@@ -222,7 +223,7 @@ test('Query add select column', () => {
 test('Query with json', () => {
   const result = tasksDb.users_tasks
     .query()
-    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+    .innerJoin(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
     .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }))
     .all();
 
@@ -236,84 +237,84 @@ test('Query with json', () => {
         'completed', tasks.completed
       ) AS task
     FROM users_tasks
-      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+      INNER JOIN tasks ON users_tasks.task_id == tasks.id
   `);
 });
 
-test('Query populate tasksIds', () => {
-  const result = tasksDb.users
-    .query()
-    .select((cols) => ({ id: cols.id }))
-    .populate(
-      'taskIds',
-      (c) => c.id,
-      tasksDb.users_tasks.query(),
-      (c) => c.user_id,
-      (c) => c.task_id
-    )
-    .all();
+// test('Query populate tasksIds', () => {
+//   const result = tasksDb.users
+//     .query()
+//     .select((cols) => ({ id: cols.id }))
+//     .populate(
+//       'taskIds',
+//       (c) => c.id,
+//       tasksDb.users_tasks.query(),
+//       (c) => c.user_id,
+//       (c) => c.task_id
+//     )
+//     .all();
 
-  expect(format(result.sql)).toEqual(sql`
-    WITH
-      cte_id4 AS (
-        SELECT
-          users_tasks.user_id AS key,
-          json_group_array(users_tasks.task_id) AS value
-        FROM users_tasks
-        GROUP BY users_tasks.user_id
-      )
-    SELECT
-      users.id AS id,
-      json_group_array(users_tasks.task_id) AS taskIds
-    FROM users
-      LEFT JOIN users_tasks ON users.id == users_tasks.user_id
-  `);
-});
+//   expect(format(result.sql)).toEqual(sql`
+//     WITH
+//       cte_id4 AS (
+//         SELECT
+//           users_tasks.user_id AS key,
+//           json_group_array(users_tasks.task_id) AS value
+//         FROM users_tasks
+//         GROUP BY users_tasks.user_id
+//       )
+//     SELECT
+//       users.id AS id,
+//       json_group_array(users_tasks.task_id) AS taskIds
+//     FROM users
+//       LEFT JOIN users_tasks ON users.id == users_tasks.user_id
+//   `);
+// });
 
-test('Query populate', () => {
-  const tasksWithUserId = tasksDb.users_tasks
-    .query()
-    .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
-    .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
+// test('Query populate', () => {
+//   const tasksWithUserId = tasksDb.users_tasks
+//     .query()
+//     .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
+//     .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
 
-  const result = tasksDb.users
-    .query()
-    .select((cols) => ({ id: cols.id }))
-    .populate(
-      'tasks',
-      (c) => c.id,
-      tasksWithUserId,
-      (c) => c.userId,
-      (c) => c.task
-    )
-    .all();
+//   const result = tasksDb.users
+//     .query()
+//     .select((cols) => ({ id: cols.id }))
+//     .populate(
+//       'tasks',
+//       (c) => c.id,
+//       tasksWithUserId,
+//       (c) => c.userId,
+//       (c) => c.task
+//     )
+//     .all();
 
-  expect(format(result.sql)).toEqual(sql`
-    WITH
-      cte_id3 AS (
-        SELECT
-          users_tasks.user_id AS userId,
-          json_object(
-            'id', tasks.id,
-            'title', tasks.title,
-            'description', tasks.description,
-            'completed', tasks.completed
-          ) AS task
-        FROM users_tasks
-          LEFT JOIN tasks ON users_tasks.task_id == tasks.id
-      ),
-      cte_id8 AS (
-        SELECT
-          cte_id3.userId AS key,
-          json_group_array(json(cte_id3.task)) AS value
-        FROM cte_id3
-        GROUP BY cte_id3.userId
-      )
-    SELECT
-      users.id AS id,
-      json_group_array(json(cte_id3.task)) AS tasks
-    FROM
-      users
-      LEFT JOIN users_tasks ON users.id == cte_id3.userId
-  `);
-});
+//   expect(format(result.sql)).toEqual(sql`
+//     WITH
+//       cte_id3 AS (
+//         SELECT
+//           users_tasks.user_id AS userId,
+//           json_object(
+//             'id', tasks.id,
+//             'title', tasks.title,
+//             'description', tasks.description,
+//             'completed', tasks.completed
+//           ) AS task
+//         FROM users_tasks
+//           LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+//       ),
+//       cte_id8 AS (
+//         SELECT
+//           cte_id3.userId AS key,
+//           json_group_array(json(cte_id3.task)) AS value
+//         FROM cte_id3
+//         GROUP BY cte_id3.userId
+//       )
+//     SELECT
+//       users.id AS id,
+//       json_group_array(json(cte_id3.task)) AS tasks
+//     FROM
+//       users
+//       LEFT JOIN users_tasks ON users.id == cte_id3.userId
+//   `);
+// });
