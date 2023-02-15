@@ -219,7 +219,7 @@ export const TableQuery = (() => {
     }
 
     function orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(orderByFn)(internal.inputColsRefs, internal.outputColsRefs);
+      const result = resolveAllColFn(orderByFn)(internal.inputColsRefs, resolveLocalColumns(internal.outputColsRefs));
       if (result === internal.state.orderBy) {
         return self;
       }
@@ -227,7 +227,7 @@ export const TableQuery = (() => {
     }
 
     function limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(limitFn)(internal.inputColsRefs, internal.outputColsRefs);
+      const result = resolveAllColFn(limitFn)(internal.inputColsRefs, resolveLocalColumns(internal.outputColsRefs));
       if (result === internal.state.limit) {
         return self;
       }
@@ -235,7 +235,7 @@ export const TableQuery = (() => {
     }
 
     function offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
-      const result = resolveAllColFn(offsetFn)(internal.inputColsRefs, internal.outputColsRefs);
+      const result = resolveAllColFn(offsetFn)(internal.inputColsRefs, resolveLocalColumns(internal.outputColsRefs));
       if (result === internal.state.offset) {
         return self;
       }
@@ -413,39 +413,6 @@ export const TableQuery = (() => {
     return fnResolved;
   }
 
-  // function buildCteInternal(internal: ITableQueryInternal<any>): ITableQueryInternalBase<any> | null {
-  //   if (
-  //     !internal.columns &&
-  //     !internal.where &&
-  //     !internal.join &&
-  //     !internal.groupBy &&
-  //     !internal.orderBy &&
-  //     !internal.limit &&
-  //     !internal.offset
-  //   ) {
-  //     return null;
-  //   }
-
-  //   const columnsRef = mapObject(internal.columnsRef, (key, col) => Expr.column(internal.asCteName, key, col[PRIV].parse));
-  //   return {
-  //     from: internal.asCteName,
-  //     parents: [toParent(internal.asCteName, internal)],
-  //     columnsRef,
-  //   };
-  // }
-
-  // function toParent(cteFrom: Ast.Identifier, internal: ITableQueryInternalBase<any>): ITableQueryInternalParent {
-  //   return {
-  //     name: cteFrom.name,
-  //     cte: {
-  //       kind: 'CommonTableExpression',
-  //       tableName: cteFrom,
-  //       select: buildSelectNode(internal),
-  //     },
-  //     parents: internal.parents,
-  //   };
-  // }
-
   function buildFinalNode(internal: ITableQueryInternalBase<any, any>): Ast.Node<'SelectStmt'> {
     const ctes = extractCtes(internal);
     const select = buildSelectNode(internal);
@@ -499,6 +466,10 @@ export const TableQuery = (() => {
         ? { expr: state.limit, offset: state.offset ? { separator: 'Offset', expr: state.offset } : undefined }
         : undefined,
     };
+  }
+
+  function resolveLocalColumns<Cols extends ExprRecord>(cols: Cols): Cols {
+    return mapObject(cols, (key, col): any => Expr.column(null, key, col[PRIV]));
   }
 
   function resolvedColumns(

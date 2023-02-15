@@ -160,7 +160,11 @@ export const Expr = (() => {
     });
   }
 
-  function column<Val, Nullable extends boolean>(table: Ast.Identifier, column: string, internal: IExprInternal): IExpr<Val, Nullable> {
+  function column<Val, Nullable extends boolean>(
+    table: Ast.Identifier | null,
+    column: string,
+    internal: IExprInternal
+  ): IExpr<Val, Nullable> {
     return create(builder.Expr.column({ column, table: table ? { table } : undefined }), internal);
   }
 
