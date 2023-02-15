@@ -39,6 +39,8 @@ export const Expr = (() => {
   }
 
   return {
+    create,
+
     simpleFunctionInvocation: <Exprs extends IExprUnknow[], Res>(
       name: string,
       parse: ExprParser,
