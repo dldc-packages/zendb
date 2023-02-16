@@ -8,13 +8,13 @@ import { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput, ExprRecord_M
 import { mapObject } from './utils/utils';
 
 export interface ITableQueryState {
-  readonly where?: Ast.Expr;
-  readonly groupBy?: Array<Ast.Expr>;
-  readonly having?: Ast.Expr;
+  readonly where?: IExprUnknow;
+  readonly groupBy?: Array<IExprUnknow>;
+  readonly having?: IExprUnknow;
   readonly select?: Array<Ast.Node<'ResultColumn'>>;
   readonly orderBy?: OrderingTerms;
-  readonly limit?: Ast.Expr;
-  readonly offset?: Ast.Expr;
+  readonly limit?: IExprUnknow;
+  readonly offset?: IExprUnknow;
   readonly joins?: Array<JoinItem>;
 }
 
@@ -257,7 +257,7 @@ export const TableQuery = (() => {
       const joinItem: JoinItem = {
         joinOperator: builder.JoinOperator.InnerJoin(),
         tableOrSubquery: builder.TableOrSubquery.Table(table[PRIV].from.name),
-        joinConstraint: builder.JoinConstraint.On(joinOn(newInColsRef)),
+        joinConstraint: builder.JoinConstraint.On(joinOn(newInColsRef).ast),
       };
       return create({
         ...internal,
@@ -288,7 +288,7 @@ export const TableQuery = (() => {
       const joinItem: JoinItem = {
         joinOperator: builder.JoinOperator.Join('Left'),
         tableOrSubquery: builder.TableOrSubquery.Table(table[PRIV].from.name),
-        joinConstraint: builder.JoinConstraint.On(joinOn(newInColsRef)),
+        joinConstraint: builder.JoinConstraint.On(joinOn(newInColsRef).ast),
       };
       return create({
         ...internal,
@@ -458,12 +458,12 @@ export const TableQuery = (() => {
           ? builder.From.Joins(builder.TableOrSubquery.Table(internal.from.name), firstJoin, ...restJoins)
           : builder.From.Table(internal.from.name),
         resultColumns: state.select ? Utils.arrayToNonEmptyArray(state.select) : [builder.ResultColumn.Star()],
-        where: state.where,
-        groupBy: state.groupBy ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy) } : undefined,
+        where: state.where?.ast,
+        groupBy: state.groupBy ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy.map((e) => e.ast)) } : undefined,
       },
       orderBy: state.orderBy ? Utils.arrayToNonEmptyArray(state.orderBy) : undefined,
       limit: state.limit
-        ? { expr: state.limit, offset: state.offset ? { separator: 'Offset', expr: state.offset } : undefined }
+        ? { expr: state.limit.ast, offset: state.offset ? { separator: 'Offset', expr: state.offset.ast } : undefined }
         : undefined,
     };
   }
@@ -477,7 +477,7 @@ export const TableQuery = (() => {
     selected: ExprRecord
   ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecord } {
     const select = Object.entries(selected).map(([key, expr]): Ast.Node<'ResultColumn'> => {
-      return builder.ResultColumn.Expr(expr, key);
+      return builder.ResultColumn.Expr(expr.ast, key);
     });
     const columnsRef = exprsToRefs(table, selected);
     return { select, columnsRef };

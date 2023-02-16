@@ -1,5 +1,5 @@
 import { Ast, Utils } from 'zensqlite';
-import { IExprInternal } from '../Expr';
+import { IExprAstParam } from '../Expr';
 import { PRIV } from './constants';
 
 export type Params = Record<string, any> | null;
@@ -12,9 +12,9 @@ export function extractParams(expr: Ast.Node): Record<string, any> | null {
   const paramsMap = new Map<any, string>();
   Utils.traverse(expr, (node) => {
     if (node.kind === 'BindParameter' && node.variant === 'ColonNamed') {
-      const internal = (node as any)[PRIV] as IExprInternal | undefined;
-      if (internal && internal.param) {
-        paramsMap.set(internal.param.name, internal.param.value);
+      const param = (node as any)[PRIV] as IExprAstParam | undefined;
+      if (param) {
+        paramsMap.set(param.name, param.value);
       }
     }
     return null;

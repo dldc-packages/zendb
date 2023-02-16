@@ -10,6 +10,7 @@
     "rootDir": ".",
     "outDir": "dist",
     "strict": true,
+    "noEmit": true,
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "downlevelIteration": true,

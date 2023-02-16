@@ -8,6 +8,6 @@ export function createSetItems(columns: ColumnsDefsBase, values: Record<string, 
     if (!column) {
       throw new Error(`Column ${col} does not exist`);
     }
-    return b.SetItems.ColumnName(col, Expr.external(value, col));
+    return b.SetItems.ColumnName(col, Expr.external(value, col).ast);
   });
 }

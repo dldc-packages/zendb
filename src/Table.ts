@@ -173,7 +173,7 @@ export const Table = (() => {
     const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
     const queryNode = b.InsertStmt(table, {
       columnNames: cols,
-      data: b.InsertStmtData.Values([values]),
+      data: b.InsertStmtData.Values([values.map((e) => e.ast)]),
     });
     const params = extractParams(queryNode);
     const insertStatement = printNode(queryNode);
@@ -193,7 +193,7 @@ export const Table = (() => {
   ): IDeleteOperation {
     const { columnsRefs } = getTableInfos(table, columns);
     const node = b.DeleteStmt(table, {
-      where: condition(columnsRefs),
+      where: condition(columnsRefs).ast,
       limit: options.limit,
     });
     const queryText = printNode(node);
@@ -217,7 +217,7 @@ export const Table = (() => {
   ): IUpdateOperation {
     const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
-      where: where ? where(columnsRefs) : undefined,
+      where: where ? where(columnsRefs).ast : undefined,
       limit: limit,
       setItems: createSetItems(columns, data),
     });
