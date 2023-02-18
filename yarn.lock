@@ -5465,9 +5465,9 @@ yocto-queue@^0.1.0:
   resolved "https://registry.yarnpkg.com/yocto-queue/-/yocto-queue-0.1.0.tgz#0294eb3dee05028d31ee1a5fa2c556a6aaf10a1b"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
 
-zensqlite@^2.0.0-5:
-  version "2.0.0-5"
-  resolved "https://registry.yarnpkg.com/zensqlite/-/zensqlite-2.0.0-5.tgz#29dc59dc70a79085ee265fde6fcffe9394c70989"
-  integrity sha512-Tlsn9OiK8sMsVNuRSh0wWwbOea0QqvGV50PkoXTthZPVRQlSjQDx7bgSU2bwBowzXiQlKyoAdKcFxBieT2Q49Q==
+zensqlite@^2.0.0-6:
+  version "2.0.0-6"
+  resolved "https://registry.yarnpkg.com/zensqlite/-/zensqlite-2.0.0-6.tgz#eababa5527856f04e844a953ca51a41f15a6a66e"
+  integrity sha512-SsziwvqDBrhHRSJ1moWzE2xCnGGmTHVTqOh2pPLNgrJQD8+uxB+iLMXY5ib9jVFcwIXUGkYa7vtTzMHcvpgSYQ==
   dependencies:
     tslib "^2.3.1"

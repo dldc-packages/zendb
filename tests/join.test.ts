@@ -46,7 +46,7 @@ test('Query joins', () => {
       tasks.title AS taskName
     FROM
       users
-      INNER JOIN users_tasks ON users_tasks.user_id == users.id,
+      INNER JOIN users_tasks ON users_tasks.user_id == users.id
       INNER JOIN tasks ON tasks.id == users_tasks.task_id
   `);
 });
