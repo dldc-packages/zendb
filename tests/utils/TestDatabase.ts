@@ -41,15 +41,15 @@ export const TestDatabase = (() => {
       if (op.kind === 'Query') {
         const stmt = sqlDb.prepare(op.sql);
         const res = op.params ? stmt.all(op.params) : stmt.all();
-        return opResult<zen.IQueryOperation<any>>(op.parse(res));
+        return opResult<zen.IQueryOperation<any>>(op.parse(res as Record<string, any>[]));
       }
       if (op.kind === 'ListTables') {
         const res = sqlDb.prepare(op.sql).all();
-        return opResult<zen.IListTablesOperation>(op.parse(res));
+        return opResult<zen.IListTablesOperation>(op.parse(res as Record<string, any>[]));
       }
       if (op.kind === 'Pragma') {
         const res = sqlDb.prepare(op.sql).all();
-        return opResult<zen.IPragmaOperation<any>>(op.parse(res));
+        return opResult<zen.IPragmaOperation<any>>(op.parse(res as Record<string, any>[]));
       }
       if (op.kind === 'PragmaSet') {
         sqlDb.prepare(op.sql).run();

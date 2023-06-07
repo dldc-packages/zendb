@@ -63,6 +63,7 @@ export const TableQuery = (() => {
       // Shortcuts
       filterEqual,
 
+      // joins
       innerJoin,
       leftJoin,
       // populate,
@@ -84,17 +85,15 @@ export const TableQuery = (() => {
 
     function where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
       const result = resolveColFn(whereFn)(internal.inputColsRefs);
-      if (result === internal.state.where) {
-        return self;
+      if (internal.state.where) {
+        const whereAnd = Expr.and(internal.state.where, result);
+        return create({ ...internal, state: { ...internal.state, where: whereAnd } });
       }
       return create({ ...internal, state: { ...internal.state, where: result } });
     }
 
     function groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols> {
       const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
-      if (groupBy === internal.state.groupBy) {
-        return self;
-      }
       return create({ ...internal, state: { ...internal.state, groupBy } });
     }
 
@@ -206,9 +205,12 @@ export const TableQuery = (() => {
 
     function filterEqual(filters: Partial<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols> {
       return where((cols) => {
-        const filterExprs = Object.entries(filters).map(([key, value]) =>
-          Expr.equal(accessColFlatKey(cols, key), Expr.external(value as any))
-        );
+        const filterExprs = Object.entries(filters).map(([key, value]) => {
+          if (value === null) {
+            return Expr.isNull(accessColFlatKey(cols, key));
+          }
+          return Expr.equal(accessColFlatKey(cols, key), Expr.external(value as any));
+        });
         if (filterExprs.length === 0) {
           return Expr.literal(true);
         }
