@@ -1,4 +1,4 @@
-export * from './ColumnDef';
+export * from './Column';
 export * from './Database';
 export * from './Datatype';
 export * from './Expr';
@@ -6,4 +6,5 @@ export * from './Operation';
 export * from './Populate';
 export * from './Random';
 export * from './Table';
+export * from './TableQuery.types';
 export * from './utils/types';

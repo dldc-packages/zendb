@@ -47,6 +47,14 @@ export const TestDatabase = (() => {
         const res = sqlDb.prepare(op.sql).all();
         return opResult<zen.IListTablesOperation>(op.parse(res));
       }
+      if (op.kind === 'Pragma') {
+        const res = sqlDb.prepare(op.sql).all();
+        return opResult<zen.IPragmaOperation<any>>(op.parse(res));
+      }
+      if (op.kind === 'PragmaSet') {
+        sqlDb.prepare(op.sql).run();
+        return opResult<zen.IPragmaSetOperation>(null);
+      }
       return expectNever(op);
     }
 

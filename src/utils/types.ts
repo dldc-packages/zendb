@@ -1,4 +1,4 @@
-import { IColumnDefAny } from '../ColumnDef';
+import { IColumnAny } from '../Column';
 import { IExpr, IExprUnknow } from '../Expr';
 import { PRIV, TYPES } from './constants';
 
@@ -9,7 +9,7 @@ export type ExtractUndefinedKeys<Data extends Record<string, any>> = {
 export type MarkUndefinedOptional<Data extends Record<string, any>> = Pick<Data, ExtractDefinedKeys<Data>> &
   Partial<Pick<Data, ExtractUndefinedKeys<Data>>>;
 
-export type ColumnsDefsBase = Record<string, IColumnDefAny>;
+export type ColumnsBase = Record<string, IColumnAny>;
 
 export type QueryColumnValuePrimitive = null | string | number | boolean | Date;
 
@@ -19,33 +19,31 @@ export type ExprRecord = Record<string, IExprUnknow>;
 
 export type ExprRecordNested = { [key: string]: IExprUnknow | ExprRecordNested };
 
-export type FilterEqual<Cols extends AnyRecord> = { [K in keyof Cols]?: Cols[K] extends QueryColumnValuePrimitive ? Cols[K] : never };
-
 export type ExtractDefinedKeys<Data extends Record<string, any>> = {
   [K in keyof Data]: undefined extends Data[K] ? never : K;
 }[keyof Data];
 
 // Can be null if nullable and undefined if defaultValue is set
-export type ColumnDefInputValue<Column extends IColumnDefAny> =
+export type ColumnInputValue<Column extends IColumnAny> =
   | Column[PRIV]['datatype'][TYPES]
   | (Column[PRIV]['nullable'] extends true ? null : never)
   | (Column[PRIV]['defaultValue'] extends null ? never : undefined);
 
 // Can be null only if nullable
-export type ColumnDefOutputValue<Column extends IColumnDefAny> =
+export type ColumnOutputValue<Column extends IColumnAny> =
   | Column[PRIV]['datatype'][TYPES]
   | (Column[PRIV]['nullable'] extends true ? null : never);
 
-export type ColumnDefToExpr<Column extends IColumnDefAny> = IExpr<Column[PRIV]['datatype'][TYPES], Column[PRIV]['nullable']>;
+export type ColumnToExpr<Column extends IColumnAny> = IExpr<Column[PRIV]['datatype'][TYPES], Column[PRIV]['nullable']>;
 
-export type ColumnsDefsToExprRecord<ColumnsDefs extends ColumnsDefsBase> = {
-  [K in keyof ColumnsDefs]: ColumnDefToExpr<ColumnsDefs[K]>;
+export type ColumnsToExprRecord<Columns extends ColumnsBase> = {
+  [K in keyof Columns]: ColumnToExpr<Columns[K]>;
 };
 
 export type ExprFnFromTable<Cols extends ExprRecordNested> = (cols: Cols) => IExprUnknow;
 
-export type ColumnsDefToInput<ColumnsDefs extends ColumnsDefsBase> = MarkUndefinedOptional<{
-  [K in keyof ColumnsDefs]: ColumnDefInputValue<ColumnsDefs[K]>;
+export type ColumnsToInput<Columns extends ColumnsBase> = MarkUndefinedOptional<{
+  [K in keyof Columns]: ColumnInputValue<Columns[K]>;
 }>;
 
 export type ExprResult<Val, Nullable extends boolean> = Nullable extends true ? Val | null : Val;

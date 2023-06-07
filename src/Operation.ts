@@ -40,13 +40,29 @@ export interface IListTablesOperation {
   parse: (raw: Array<Record<string, any>>) => Array<string>;
 }
 
+export interface IPragmaOperation<Value> {
+  kind: 'Pragma';
+  sql: string;
+  params: null;
+  parse: (raw: Array<Record<string, any>>) => Value;
+}
+
+export interface IPragmaSetOperation {
+  kind: 'PragmaSet';
+  sql: string;
+  params: null;
+  parse: () => null;
+}
+
 export type IOperation =
   | IDeleteOperation
   | IUpdateOperation
   | IInsertOperation<any>
   | IQueryOperation<any>
   | ICreateTableOperation
-  | IListTablesOperation;
+  | IListTablesOperation
+  | IPragmaOperation<any>
+  | IPragmaSetOperation;
 
 export type IOperationKind = IOperation['kind'];
 
@@ -62,4 +78,8 @@ export type IOperationResult<T extends IOperation> = T extends IDeleteOperation
   ? null
   : T extends IListTablesOperation
   ? Array<string>
+  : T extends IPragmaOperation<infer Value>
+  ? Value
+  : T extends IPragmaSetOperation
+  ? null
   : never;

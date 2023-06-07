@@ -1,16 +1,17 @@
 import { Ast, builder as b, printNode } from 'zensqlite';
-import { ColumnDef, IColumnDefAny } from './ColumnDef';
+import { Column, IColumnAny } from './Column';
 import { Expr, IExprUnknow } from './Expr';
 import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
-import { ITableQuery, TableQuery } from './TableQuery';
+import { TableQuery } from './TableQuery';
+import { ITableQuery } from './TableQuery.types';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
 import {
   AnyRecord,
-  ColumnsDefsBase,
-  ColumnsDefsToExprRecord,
-  ColumnsDefToInput,
+  ColumnsBase,
+  ColumnsToExprRecord,
+  ColumnsToInput,
   ExprFnFromTable,
   ExprRecord,
   ExprRecordOutput,
@@ -25,13 +26,13 @@ export type UpdateOptions<Cols extends AnyRecord> = {
   where?: ExprFnFromTable<Cols>;
 };
 
-export interface ICreateTableOptions {
+export interface ITableSchemaOptions {
   ifNotExists?: boolean;
   strict?: boolean;
 }
 
 export interface ITable<InputData extends AnyRecord, OutputCols extends ExprRecord> {
-  createTable(options?: ICreateTableOptions): ICreateTableOperation;
+  schema(options?: ITableSchemaOptions): ICreateTableOperation;
   query(): ITableQuery<OutputCols, OutputCols>;
   insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   delete(condition: ExprFnFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
@@ -47,8 +48,10 @@ interface TableInfos<Cols extends ExprRecord> {
 
 export const Table = (() => {
   return {
-    create,
-    createTable,
+    declare,
+    declareMany,
+
+    schema,
     query,
     insert,
     delete: deleteFn,
@@ -59,10 +62,28 @@ export const Table = (() => {
     from: TableQuery.createCteFrom,
   };
 
-  function getTableInfos<ColumnsDefs extends ColumnsDefsBase>(
+  function declare<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs
-  ): TableInfos<ColumnsDefsToExprRecord<ColumnsDefs>> {
+    columns: Columns
+  ): ITable<ColumnsToInput<Columns>, ColumnsToExprRecord<Columns>> {
+    return {
+      schema: (options) => schema(table, columns, options),
+      query: () => query(table, columns),
+      insert: (data) => insert(table, columns, data),
+      delete: (condition, options) => deleteFn(table, columns, condition, options),
+      deleteOne: (condition) => deleteOne(table, columns, condition),
+      update: (data, options) => update(table, columns, data, options),
+      updateOne: (data, where) => updateOne(table, columns, data, where),
+    };
+  }
+
+  function declareMany<Tables extends Record<string, ColumnsBase>>(
+    tables: Tables
+  ): { [TableName in keyof Tables]: ITable<ColumnsToInput<Tables[TableName]>, ColumnsToExprRecord<Tables[TableName]>> } {
+    return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table.declare(tableName, columns)])) as any;
+  }
+
+  function getTableInfos<Columns extends ColumnsBase>(table: string, columns: Columns): TableInfos<ColumnsToExprRecord<Columns>> {
     const tableIdentifier = b.Expr.identifier(table);
     const columnsRefs = mapObject(columns, (key, colDef): IExprUnknow => {
       return Expr.column(tableIdentifier, key, {
@@ -74,26 +95,7 @@ export const Table = (() => {
     return { table: tableIdentifier, columnsRefs };
   }
 
-  function create<ColumnsDefs extends ColumnsDefsBase>(
-    table: string,
-    columns: ColumnsDefs
-  ): ITable<ColumnsDefToInput<ColumnsDefs>, ColumnsDefsToExprRecord<ColumnsDefs>> {
-    return {
-      createTable: (options) => createTable(table, columns, options),
-      query: () => query(table, columns),
-      insert: (data) => insert(table, columns, data),
-      delete: (condition, options) => deleteFn(table, columns, condition, options),
-      deleteOne: (condition) => deleteOne(table, columns, condition),
-      update: (data, options) => update(table, columns, data, options),
-      updateOne: (data, where) => updateOne(table, columns, data, where),
-    };
-  }
-
-  function createTable<ColumnsDefs extends ColumnsDefsBase>(
-    table: string,
-    columns: ColumnsDefs,
-    options: ICreateTableOptions = {}
-  ): ICreateTableOperation {
+  function schema<Columns extends ColumnsBase>(table: string, columns: Columns, options: ITableSchemaOptions = {}): ICreateTableOperation {
     const { ifNotExists = false, strict = true } = options;
     // TODO: handle IF NOT EXISTS
 
@@ -155,19 +157,19 @@ export const Table = (() => {
     return { kind: 'CreateTable', sql: printNode(node), params: null, parse: () => null };
   }
 
-  function insert<ColumnsDefs extends ColumnsDefsBase>(
+  function insert<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs,
-    data: ColumnsDefToInput<ColumnsDefs>
-  ): IInsertOperation<ExprRecordOutput<ColumnsDefsToExprRecord<ColumnsDefs>>> {
-    const columnsEntries: Array<[string, IColumnDefAny]> = Object.entries(columns);
+    columns: Columns,
+    data: ColumnsToInput<Columns>
+  ): IInsertOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
+    const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns);
     const resolvedData: Record<string, any> = {};
     const parsedData: Record<string, any> = {};
     columnsEntries.forEach(([name, column]) => {
       const input = (data as any)[name];
-      const serialized = ColumnDef.serialize(column, input);
+      const serialized = Column.serialize(column, input);
       resolvedData[name] = serialized;
-      parsedData[name] = ColumnDef.parse(column, serialized);
+      parsedData[name] = Column.parse(column, serialized);
     });
     const values = columnsEntries.map(([name]) => Expr.external(resolvedData[name], name));
     const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
@@ -185,10 +187,10 @@ export const Table = (() => {
     };
   }
 
-  function deleteFn<ColumnsDefs extends ColumnsDefsBase>(
+  function deleteFn<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs,
-    condition: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>,
+    columns: Columns,
+    condition: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
     options: DeleteOptions = {}
   ): IDeleteOperation {
     const { columnsRefs } = getTableInfos(table, columns);
@@ -201,19 +203,19 @@ export const Table = (() => {
     return { kind: 'Delete', sql: queryText, params, parse: (raw) => raw };
   }
 
-  function deleteOne<ColumnsDefs extends ColumnsDefsBase>(
+  function deleteOne<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs,
-    condition: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>
+    columns: Columns,
+    condition: ExprFnFromTable<ColumnsToExprRecord<Columns>>
   ): IDeleteOperation {
     return deleteFn(table, columns, condition, { limit: 1 });
   }
 
-  function update<ColumnsDefs extends ColumnsDefsBase>(
+  function update<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs,
-    data: Partial<ColumnsDefToInput<ColumnsDefs>>,
-    { where, limit }: UpdateOptions<ColumnsDefsToExprRecord<ColumnsDefs>> = {}
+    columns: Columns,
+    data: Partial<ColumnsToInput<Columns>>,
+    { where, limit }: UpdateOptions<ColumnsToExprRecord<Columns>> = {}
   ): IUpdateOperation {
     const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
@@ -226,19 +228,19 @@ export const Table = (() => {
     return { kind: 'Update', sql: queryText, params, parse: (raw) => raw };
   }
 
-  function updateOne<ColumnsDefs extends ColumnsDefsBase>(
+  function updateOne<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs,
-    data: Partial<ColumnsDefToInput<ColumnsDefs>>,
-    where?: ExprFnFromTable<ColumnsDefsToExprRecord<ColumnsDefs>>
+    columns: Columns,
+    data: Partial<ColumnsToInput<Columns>>,
+    where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>
   ): IUpdateOperation {
     return update(table, columns, data, { where, limit: 1 });
   }
 
-  function query<ColumnsDefs extends ColumnsDefsBase>(
+  function query<Columns extends ColumnsBase>(
     table: string,
-    columns: ColumnsDefs
-  ): ITableQuery<ColumnsDefsToExprRecord<ColumnsDefs>, ColumnsDefsToExprRecord<ColumnsDefs>> {
+    columns: Columns
+  ): ITableQuery<ColumnsToExprRecord<Columns>, ColumnsToExprRecord<Columns>> {
     const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
     return TableQuery.createFromTable(tableIdentifier, columnsRefs);
   }

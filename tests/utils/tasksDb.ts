@@ -1,20 +1,20 @@
-import { ColumnDef, Database } from '../../src/mod';
+import { Column, Table } from '../../src/mod';
 
-export const tasksDb = Database({
+export const tasksDb = Table.declareMany({
   tasks: {
-    id: ColumnDef.dt.text().primary(),
-    title: ColumnDef.dt.text(),
-    description: ColumnDef.dt.text(),
-    completed: ColumnDef.dt.boolean(),
+    id: Column.dt.text().primary(),
+    title: Column.dt.text(),
+    description: Column.dt.text(),
+    completed: Column.dt.boolean(),
   },
   users: {
-    id: ColumnDef.dt.text().primary(),
-    name: ColumnDef.dt.text(),
-    email: ColumnDef.dt.text(),
-    displayName: ColumnDef.dt.text().nullable(),
+    id: Column.dt.text().primary(),
+    name: Column.dt.text(),
+    email: Column.dt.text(),
+    displayName: Column.dt.text().nullable(),
   },
   users_tasks: {
-    user_id: ColumnDef.dt.text().primary(),
-    task_id: ColumnDef.dt.text().primary(),
+    user_id: Column.dt.text().primary(),
+    task_id: Column.dt.text().primary(),
   },
 });

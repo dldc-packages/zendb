@@ -2,124 +2,24 @@ import { Ast, builder, JoinItem, printNode, Utils } from 'zensqlite';
 import { Expr, IExprUnknow, JsonMode } from './Expr';
 import { IQueryOperation } from './Operation';
 import { Random } from './Random';
+import {
+  AllColsFn,
+  AllColsFnOrRes,
+  ColsFn,
+  ColsFnOrRes,
+  ColsRefInnerJoined,
+  ColsRefLeftJoined,
+  FilterEqualCols,
+  ITableQuery,
+  ITableQueryInternal,
+  ITableQueryInternalBase,
+  OrderingTerms,
+  SelectFn,
+} from './TableQuery.types';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
-import { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput, ExprRecord_MakeNullable, Prettify } from './utils/types';
+import { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
 import { mapObject } from './utils/utils';
-
-export interface ITableQueryState {
-  readonly where?: IExprUnknow;
-  readonly groupBy?: Array<IExprUnknow>;
-  readonly having?: IExprUnknow;
-  readonly select?: Array<Ast.Node<'ResultColumn'>>;
-  readonly orderBy?: OrderingTerms;
-  readonly limit?: IExprUnknow;
-  readonly offset?: IExprUnknow;
-  readonly joins?: Array<JoinItem>;
-}
-
-export interface ITableQueryInternalBase<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
-  readonly inputColsRefs: InCols;
-  // Identifiers of the columns of the current query
-  readonly outputColsRefs: OutCols;
-  // Selected expressions of the current query
-  readonly outputColsExprs: OutCols;
-  readonly from: Ast.Identifier; // table or cte name
-  readonly parents: Array<ITableQueryInternal<any, any>>;
-
-  readonly state: ITableQueryState;
-}
-
-export interface ITableQueryInternal<InCols extends ExprRecordNested, OutCols extends ExprRecord>
-  extends ITableQueryInternalBase<InCols, OutCols> {
-  // The current query as a cte
-  readonly asCteName: Ast.Identifier;
-  readonly isBaseTable: boolean;
-}
-
-export interface ITakeConfig {
-  limit: number;
-  offset?: number;
-}
-
-export interface IPaginateConfig {
-  size: number;
-  page?: number;
-}
-
-export type OrderByItem<Cols extends AnyRecord> = [keyof Cols, 'Asc' | 'Desc'];
-
-export type OrderingTerms = Array<Ast.Node<'OrderingTerm'>>;
-
-export type SelectFn<InColsRef extends ExprRecordNested, CurrentColsRefs extends ExprRecordNested, Result> = (
-  cols: InColsRef,
-  current: CurrentColsRefs
-) => Result;
-
-export type ColsFn<InColsRef extends ExprRecordNested, Result> = (cols: InColsRef) => Result;
-export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> = ColsFn<InColsRef, Result> | Result;
-
-export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (inCols: InCols, outCols: OutCols) => Result;
-
-export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyRecord, Result> =
-  | AllColsFn<InCols, OutCols, Result>
-  | Result;
-
-export type ColsRefInnerJoined<Base extends ExprRecordNested, RTable extends ITableQuery<any, any>, Alias extends string> = Base & {
-  [K in Alias]: RTable[TYPES];
-};
-
-export type ColsRefLeftJoined<Base extends ExprRecordNested, RTable extends ITableQuery<any, any>, Alias extends string> = Base & {
-  [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
-};
-
-export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
-  readonly [TYPES]: OutCols;
-  readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
-
-  // Operations before select
-  where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-  groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols>;
-  having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-  // Select
-  select<NewOutCols extends ExprRecord>(selectFn: SelectFn<InCols, OutCols, NewOutCols>): ITableQuery<InCols, NewOutCols>;
-  // Operations after select
-  orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
-  limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-  offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-  // Joins
-  innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
-    table: RTable,
-    alias: Alias,
-    joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow
-  ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols>;
-  leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
-    table: RTable,
-    alias: Alias,
-    joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow
-  ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols>;
-
-  // shortcut for ease of use
-  // filter(filters: FilterEqual<Cols>): ITableQuery<Cols>;
-  // take(config: number | ITakeConfig): ITableQuery<Cols>;
-  // paginate(config: number | IPaginateConfig): ITableQuery<Cols>;
-  // groupByCol<NewCols extends SelectBase>(
-  //   cols: Array<keyof Cols>,
-  //   selectFn: ColsFnOrRes<Cols, NewCols>
-  // ): ITableQuery<ColsFromSelect<NewCols>>;
-  // orderByCol(...cols: Array<keyof Cols | OrderByItem<Cols>>): ITableQuery<Cols>;
-
-  // Returns an Array
-  all(): IQueryOperation<Array<Prettify<ExprRecordOutput<OutCols>>>>;
-  // Throw if result count is > 1
-  maybeOne(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>> | null>;
-  // Throw if result count is not === 1
-  one(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>>>;
-  // Never throws
-  maybeFirst(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>> | null>;
-  // Throw if result count is === 0
-  first(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>>>;
-}
 
 export const TableQuery = (() => {
   return { createFromTable, createCteFrom };
@@ -159,6 +59,9 @@ export const TableQuery = (() => {
       orderBy,
       limit,
       offset,
+
+      // Shortcuts
+      filterEqual,
 
       innerJoin,
       leftJoin,
@@ -298,6 +201,22 @@ export const TableQuery = (() => {
           joins: [...(internal.state.joins ?? []), joinItem],
         },
         parents: mergeParent(internal.parents, table[PRIV]),
+      });
+    }
+
+    function filterEqual(filters: Partial<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols> {
+      return where((cols) => {
+        const filterExprs = Object.entries(filters).map(([key, value]) =>
+          Expr.equal(accessColFlatKey(cols, key), Expr.external(value as any))
+        );
+        if (filterExprs.length === 0) {
+          return Expr.literal(true);
+        }
+        if (filterExprs.length === 1) {
+          return filterExprs[0];
+        }
+        const [first, second, ...rest] = filterExprs;
+        return rest.reduce((acc, expr) => Expr.and(acc, expr), Expr.and(first, second));
       });
     }
 
@@ -491,7 +410,7 @@ export const TableQuery = (() => {
     });
   }
 
-  function createCteFrom<OutCols extends ExprRecord>(table: ITableQuery<ExprRecord, OutCols>): ITableQuery<OutCols, OutCols> {
+  function createCteFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(table: Table): ITableQuery<Table[TYPES], Table[TYPES]> {
     const parentInternal = table[PRIV];
     if (parentInternal.isBaseTable) {
       return table as any;
@@ -524,5 +443,22 @@ export const TableQuery = (() => {
       return prevParents;
     }
     return [...prevParents, parent];
+  }
+
+  /**
+   *
+   * @param cols
+   * @param flatKey A flatten key, e.g. 'a.b.c'
+   */
+  function accessColFlatKey(cols: ExprRecordNested, flatKey: string): IExprUnknow {
+    const parts = flatKey.split('.');
+    let current: ExprRecordNested | IExprUnknow = cols;
+    for (const part of parts) {
+      current = (current as any)[part];
+      if (current === undefined) {
+        throw new Error(`Column not found: ${flatKey}`);
+      }
+    }
+    return current as IExprUnknow;
   }
 })();

@@ -1,33 +1,41 @@
-import { builder as b, printNode } from 'zensqlite';
-import { ICreateTableOperation, IListTablesOperation } from './Operation';
-import { ICreateTableOptions, ITable, Table } from './Table';
-import { ColumnsDefsBase, ColumnsDefsToExprRecord, ColumnsDefToInput } from './utils/types';
+import { Ast, builder as b, printNode } from 'zensqlite';
+import { ICreateTableOperation, IListTablesOperation, IPragmaOperation, IPragmaSetOperation } from './Operation';
+import { ITable, ITableSchemaOptions } from './Table';
 
 export const Database = (() => {
-  return Object.assign(create, {
-    listTables,
-    createTables,
-  });
+  return {
+    tables,
+    schema,
+    userVersion,
+    setUserVersion,
+  };
 
-  function create<Tables extends Record<string, ColumnsDefsBase>>(
-    tables: Tables
-  ): { [TableName in keyof Tables]: ITable<ColumnsDefToInput<Tables[TableName]>, ColumnsDefsToExprRecord<Tables[TableName]>> } {
-    return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table.create(tableName, columns)])) as any;
-  }
-
-  function createTables<Tables extends Record<string, ITable<any, any>>>(
+  function schema<Tables extends Record<string, ITable<any, any>>>(
     tables: Tables,
-    options?: ICreateTableOptions
+    options?: ITableSchemaOptions
   ): Array<ICreateTableOperation> {
-    return Object.values(tables).map((table) => table.createTable(options));
+    return Object.values(tables).map((table) => table.schema(options));
   }
 
-  function listTables(): IListTablesOperation {
+  function tables(): IListTablesOperation {
     const query = b.SelectStmt({
       resultColumns: [b.ResultColumn.column('name')],
       from: b.From.Table('sqlite_master'),
       where: b.Expr.equal(b.Expr.column('type'), b.Expr.literal('table')),
     });
     return { kind: 'ListTables', sql: printNode(query), params: null, parse: (raw) => raw.map((row) => row.name) };
+  }
+
+  function userVersion(): IPragmaOperation<number> {
+    const query = Ast.createNode('PragmaStmt', { pragmaName: b.Expr.identifier('user_version') });
+    return { kind: 'Pragma', sql: printNode(query), params: null, parse: (raw) => raw[0].user_version };
+  }
+
+  function setUserVersion(version: number): IPragmaSetOperation {
+    const query = Ast.createNode('PragmaStmt', {
+      pragmaName: b.Expr.identifier('user_version'),
+      value: { variant: 'Equal', pragmaValue: b.Expr.stringLiteral(version.toString()) },
+    });
+    return { kind: 'PragmaSet', sql: printNode(query), params: null, parse: () => null };
   }
 })();

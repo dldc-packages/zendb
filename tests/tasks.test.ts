@@ -1,13 +1,25 @@
-import { Database, Expr } from '../src/mod';
+import { Database, Expr, Random } from '../src/mod';
+import { format, sql } from './utils/sql';
 import { tasksDb } from './utils/tasksDb';
 import { TestDatabase } from './utils/TestDatabase';
+
+let nextRandomId = 0;
+
+beforeAll(() => {
+  // disable random suffix for testing
+  Random.setCreateId(() => `id${nextRandomId++}`);
+});
+
+beforeEach(() => {
+  nextRandomId = 0;
+});
 
 const db = TestDatabase.create();
 
 test('create database', () => {
-  const res = db.execMany(Database.createTables(tasksDb));
+  const res = db.execMany(Database.schema(tasksDb));
   expect(res).toEqual([null, null, null]);
-  const tables = db.exec(Database.listTables());
+  const tables = db.exec(Database.tables());
   expect(tables).toEqual(['tasks', 'users', 'users_tasks']);
 });
 
@@ -20,7 +32,7 @@ test('find tasks', () => {
   const res = db.exec(
     tasksDb.tasks
       .query()
-      .select((c) => ({ id: c.id, title: c.title }))
+      .select(({ id, title }) => ({ id, title }))
       .all()
   );
   expect(res).toEqual([{ id: '1', title: 'Task 1' }]);
@@ -76,6 +88,93 @@ test('Concatenate nullable should return nullable', () => {
       .first()
   );
   expect(res).toEqual({ id: '1', name: null });
+});
+
+test('Find user by email', () => {
+  const res = db.exec(
+    tasksDb.users
+      .query()
+      .where((c) => Expr.equal(c.email, Expr.external('john@example.com')))
+      .first()
+  );
+
+  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+});
+
+test('Find user by email using compare', () => {
+  const res = db.exec(
+    tasksDb.users
+      .query()
+      .where((c) => Expr.compare(c.email, '=', 'john@example.com'))
+      .first()
+  );
+
+  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+});
+
+test('Find user by email using filterEqual', () => {
+  const res = db.exec(tasksDb.users.query().filterEqual({ email: 'john@example.com' }).first());
+  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+});
+
+test('Find tasks with user', () => {
+  const tasksWithUser = tasksDb.users_tasks
+    .query()
+    .leftJoin(tasksDb.tasks.query(), 'task', (cols) => Expr.equal(cols.task_id, cols.task.id))
+    .leftJoin(tasksDb.users.query(), 'user', (cols) => Expr.equal(cols.user_id, cols.user.id))
+    .select((cols) => ({
+      user: Expr.jsonObj(cols.user),
+      task: Expr.jsonObj(cols.task),
+    }));
+
+  const res = db.exec(tasksWithUser.all());
+  expect(res).toEqual([
+    {
+      task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
+      user: { displayName: null, email: 'john@example.com', id: '1', name: 'John' },
+    },
+  ]);
+});
+
+test('Find task by user email', () => {
+  const tasksWithUser = tasksDb.users_tasks
+    .query()
+    .leftJoin(tasksDb.tasks.query(), 'task', (cols) => Expr.equal(cols.task_id, cols.task.id))
+    .leftJoin(tasksDb.users.query(), 'user', (cols) => Expr.equal(cols.user_id, cols.user.id))
+    .select((cols) => ({
+      user: Expr.jsonObj(cols.user),
+      task: Expr.jsonObj(cols.task),
+    }));
+
+  const query = tasksWithUser.filterEqual({ 'user.email': 'john@example.com' }).first();
+
+  expect(format(query.sql)).toEqual(sql`
+    SELECT
+      json_object(
+        'id', users.id,
+        'name', users.name,
+        'email', users.email,
+        'displayName', users.displayName
+      ) AS user,
+      json_object(
+        'id', tasks.id,
+        'title', tasks.title,
+        'description', tasks.description,
+        'completed', tasks.completed
+      ) AS task
+    FROM
+      users_tasks
+      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+      LEFT JOIN users ON users_tasks.user_id == users.id
+    WHERE
+      users.email == :_id6
+  `);
+
+  const res = db.exec(query);
+  expect(res).toEqual({
+    task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
+    user: { displayName: null, email: 'john@example.com', id: '1', name: 'John' },
+  });
 });
 
 // test('tasks grouped by userId', () => {

@@ -3,7 +3,7 @@ import { Datatype } from './Datatype';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
 import { ExprResultFrom, ExprsNullables } from './utils/types';
-import { mapObject } from './utils/utils';
+import { expectNever, mapObject } from './utils/utils';
 
 export interface IExpr<Val, Nullable extends boolean> {
   readonly ast: Ast.Expr;
@@ -62,6 +62,8 @@ export const Expr = (() => {
     concatenate,
     isNull,
 
+    compare,
+
     external,
     column,
 
@@ -105,6 +107,30 @@ export const Expr = (() => {
     right: R
   ): IExpr<boolean, L[TYPES]['nullable'] | R[TYPES]['nullable']> {
     return create(builder.Expr.equal(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  }
+
+  function compare<L extends IExprUnknow, R extends L[TYPES]['val']>(
+    left: L,
+    operator: '<' | '<=' | '>' | '>=' | '=' | '!=',
+    right: R
+  ): IExpr<boolean, L[TYPES]['nullable']> {
+    const rExpr = external(right);
+    switch (operator) {
+      case '<':
+        return lowerThan(left, rExpr);
+      case '<=':
+        return lowerThanOrEqual(left, rExpr);
+      case '>':
+        return greaterThan(left, rExpr);
+      case '>=':
+        return greaterThanOrEqual(left, rExpr);
+      case '=':
+        return equal(left, rExpr);
+      case '!=':
+        return different(left, rExpr);
+      default:
+        return expectNever(operator);
+    }
   }
 
   function different<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {

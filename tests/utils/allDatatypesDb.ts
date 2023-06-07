@@ -1,13 +1,13 @@
-import { ColumnDef, Database } from '../../src/mod';
+import { Column, Table } from '../../src/mod';
 
-export const allDatatypesDb = Database({
+export const allDatatypesDb = Table.declareMany({
   datatype: {
-    id: ColumnDef.dt.text().primary(),
-    text: ColumnDef.dt.text(),
-    integer: ColumnDef.dt.integer(),
-    boolean: ColumnDef.dt.boolean(),
-    date: ColumnDef.dt.date(),
-    json: ColumnDef.dt.json(),
-    number: ColumnDef.dt.number(),
+    id: Column.dt.text().primary(),
+    text: Column.dt.text(),
+    integer: Column.dt.integer(),
+    boolean: Column.dt.boolean(),
+    date: Column.dt.date(),
+    json: Column.dt.json(),
+    number: Column.dt.number(),
   },
 });

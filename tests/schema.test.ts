@@ -1,8 +1,8 @@
-import { Database } from '../src/mod';
+import { Database, Table } from '../src/mod';
 
 test('Init empty schema', () => {
-  const db = Database({});
-  expect(Database.createTables(db)).toEqual([]);
+  const db = Table.declareMany({});
+  expect(Database.schema(db)).toEqual([]);
 });
 
 // test('Init simple schema', () => {
