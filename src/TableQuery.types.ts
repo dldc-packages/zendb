@@ -64,17 +64,28 @@ export type SelectFn<InColsRef extends ExprRecordNested, CurrentColsRefs extends
 export type ColsFn<InColsRef extends ExprRecordNested, Result> = (cols: InColsRef) => Result;
 export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> = ColsFn<InColsRef, Result> | Result;
 
-export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (inCols: InCols, outCols: OutCols) => Result;
+export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (
+  inCols: InCols,
+  outCols: OutCols
+) => Result;
 
 export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyRecord, Result> =
   | AllColsFn<InCols, OutCols, Result>
   | Result;
 
-export type ColsRefInnerJoined<Base extends ExprRecordNested, RTable extends ITableQuery<any, any>, Alias extends string> = Base & {
+export type ColsRefInnerJoined<
+  Base extends ExprRecordNested,
+  RTable extends ITableQuery<any, any>,
+  Alias extends string
+> = Base & {
   [K in Alias]: RTable[TYPES];
 };
 
-export type ColsRefLeftJoined<Base extends ExprRecordNested, RTable extends ITableQuery<any, any>, Alias extends string> = Base & {
+export type ColsRefLeftJoined<
+  Base extends ExprRecordNested,
+  RTable extends ITableQuery<any, any>,
+  Alias extends string
+> = Base & {
   [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
 };
 
@@ -99,7 +110,9 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols>;
   having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   // Select
-  select<NewOutCols extends ExprRecord>(selectFn: SelectFn<InCols, OutCols, NewOutCols>): ITableQuery<InCols, NewOutCols>;
+  select<NewOutCols extends ExprRecord>(
+    selectFn: SelectFn<InCols, OutCols, NewOutCols>
+  ): ITableQuery<InCols, NewOutCols>;
   // Operations after select
   orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
   limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;

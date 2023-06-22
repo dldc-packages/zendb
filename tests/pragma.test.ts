@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest';
 import { Database } from '../src/mod';
 import { TestDatabase } from './utils/TestDatabase';
 

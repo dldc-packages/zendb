@@ -17,7 +17,9 @@ export type IColumnAny = IColumn<any, boolean, DefaultValueBase>;
 export interface IColumn<DtExt, Nullable extends boolean, DefaultValue extends DefaultValueBase> {
   readonly [PRIV]: IColumnInternal<DtExt, Nullable, DefaultValue>;
   nullable(): IColumn<DtExt, true, DefaultValue>;
-  defaultValue<DefaultValue extends DtExt>(defaultValue: () => DefaultValue): IColumn<DtExt, Nullable, () => DefaultValue>;
+  defaultValue<DefaultValue extends DtExt>(
+    defaultValue: () => DefaultValue
+  ): IColumn<DtExt, Nullable, () => DefaultValue>;
   primary(): IColumn<DtExt, Nullable, DefaultValue>;
   unique(constraintName?: string | null): IColumn<DtExt, Nullable, DefaultValue>;
 }
@@ -68,7 +70,8 @@ export const Column = (() => {
       nullable: () => createInternal({ ...internal, nullable: true }),
       defaultValue: (defaultValue) => createInternal({ ...internal, defaultValue }),
       primary: () => createInternal({ ...internal, primary: true }),
-      unique: (constraintName = null) => createInternal({ ...internal, unique: [...internal.unique, { constraintName }] }),
+      unique: (constraintName = null) =>
+        createInternal({ ...internal, unique: [...internal.unique, { constraintName }] }),
     };
   }
 

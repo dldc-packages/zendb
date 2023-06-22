@@ -77,7 +77,9 @@ export const Datatype = (() => {
     throw new Error('Invalid literal');
   }
 
-  function createDatatype<External, Internal>(dt: Omit<Datatype<External, Internal>, TYPES>): Datatype<External, Internal> {
+  function createDatatype<External, Internal>(
+    dt: Omit<Datatype<External, Internal>, TYPES>
+  ): Datatype<External, Internal> {
     return dt as any;
   }
 })();

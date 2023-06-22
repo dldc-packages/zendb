@@ -56,4 +56,6 @@ export type ExprRecordOutput<Select extends ExprRecord> = { [K in keyof Select]:
 
 export type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
-export type ExprRecord_MakeNullable<Exprs extends ExprRecord> = { [K in keyof Exprs]: IExpr<Exprs[K][TYPES]['val'], true> };
+export type ExprRecord_MakeNullable<Exprs extends ExprRecord> = {
+  [K in keyof Exprs]: IExpr<Exprs[K][TYPES]['val'], true>;
+};

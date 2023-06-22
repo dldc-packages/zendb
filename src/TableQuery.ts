@@ -105,7 +105,9 @@ export const TableQuery = (() => {
       return create({ ...internal, state: { ...internal.state, having } });
     }
 
-    function select<NewOutCols extends ExprRecord>(selectFn: SelectFn<InCols, OutCols, NewOutCols>): ITableQuery<InCols, NewOutCols> {
+    function select<NewOutCols extends ExprRecord>(
+      selectFn: SelectFn<InCols, OutCols, NewOutCols>
+    ): ITableQuery<InCols, NewOutCols> {
       const nextOutputColsExprs = selectFn(internal.inputColsRefs, internal.outputColsExprs);
       // Why does TS complains here ?
       if ((nextOutputColsExprs as any) === internal.outputColsExprs) {
@@ -266,7 +268,9 @@ export const TableQuery = (() => {
         sql,
         params,
         parse: (rows) => {
-          return rows.map((row) => mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false)));
+          return rows.map((row) =>
+            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false))
+          );
         },
       };
     }
@@ -407,12 +411,15 @@ export const TableQuery = (() => {
   function exprsToRefs(table: Ast.Identifier, exprs: ExprRecord): ExprRecord {
     return mapObject(exprs, (col, expr) => {
       const exprJsonMode = expr[PRIV].jsonMode;
-      const jsonMode: JsonMode | undefined = exprJsonMode === 'JsonExpr' || exprJsonMode === 'JsonRef' ? 'JsonRef' : undefined;
+      const jsonMode: JsonMode | undefined =
+        exprJsonMode === 'JsonExpr' || exprJsonMode === 'JsonRef' ? 'JsonRef' : undefined;
       return Expr.column(table, col, { parse: expr[PRIV].parse, jsonMode, nullable: expr[PRIV].nullable });
     });
   }
 
-  function createCteFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(table: Table): ITableQuery<Table[TYPES], Table[TYPES]> {
+  function createCteFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(
+    table: Table
+  ): ITableQuery<Table[TYPES], Table[TYPES]> {
     const parentInternal = table[PRIV];
     if (parentInternal.isBaseTable) {
       return table as any;
@@ -424,7 +431,11 @@ export const TableQuery = (() => {
 
     const colsRef = mapObject(parentInternal.outputColsRefs, (key, col) => {
       const jsonMode: JsonMode | undefined = col[PRIV].jsonMode === undefined ? undefined : 'JsonRef';
-      return Expr.column(parentInternal.asCteName, key, { parse: col[PRIV].parse, jsonMode, nullable: col[PRIV].nullable });
+      return Expr.column(parentInternal.asCteName, key, {
+        parse: col[PRIV].parse,
+        jsonMode,
+        nullable: col[PRIV].nullable,
+      });
     });
 
     return create({

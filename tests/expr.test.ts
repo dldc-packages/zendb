@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest';
 import { Expr } from '../src/mod';
 
 test('Expr', () => {

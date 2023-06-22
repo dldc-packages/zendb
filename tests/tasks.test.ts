@@ -1,7 +1,8 @@
+import { beforeAll, beforeEach, expect, test } from 'vitest';
 import { Database, Expr, Random } from '../src/mod';
+import { TestDatabase } from './utils/TestDatabase';
 import { format, sql } from './utils/sql';
 import { tasksDb } from './utils/tasksDb';
-import { TestDatabase } from './utils/TestDatabase';
 
 let nextRandomId = 0;
 

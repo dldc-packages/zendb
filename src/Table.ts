@@ -79,11 +79,18 @@ export const Table = (() => {
 
   function declareMany<Tables extends Record<string, ColumnsBase>>(
     tables: Tables
-  ): { [TableName in keyof Tables]: ITable<ColumnsToInput<Tables[TableName]>, ColumnsToExprRecord<Tables[TableName]>> } {
-    return Object.fromEntries(Object.entries(tables).map(([tableName, columns]) => [tableName, Table.declare(tableName, columns)])) as any;
+  ): {
+    [TableName in keyof Tables]: ITable<ColumnsToInput<Tables[TableName]>, ColumnsToExprRecord<Tables[TableName]>>;
+  } {
+    return Object.fromEntries(
+      Object.entries(tables).map(([tableName, columns]) => [tableName, Table.declare(tableName, columns)])
+    ) as any;
   }
 
-  function getTableInfos<Columns extends ColumnsBase>(table: string, columns: Columns): TableInfos<ColumnsToExprRecord<Columns>> {
+  function getTableInfos<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns
+  ): TableInfos<ColumnsToExprRecord<Columns>> {
     const tableIdentifier = b.Expr.identifier(table);
     const columnsRefs = mapObject(columns, (key, colDef): IExprUnknow => {
       return Expr.column(tableIdentifier, key, {
@@ -95,7 +102,11 @@ export const Table = (() => {
     return { table: tableIdentifier, columnsRefs };
   }
 
-  function schema<Columns extends ColumnsBase>(table: string, columns: Columns, options: ITableSchemaOptions = {}): ICreateTableOperation {
+  function schema<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    options: ITableSchemaOptions = {}
+  ): ICreateTableOperation {
     const { ifNotExists = false, strict = true } = options;
     // TODO: handle IF NOT EXISTS
 
@@ -129,7 +140,10 @@ export const Table = (() => {
       throw new Error(`Invalid unique constraint ${constraintName}`);
     });
 
-    const tableConstraints = [...(multiPrimaryKey ? [b.TableConstraint.PrimaryKey(primaryKeys)] : []), ...uniqueTableContraints];
+    const tableConstraints = [
+      ...(multiPrimaryKey ? [b.TableConstraint.PrimaryKey(primaryKeys)] : []),
+      ...uniqueTableContraints,
+    ];
 
     const node = b.CreateTableStmt(
       table,

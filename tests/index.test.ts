@@ -1,3 +1,4 @@
+import { beforeAll, beforeEach, expect, test } from 'vitest';
 import { Expr, Random, Table } from '../src/mod';
 import { allDatatypesDb } from './utils/allDatatypesDb';
 import { format, sql } from './utils/sql';
@@ -63,7 +64,10 @@ test('Update', () => {
 });
 
 test('Update with external', () => {
-  const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) });
+  const result = tasksDb.users.update(
+    { name: 'Paul' },
+    { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) }
+  );
   expect(result).toMatchObject({
     kind: 'Update',
     params: { filter_id_id0: '1234', name_id1: 'Paul' },

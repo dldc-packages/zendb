@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest';
 import { Database, Table } from '../src/mod';
 
 test('Init empty schema', () => {

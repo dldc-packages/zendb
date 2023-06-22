@@ -78,7 +78,10 @@ export const Expr = (() => {
           nullable: expr[PRIV].nullable,
         }),
       avg: <Expr extends IExpr<number, boolean>>(expr: Expr): IExpr<number, Expr[TYPES]['nullable']> =>
-        create(builder.Expr.AggregateFunctions.avg({ params: expr.ast }), { parse: Datatype.number.parse, nullable: expr[PRIV].nullable }),
+        create(builder.Expr.AggregateFunctions.avg({ params: expr.ast }), {
+          parse: Datatype.number.parse,
+          nullable: expr[PRIV].nullable,
+        }),
     },
   };
 
@@ -99,14 +102,20 @@ export const Expr = (() => {
     left: L,
     right: L
   ): IExpr<number, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.add(left.ast, right.ast), { parse: Datatype.number.parse, nullable: someNullable(left, right) });
+    return create(builder.Expr.add(left.ast, right.ast), {
+      parse: Datatype.number.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
   function equal<L extends IExprUnknow, R extends IExprUnknow>(
     left: L,
     right: R
   ): IExpr<boolean, L[TYPES]['nullable'] | R[TYPES]['nullable']> {
-    return create(builder.Expr.equal(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+    return create(builder.Expr.equal(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
   function compare<L extends IExprUnknow, R extends L[TYPES]['val']>(
@@ -133,42 +142,81 @@ export const Expr = (() => {
     }
   }
 
-  function different<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.different(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  function different<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
+    return create(builder.Expr.different(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
-  function like<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.like(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  function like<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
+    return create(builder.Expr.like(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
   function or<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.or(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+    return create(builder.Expr.or(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
-  function and<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.and(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  function and<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
+    return create(builder.Expr.and(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
   function notNull(expr: IExprUnknow): IExpr<boolean, false> {
     return create(builder.Expr.notNull(expr.ast), { parse: Datatype.boolean.parse, nullable: false });
   }
 
-  function lowerThan<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.lowerThan(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  function lowerThan<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
+    return create(builder.Expr.lowerThan(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
-  function lowerThanOrEqual<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
+  function lowerThanOrEqual<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
     return create(builder.Expr.lowerThanOrEqual(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
     });
   }
 
-  function greaterThan<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.greaterThan(left.ast, right.ast), { parse: Datatype.boolean.parse, nullable: someNullable(left, right) });
+  function greaterThan<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
+    return create(builder.Expr.greaterThan(left.ast, right.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
-  function greaterThanOrEqual<L extends IExprUnknow, R extends IExprUnknow>(left: L, right: R): IExpr<boolean, ExprsNullables<[L, R]>> {
+  function greaterThanOrEqual<L extends IExprUnknow, R extends IExprUnknow>(
+    left: L,
+    right: R
+  ): IExpr<boolean, ExprsNullables<[L, R]>> {
     return create(builder.Expr.greaterThanOrEqual(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
@@ -179,7 +227,10 @@ export const Expr = (() => {
     left: L,
     right: R
   ): IExpr<string, ExprsNullables<[L, R]>> {
-    return create(builder.Expr.concatenate(left.ast, right.ast), { parse: Datatype.text.parse, nullable: someNullable(left, right) });
+    return create(builder.Expr.concatenate(left.ast, right.ast), {
+      parse: Datatype.text.parse,
+      nullable: someNullable(left, right),
+    });
   }
 
   function isNull(expr: IExprUnknow): IExpr<boolean, false> {
@@ -260,7 +311,9 @@ export const Expr = (() => {
     });
   }
 
-  function createLiteral<Val extends string | number | boolean | null>(val: Val): IExpr<Val, [null] extends [Val] ? true : false> {
+  function createLiteral<Val extends string | number | boolean | null>(
+    val: Val
+  ): IExpr<Val, [null] extends [Val] ? true : false> {
     return create(builder.Expr.literal(val), { parse: Datatype.fromLiteral(val).parse, nullable: val === null });
   }
 
