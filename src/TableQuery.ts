@@ -34,13 +34,13 @@ export const TableQuery = (() => {
         outputColsExprs: columnsRef,
         state: {},
       },
-      true
+      true,
     );
   }
 
   function create<InCols extends ExprRecordNested, OutCols extends ExprRecord>(
     internalBase: ITableQueryInternalBase<InCols, OutCols>,
-    isBaseTable: boolean = false
+    isBaseTable: boolean = false,
   ): ITableQuery<InCols, OutCols> {
     const internal: ITableQueryInternal<InCols, OutCols> = {
       ...internalBase,
@@ -106,7 +106,7 @@ export const TableQuery = (() => {
     }
 
     function select<NewOutCols extends ExprRecord>(
-      selectFn: SelectFn<InCols, OutCols, NewOutCols>
+      selectFn: SelectFn<InCols, OutCols, NewOutCols>,
     ): ITableQuery<InCols, NewOutCols> {
       const nextOutputColsExprs = selectFn(internal.inputColsRefs, internal.outputColsExprs);
       // Why does TS complains here ?
@@ -149,7 +149,7 @@ export const TableQuery = (() => {
     function innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
       table: RTable,
       alias: Alias,
-      joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow
+      joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow,
     ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols> {
       const tableCte = createCteFrom(table);
 
@@ -177,7 +177,7 @@ export const TableQuery = (() => {
     function leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
       table: RTable,
       alias: Alias,
-      joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow
+      joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow,
     ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols> {
       const tableCte = createCteFrom(table);
 
@@ -185,7 +185,7 @@ export const TableQuery = (() => {
         ...internal.inputColsRefs,
         [alias]: mapObject(
           tableCte[PRIV].outputColsRefs,
-          (_, col: IExprUnknow): IExprUnknow => ({ ...col, [PRIV]: { ...col[PRIV], nullable: true } })
+          (_, col: IExprUnknow): IExprUnknow => ({ ...col, [PRIV]: { ...col[PRIV], nullable: true } }),
         ) as any,
       };
 
@@ -269,7 +269,7 @@ export const TableQuery = (() => {
         params,
         parse: (rows) => {
           return rows.map((row) =>
-            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false))
+            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false)),
           );
         },
       };
@@ -332,7 +332,7 @@ export const TableQuery = (() => {
   }
 
   function resolveAllColFn<InCols extends AnyRecord, OutCols extends AnyRecord, Result>(
-    fn: AllColsFnOrRes<InCols, OutCols, Result>
+    fn: AllColsFnOrRes<InCols, OutCols, Result>,
   ): AllColsFn<InCols, OutCols, Result> {
     const fnResolved: AllColsFn<InCols, OutCols, Result> = typeof fn === 'function' ? (fn as any) : () => fn;
     return fnResolved;
@@ -399,7 +399,7 @@ export const TableQuery = (() => {
 
   function resolvedColumns(
     table: Ast.Identifier,
-    selected: ExprRecord
+    selected: ExprRecord,
   ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecord } {
     const select = Object.entries(selected).map(([key, expr]): Ast.Node<'ResultColumn'> => {
       return builder.ResultColumn.Expr(expr.ast, key);
@@ -418,7 +418,7 @@ export const TableQuery = (() => {
   }
 
   function createCteFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(
-    table: Table
+    table: Table,
   ): ITableQuery<Table[TYPES], Table[TYPES]> {
     const parentInternal = table[PRIV];
     if (parentInternal.isBaseTable) {
@@ -450,7 +450,7 @@ export const TableQuery = (() => {
 
   function mergeParent(
     prevParents: Array<ITableQueryInternal<any, any>>,
-    parent: ITableQueryInternal<any, any>
+    parent: ITableQueryInternal<any, any>,
   ): Array<ITableQueryInternal<any, any>> {
     if (parent.isBaseTable) {
       return prevParents;

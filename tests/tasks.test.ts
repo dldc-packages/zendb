@@ -34,7 +34,7 @@ test('find tasks', () => {
     tasksDb.tasks
       .query()
       .select(({ id, title }) => ({ id, title }))
-      .all()
+      .all(),
   );
   expect(res).toEqual([{ id: '1', title: 'Task 1' }]);
 });
@@ -57,7 +57,7 @@ test('Query tasks as object', () => {
         id: c.id,
         data: Expr.jsonObj(c),
       }))
-      .all()
+      .all(),
   );
   res.forEach((r) => {
     expect(typeof r.data.completed).toBe('boolean');
@@ -73,7 +73,7 @@ test('Query users as object', () => {
         id: c.id,
         data: Expr.jsonObj(c),
       }))
-      .all()
+      .all(),
   );
   expect(res).toEqual([{ data: { displayName: null, email: 'john@example.com', id: '1', name: 'John' }, id: '1' }]);
 });
@@ -86,7 +86,7 @@ test('Concatenate nullable should return nullable', () => {
         id: c.id,
         name: Expr.concatenate(c.name, c.displayName),
       }))
-      .first()
+      .first(),
   );
   expect(res).toEqual({ id: '1', name: null });
 });
@@ -96,7 +96,7 @@ test('Find user by email', () => {
     tasksDb.users
       .query()
       .where((c) => Expr.equal(c.email, Expr.external('john@example.com')))
-      .first()
+      .first(),
   );
 
   expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
@@ -107,7 +107,7 @@ test('Find user by email using compare', () => {
     tasksDb.users
       .query()
       .where((c) => Expr.compare(c.email, '=', 'john@example.com'))
-      .first()
+      .first(),
   );
 
   expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });

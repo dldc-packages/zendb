@@ -78,7 +78,7 @@ export const Datatype = (() => {
   }
 
   function createDatatype<External, Internal>(
-    dt: Omit<Datatype<External, Internal>, TYPES>
+    dt: Omit<Datatype<External, Internal>, TYPES>,
   ): Datatype<External, Internal> {
     return dt as any;
   }

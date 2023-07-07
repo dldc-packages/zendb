@@ -66,7 +66,7 @@ test('Update', () => {
 test('Update with external', () => {
   const result = tasksDb.users.update(
     { name: 'Paul' },
-    { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) }
+    { where: (cols) => Expr.equal(cols.id, Expr.external('1234', 'filter_id')) },
   );
   expect(result).toMatchObject({
     kind: 'Update',

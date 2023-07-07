@@ -12,7 +12,7 @@ export const Database = (() => {
 
   function schema<Tables extends Record<string, ITable<any, any>>>(
     tables: Tables,
-    options?: ITableSchemaOptions
+    options?: ITableSchemaOptions,
   ): Array<ICreateTableOperation> {
     return Object.values(tables).map((table) => table.schema(options));
   }

@@ -58,7 +58,7 @@ export type OrderingTerms = Array<Ast.Node<'OrderingTerm'>>;
 
 export type SelectFn<InColsRef extends ExprRecordNested, CurrentColsRefs extends ExprRecordNested, Result> = (
   cols: InColsRef,
-  current: CurrentColsRefs
+  current: CurrentColsRefs,
 ) => Result;
 
 export type ColsFn<InColsRef extends ExprRecordNested, Result> = (cols: InColsRef) => Result;
@@ -66,7 +66,7 @@ export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> = ColsFn<InC
 
 export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (
   inCols: InCols,
-  outCols: OutCols
+  outCols: OutCols,
 ) => Result;
 
 export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyRecord, Result> =
@@ -76,7 +76,7 @@ export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyR
 export type ColsRefInnerJoined<
   Base extends ExprRecordNested,
   RTable extends ITableQuery<any, any>,
-  Alias extends string
+  Alias extends string,
 > = Base & {
   [K in Alias]: RTable[TYPES];
 };
@@ -84,7 +84,7 @@ export type ColsRefInnerJoined<
 export type ColsRefLeftJoined<
   Base extends ExprRecordNested,
   RTable extends ITableQuery<any, any>,
-  Alias extends string
+  Alias extends string,
 > = Base & {
   [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
 };
@@ -111,7 +111,7 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   // Select
   select<NewOutCols extends ExprRecord>(
-    selectFn: SelectFn<InCols, OutCols, NewOutCols>
+    selectFn: SelectFn<InCols, OutCols, NewOutCols>,
   ): ITableQuery<InCols, NewOutCols>;
   // Operations after select
   orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
@@ -125,12 +125,12 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
-    joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow
+    joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow,
   ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols>;
   leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
-    joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow
+    joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow,
   ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols>;
 
   // shortcut for ease of use
