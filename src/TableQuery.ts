@@ -1,4 +1,4 @@
-import { Ast, builder, JoinItem, printNode, Utils } from 'zensqlite';
+import { Ast, builder, JoinItem, printNode, Utils } from '@dldc/sqlite';
 import { Expr, IExprUnknow, JsonMode } from './Expr';
 import { IQueryOperation } from './Operation';
 import { Random } from './Random';

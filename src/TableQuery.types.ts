@@ -1,4 +1,4 @@
-import { Ast, JoinItem } from 'zensqlite';
+import { Ast, JoinItem } from '@dldc/sqlite';
 import { IExprUnknow } from './Expr';
 import { IQueryOperation } from './Operation';
 import { PRIV, TYPES } from './utils/constants';

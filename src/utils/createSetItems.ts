@@ -1,4 +1,4 @@
-import { builder as b, SetItem } from 'zensqlite';
+import { builder as b, SetItem } from '@dldc/sqlite';
 import { Expr } from '../Expr';
 import { ColumnsBase } from './types';
 

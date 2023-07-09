@@ -1,4 +1,4 @@
-import { Ast, builder } from 'zensqlite';
+import { Ast, builder } from '@dldc/sqlite';
 import { Datatype } from './Datatype';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';

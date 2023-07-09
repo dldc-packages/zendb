@@ -1,4 +1,4 @@
-import { Ast, builder as b, printNode } from 'zensqlite';
+import { Ast, builder as b, printNode } from '@dldc/sqlite';
 import { Column, IColumnAny } from './Column';
 import { Expr, IExprUnknow } from './Expr';
 import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';

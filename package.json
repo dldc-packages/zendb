@@ -39,7 +39,7 @@
     "typecheck:watch": "tsc --watch"
   },
   "dependencies": {
-    "zensqlite": "^2.0.0-7"
+    "@dldc/sqlite": "^2.0.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.4",

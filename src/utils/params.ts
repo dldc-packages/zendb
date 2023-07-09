@@ -1,4 +1,4 @@
-import { Ast, Utils } from 'zensqlite';
+import { Ast, Utils } from '@dldc/sqlite';
 import { IExprAstParam } from '../Expr';
 import { PRIV } from './constants';
 
