@@ -1,8 +1,9 @@
-import { Ast, builder } from '@dldc/sqlite';
+import type { Ast } from '@dldc/sqlite';
+import { builder } from '@dldc/sqlite';
 import { Datatype } from './Datatype';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
-import { ExprResultFrom, ExprsNullables } from './utils/types';
+import type { ExprResultFrom, ExprsNullables } from './utils/types';
 import { expectNever, mapObject } from './utils/utils';
 
 export interface IExpr<Val, Nullable extends boolean> {
@@ -264,7 +265,7 @@ export const Expr = (() => {
   function json_group_array<Val, Nullable extends boolean>(expr: IExpr<Val, Nullable>): IExpr<Array<Val>, Nullable> {
     return create(builder.Expr.AggregateFunctions.json_group_array({ params: wrapInJson(expr).ast }), {
       parse: (raw, json) => {
-        const arr = json ? raw : JSON.parse(raw);
+        const arr: any[] = json ? raw : JSON.parse(raw);
         return arr.map((item: any) => parseExprVal(expr, item, true));
       },
       jsonMode: 'JsonExpr',

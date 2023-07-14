@@ -1,6 +1,7 @@
-import { builder as b, SetItem } from '@dldc/sqlite';
+import type { SetItem } from '@dldc/sqlite';
+import { builder as b } from '@dldc/sqlite';
 import { Expr } from '../Expr';
-import { ColumnsBase } from './types';
+import type { ColumnsBase } from './types';
 
 export function createSetItems(columns: ColumnsBase, values: Record<string, any>): SetItem[] {
   return Object.entries(values).map(([col, value]): SetItem => {

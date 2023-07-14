@@ -1,8 +1,10 @@
-import { Ast, builder, JoinItem, printNode, Utils } from '@dldc/sqlite';
-import { Expr, IExprUnknow, JsonMode } from './Expr';
-import { IQueryOperation } from './Operation';
+import type { Ast, JoinItem } from '@dldc/sqlite';
+import { builder, printNode, Utils } from '@dldc/sqlite';
+import type { IExprUnknow, JsonMode } from './Expr';
+import { Expr } from './Expr';
+import type { IQueryOperation } from './Operation';
 import { Random } from './Random';
-import {
+import type {
   AllColsFn,
   AllColsFnOrRes,
   ColsFn,
@@ -18,7 +20,7 @@ import {
 } from './TableQuery.types';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
-import { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
+import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
 import { mapObject } from './utils/utils';
 
 export const TableQuery = (() => {
@@ -186,7 +188,7 @@ export const TableQuery = (() => {
         [alias]: mapObject(
           tableCte[PRIV].outputColsRefs,
           (_, col: IExprUnknow): IExprUnknow => ({ ...col, [PRIV]: { ...col[PRIV], nullable: true } }),
-        ) as any,
+        ),
       };
 
       const joinItem: JoinItem = {

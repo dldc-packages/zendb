@@ -1,8 +1,8 @@
-import { Ast, JoinItem } from '@dldc/sqlite';
-import { IExprUnknow } from './Expr';
-import { IQueryOperation } from './Operation';
-import { PRIV, TYPES } from './utils/constants';
-import {
+import type { Ast, JoinItem } from '@dldc/sqlite';
+import type { IExprUnknow } from './Expr';
+import type { IQueryOperation } from './Operation';
+import type { PRIV, TYPES } from './utils/constants';
+import type {
   AnyRecord,
   ExprRecord,
   ExprRecordNested,

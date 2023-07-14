@@ -1,6 +1,6 @@
-import { IColumnAny } from '../Column';
-import { IExpr, IExprUnknow } from '../Expr';
-import { PRIV, TYPES } from './constants';
+import type { IColumnAny } from '../Column';
+import type { IExpr, IExprUnknow } from '../Expr';
+import type { PRIV, TYPES } from './constants';
 
 export type ExtractUndefinedKeys<Data extends Record<string, any>> = {
   [K in keyof Data]: undefined extends Data[K] ? K : never;

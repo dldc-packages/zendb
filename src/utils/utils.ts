@@ -6,7 +6,7 @@ export function mapObject<In extends Record<string, any>, Out extends Record<key
 }
 
 export function expectNever(val: never): never {
-  throw new Error(`Unexpected never ${val}`);
+  throw new Error(`Unexpected never ${val as any}`);
 }
 
 export function isNotNull<T>(val: T | null): val is T {

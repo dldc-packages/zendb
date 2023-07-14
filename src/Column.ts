@@ -1,6 +1,6 @@
 import { Datatype } from './Datatype';
 import { PRIV } from './utils/constants';
-import { ColumnInputValue, ColumnOutputValue } from './utils/types';
+import type { ColumnInputValue, ColumnOutputValue } from './utils/types';
 
 export type DefaultValueBase = (() => any) | null;
 

@@ -1,5 +1,5 @@
 import SqliteDatabase from 'better-sqlite3';
-import * as zen from '../../src/mod';
+import type * as zen from '../../src/mod';
 
 export interface ITestDatabase {
   exec<Op extends zen.IOperation>(op: Op): zen.IOperationResult<Op>;
@@ -68,6 +68,6 @@ export const TestDatabase = (() => {
   }
 
   function expectNever(val: never): never {
-    throw new Error(`Unexpected value: ${val}`);
+    throw new Error(`Unexpected value: ${val as any}`);
   }
 })();

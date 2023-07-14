@@ -1,5 +1,6 @@
-import { Ast, Utils } from '@dldc/sqlite';
-import { IExprAstParam } from '../Expr';
+import type { Ast } from '@dldc/sqlite';
+import { Utils } from '@dldc/sqlite';
+import type { IExprAstParam } from '../Expr';
 import { PRIV } from './constants';
 
 export type Params = Record<string, any> | null;

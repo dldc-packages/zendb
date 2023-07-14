@@ -1,6 +1,6 @@
 import { Ast, builder as b, printNode } from '@dldc/sqlite';
-import { ICreateTableOperation, IListTablesOperation, IPragmaOperation, IPragmaSetOperation } from './Operation';
-import { ITable, ITableSchemaOptions } from './Table';
+import type { ICreateTableOperation, IListTablesOperation, IPragmaOperation, IPragmaSetOperation } from './Operation';
+import type { ITable, ITableSchemaOptions } from './Table';
 
 export const Database = (() => {
   return {

@@ -1,13 +1,16 @@
-import { Ast, builder as b, printNode } from '@dldc/sqlite';
-import { Column, IColumnAny } from './Column';
-import { Expr, IExprUnknow } from './Expr';
-import { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
+import type { Ast } from '@dldc/sqlite';
+import { builder as b, printNode } from '@dldc/sqlite';
+import type { IColumnAny } from './Column';
+import { Column } from './Column';
+import type { IExprUnknow } from './Expr';
+import { Expr } from './Expr';
+import type { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { TableQuery } from './TableQuery';
-import { ITableQuery } from './TableQuery.types';
+import type { ITableQuery } from './TableQuery.types';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
-import {
+import type {
   AnyRecord,
   ColumnsBase,
   ColumnsToExprRecord,

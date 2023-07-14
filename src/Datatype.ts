@@ -1,4 +1,4 @@
-import { TYPES } from './utils/constants';
+import type { TYPES } from './utils/constants';
 
 export type SqliteDatatype = 'INTEGER' | 'TEXT' | 'REAL' | 'BLOB';
 
