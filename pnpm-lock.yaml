@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@dldc/sqlite':
-    specifier: ^2.0.1
-    version: 2.0.1
+    specifier: ^2.0.2
+    version: 2.0.2
 
 devDependencies:
   '@types/better-sqlite3':
@@ -112,8 +112,8 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@dldc/sqlite@2.0.1:
-    resolution: {integrity: sha512-ZS9YIROAHJ7fYl5nUY76oAkhZ/taHb2qeExHPiSil3G59hI3snsV1rUXWFomjBxPxANA+RZrFSrAZLXRc8Wnng==}
+  /@dldc/sqlite@2.0.2:
+    resolution: {integrity: sha512-+x8oj+prMwAPUU304BLKzUzDIHNRGM60LXrL4q0vB17su5l+n3KvZmYiuVvrDU8U1CUFy0T/7ftv8/UOdCrvrw==}
     dev: false
 
   /@esbuild/android-arm64@0.18.11:
