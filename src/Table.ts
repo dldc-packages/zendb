@@ -7,6 +7,7 @@ import { Expr } from './Expr';
 import type { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
 import { TableQuery } from './TableQuery';
 import type { ITableQuery } from './TableQuery.types';
+import { ZendbError } from './ZendbError';
 import { PRIV } from './utils/constants';
 import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
@@ -116,7 +117,7 @@ export const Table = (() => {
     const columnsEntries = Object.entries(columns);
     const primaryKeys = columnsEntries.filter(([, column]) => column[PRIV].primary).map(([columnName]) => columnName);
     if (primaryKeys.length === 0) {
-      throw new Error(`No primary key found for table ${table}`);
+      throw ZendbError.MissingPrimaryKey.create(table);
     }
     const multiPrimaryKey = primaryKeys.length > 1;
     const uniqueContraints = new Map<string | null, Array<string>>();
@@ -140,7 +141,7 @@ export const Table = (() => {
         uniqueColumns.push(columns[0]);
         return;
       }
-      throw new Error(`Invalid unique constraint ${constraintName}`);
+      throw ZendbError.InvalidUniqueConstraint.create(constraintName);
     });
 
     const tableConstraints = [

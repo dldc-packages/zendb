@@ -24,7 +24,6 @@ export type {
   IQueryOperation,
   IUpdateOperation,
 } from './Operation';
-export {} from './Populate';
 export { Random } from './Random';
 export { Table, type DeleteOptions, type ITable, type ITableSchemaOptions, type UpdateOptions } from './Table';
 export type {
@@ -45,6 +44,7 @@ export type {
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
+export { ZendbError } from './ZendbError';
 export type {
   AnyRecord,
   ColumnInputValue,

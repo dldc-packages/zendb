@@ -1,5 +1,5 @@
 import type { Ast, JoinItem } from '@dldc/sqlite';
-import { builder, printNode, Utils } from '@dldc/sqlite';
+import { Utils, builder, printNode } from '@dldc/sqlite';
 import type { IExprUnknow, JsonMode } from './Expr';
 import { Expr } from './Expr';
 import type { IQueryOperation } from './Operation';
@@ -18,6 +18,7 @@ import type {
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
+import { ZendbError } from './ZendbError';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
 import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
@@ -295,7 +296,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeOneOp.parse(rows);
           if (res === null) {
-            throw new Error('Expected one row, got 0');
+            throw ZendbError.NoRows.create();
           }
           return res;
         },
@@ -320,7 +321,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeFirstOp.parse(rows);
           if (res === null) {
-            throw new Error('Expected one row, got 0');
+            throw ZendbError.NoRows.create();
           }
           return res;
         },
@@ -471,7 +472,7 @@ export const TableQuery = (() => {
     for (const part of parts) {
       current = (current as any)[part];
       if (current === undefined) {
-        throw new Error(`Column not found: ${flatKey}`);
+        throw ZendbError.ColumnNotFound.create(flatKey);
       }
     }
     return current as IExprUnknow;

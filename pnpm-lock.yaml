@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@dldc/erreur':
+    specifier: ^4.0.1
+    version: 4.0.1
   '@dldc/sqlite':
     specifier: ^2.0.3
     version: 2.0.3
@@ -106,8 +109,18 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
+  /@dldc/erreur@4.0.1:
+    resolution: {integrity: sha512-z5o2XEAq5IXps5VzdiVLh9jNuCrF3ifE7SG1E3mEEEdf+4O1BrdsKF4NEOJZAwZkA6XpghOHh4W1U7mdai+Elw==}
+    dependencies:
+      '@dldc/stack': 4.0.1
+    dev: false
+
   /@dldc/sqlite@2.0.3:
     resolution: {integrity: sha512-J4R49MdynoA7/lvny2XqvPZJtu6E/ZnP3CGNvmc95E9S8yz4xGN/+tMP+l7KGvquDqXJsY5CnOIAVqXlFq+jwA==}
+    dev: false
+
+  /@dldc/stack@4.0.1:
+    resolution: {integrity: sha512-ni6l1qenVn2s2u9NVq9katvw1dJ0xlQc5ydzHYSk6JZtnM6Z1FAm2dWkeqvgZTKXj9SmquILJ9fPi5SPOYzj8g==}
     dev: false
 
   /@esbuild/android-arm64@0.18.20:

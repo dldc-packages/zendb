@@ -41,6 +41,7 @@
     "typecheck:watch": "tsc --watch"
   },
   "dependencies": {
+    "@dldc/erreur": "^4.0.1",
     "@dldc/sqlite": "^2.0.3"
   },
   "devDependencies": {
