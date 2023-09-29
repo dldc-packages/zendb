@@ -1,9 +1,0 @@
-{
-  "additionalDevDependencies": {
-    "@types/better-sqlite3": "^7.6.5",
-    "better-sqlite3": "^8.6.0",
-    "@types/dedent": "^0.7.0",
-    "dedent": "^1.5.1",
-    "sql-formatter": "^13.0.0"
-  }
-}
