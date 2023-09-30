@@ -1,14 +1,13 @@
-import type { IKey } from '@dldc/erreur';
+import type { TKey, TVoidKey } from '@dldc/erreur';
 import { Erreur, Key } from '@dldc/erreur';
 
-const ZendbErrorKey: IKey<undefined, false, []> = Key.createEmpty('ZendbError');
-const InvalidLiteralKey: IKey<{ value: unknown }, false> = Key.create('InvalidLiteral');
-const MissingPrimaryKeyKey: IKey<{ table: string }, false> = Key.create('MissingPrimaryKey');
-const InvalidUniqueConstraintKey: IKey<{ constraintName: string | null }, false> =
-  Key.create('InvalidUniqueConstraint');
-const NoRowsKey: IKey<undefined, false, []> = Key.createEmpty('NoRows');
-const ColumnNotFoundKey: IKey<{ columnKey: string }, false> = Key.create('ColumnNotFound');
-const ColumnDoesNotExistKey: IKey<{ column: string }, false> = Key.create('ColumnDoesNotExist');
+const ZendbErrorKey: TVoidKey = Key.createEmpty('ZendbError');
+const InvalidLiteralKey: TKey<{ value: unknown }> = Key.create('InvalidLiteral');
+const MissingPrimaryKeyKey: TKey<{ table: string }> = Key.create('MissingPrimaryKey');
+const InvalidUniqueConstraintKey: TKey<{ constraintName: string | null }> = Key.create('InvalidUniqueConstraint');
+const NoRowsKey: TVoidKey = Key.createEmpty('NoRows');
+const ColumnNotFoundKey: TKey<{ columnKey: string }> = Key.create('ColumnNotFound');
+const ColumnDoesNotExistKey: TKey<{ column: string }> = Key.create('ColumnDoesNotExist');
 
 export const ZendbError = {
   Key: ZendbErrorKey,
