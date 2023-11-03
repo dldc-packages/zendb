@@ -44,7 +44,7 @@ export type {
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
-export { ZendbError } from './ZendbError';
+export { ZendbErreur } from './ZendbErreur';
 export type {
   AnyRecord,
   ColumnInputValue,

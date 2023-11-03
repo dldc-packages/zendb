@@ -18,7 +18,7 @@ import type {
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
-import { ZendbError } from './ZendbError';
+import { ZendbErreur } from './ZendbErreur';
 import { PRIV, TYPES } from './utils/constants';
 import { extractParams } from './utils/params';
 import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
@@ -296,7 +296,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeOneOp.parse(rows);
           if (res === null) {
-            throw ZendbError.NoRows.create();
+            throw ZendbErreur.NoRows();
           }
           return res;
         },
@@ -321,7 +321,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeFirstOp.parse(rows);
           if (res === null) {
-            throw ZendbError.NoRows.create();
+            throw ZendbErreur.NoRows();
           }
           return res;
         },
@@ -472,7 +472,7 @@ export const TableQuery = (() => {
     for (const part of parts) {
       current = (current as any)[part];
       if (current === undefined) {
-        throw ZendbError.ColumnNotFound.create(flatKey);
+        throw ZendbErreur.ColumnNotFound(flatKey);
       }
     }
     return current as IExprUnknow;
