@@ -69,17 +69,17 @@ export type IOperationKind = IOperation['kind'];
 export type IOperationResult<T extends IOperation> = T extends IDeleteOperation
   ? { deleted: number }
   : T extends IUpdateOperation
-  ? { updated: number }
-  : T extends IInsertOperation<infer Inserted>
-  ? Inserted
-  : T extends IQueryOperation<infer Result>
-  ? Result
-  : T extends ICreateTableOperation
-  ? null
-  : T extends IListTablesOperation
-  ? Array<string>
-  : T extends IPragmaOperation<infer Value>
-  ? Value
-  : T extends IPragmaSetOperation
-  ? null
-  : never;
+    ? { updated: number }
+    : T extends IInsertOperation<infer Inserted>
+      ? Inserted
+      : T extends IQueryOperation<infer Result>
+        ? Result
+        : T extends ICreateTableOperation
+          ? null
+          : T extends IListTablesOperation
+            ? Array<string>
+            : T extends IPragmaOperation<infer Value>
+              ? Value
+              : T extends IPragmaSetOperation
+                ? null
+                : never;
