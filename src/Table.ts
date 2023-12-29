@@ -1,4 +1,4 @@
-import type { Ast } from '@dldc/sqlite';
+import type { Ast, SetItem } from '@dldc/sqlite';
 import { builder as b, printNode } from '@dldc/sqlite';
 import type { IColumnAny } from './Column';
 import { Column } from './Column';
@@ -9,7 +9,6 @@ import { TableQuery } from './TableQuery';
 import type { ITableQuery } from './TableQuery.types';
 import { ZendbErreur } from './ZendbErreur';
 import { PRIV } from './utils/constants';
-import { createSetItems } from './utils/createSetItems';
 import { extractParams } from './utils/params';
 import type {
   AnyRecord,
@@ -218,11 +217,24 @@ export const Table = (() => {
     data: Partial<ColumnsToInput<Columns>>,
     { where, limit }: UpdateOptions<ColumnsToExprRecord<Columns>> = {},
   ): IUpdateOperation {
+    const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns).filter(([name]) => {
+      const input = (data as any)[name];
+      return input !== undefined;
+    });
+    const resolvedData: Record<string, any> = {};
+    columnsEntries.forEach(([name, column]) => {
+      const input = (data as any)[name];
+      const serialized = Column.serialize(column, input);
+      resolvedData[name] = serialized;
+    });
+    const setItems = columnsEntries.map(([name]): SetItem => {
+      return b.SetItems.ColumnName(name, Expr.external(resolvedData[name], name).ast);
+    });
     const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
       where: where ? where(columnsRefs).ast : undefined,
       limit: limit,
-      setItems: createSetItems(columns, data),
+      setItems: setItems,
     });
     const params = extractParams(queryNode);
     const queryText = printNode(queryNode);

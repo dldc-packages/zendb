@@ -12,6 +12,7 @@ export const tasksDb = Table.declareMany({
     name: Column.dt.text(),
     email: Column.dt.text(),
     displayName: Column.dt.text().nullable(),
+    updatedAt: Column.dt.date().nullable(),
   },
   users_tasks: {
     user_id: Column.dt.text().primary(),

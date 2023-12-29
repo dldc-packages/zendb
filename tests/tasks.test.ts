@@ -40,8 +40,22 @@ test('find tasks', () => {
 });
 
 test('create user', () => {
-  const res = db.exec(tasksDb.users.insert({ id: '1', name: 'John', email: 'john@example.com', displayName: null }));
-  expect(res).toEqual({ id: '1', name: 'John', email: 'john@example.com', displayName: null });
+  const res = db.exec(
+    tasksDb.users.insert({
+      id: '1',
+      name: 'John',
+      email: 'john@example.com',
+      displayName: null,
+      updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    }),
+  );
+  expect(res).toEqual({
+    id: '1',
+    name: 'John',
+    email: 'john@example.com',
+    displayName: null,
+    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+  });
 });
 
 test('link task and user', () => {
@@ -75,7 +89,18 @@ test('Query users as object', () => {
       }))
       .all(),
   );
-  expect(res).toEqual([{ data: { displayName: null, email: 'john@example.com', id: '1', name: 'John' }, id: '1' }]);
+  expect(res).toEqual([
+    {
+      data: {
+        displayName: null,
+        email: 'john@example.com',
+        id: '1',
+        name: 'John',
+        updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+      },
+      id: '1',
+    },
+  ]);
 });
 
 test('Concatenate nullable should return nullable', () => {
@@ -99,7 +124,13 @@ test('Find user by email', () => {
       .first(),
   );
 
-  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+  expect(res).toEqual({
+    id: '1',
+    displayName: null,
+    name: 'John',
+    email: 'john@example.com',
+    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+  });
 });
 
 test('Find user by email using compare', () => {
@@ -110,12 +141,24 @@ test('Find user by email using compare', () => {
       .first(),
   );
 
-  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+  expect(res).toEqual({
+    id: '1',
+    displayName: null,
+    name: 'John',
+    email: 'john@example.com',
+    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+  });
 });
 
 test('Find user by email using filterEqual', () => {
   const res = db.exec(tasksDb.users.query().filterEqual({ email: 'john@example.com' }).first());
-  expect(res).toEqual({ id: '1', displayName: null, name: 'John', email: 'john@example.com' });
+  expect(res).toEqual({
+    id: '1',
+    displayName: null,
+    name: 'John',
+    email: 'john@example.com',
+    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+  });
 });
 
 test('Find tasks with user', () => {
@@ -132,7 +175,13 @@ test('Find tasks with user', () => {
   expect(res).toEqual([
     {
       task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
-      user: { displayName: null, email: 'john@example.com', id: '1', name: 'John' },
+      user: {
+        displayName: null,
+        email: 'john@example.com',
+        id: '1',
+        name: 'John',
+        updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+      },
     },
   ]);
 });
@@ -155,7 +204,8 @@ test('Find task by user email', () => {
         'id', users.id,
         'name', users.name,
         'email', users.email,
-        'displayName', users.displayName
+        'displayName', users.displayName,
+        'updatedAt', users.updatedAt
       ) AS user,
       json_object(
         'id', tasks.id,
@@ -174,8 +224,21 @@ test('Find task by user email', () => {
   const res = db.exec(query);
   expect(res).toEqual({
     task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
-    user: { displayName: null, email: 'john@example.com', id: '1', name: 'John' },
+    user: {
+      displayName: null,
+      email: 'john@example.com',
+      id: '1',
+      name: 'John',
+      updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    },
   });
+});
+
+test('Update task', () => {
+  const res = db.exec(tasksDb.tasks.updateOne({ completed: true }, (c) => Expr.equal(c.id, Expr.literal('1'))));
+  expect(res).toEqual({ updated: 1 });
+  const task = db.exec(tasksDb.tasks.query().first());
+  expect(task).toEqual({ completed: true, description: 'First task', id: '1', title: 'Task 1' });
 });
 
 // test('tasks grouped by userId', () => {

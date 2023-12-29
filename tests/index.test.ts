@@ -16,7 +16,13 @@ beforeEach(() => {
 });
 
 test('Insert', () => {
-  const result = tasksDb.users.insert({ id: '1', name: 'John Doe', email: 'john@exemple.com', displayName: null });
+  const result = tasksDb.users.insert({
+    id: '1',
+    name: 'John Doe',
+    email: 'john@exemple.com',
+    displayName: null,
+    updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+  });
   expect(result).toMatchObject({
     kind: 'Insert',
     params: {
@@ -26,10 +32,16 @@ test('Insert', () => {
       displayName_id3: null,
     },
   });
-  expect(result.parse()).toEqual({ email: 'john@exemple.com', id: '1', name: 'John Doe', displayName: null });
+  expect(result.parse()).toEqual({
+    email: 'john@exemple.com',
+    id: '1',
+    name: 'John Doe',
+    displayName: null,
+    updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+  });
   expect(format(result.sql)).toEqual(sql`
-    INSERT INTO users (id, name, email, displayName)
-    VALUES (:id_id0, :name_id1, :email_id2, :displayName_id3)
+    INSERT INTO users (id, name, email, displayName, updatedAt)
+    VALUES (:id_id0, :name_id1, :email_id2, :displayName_id3, :updatedAt_id4)
   `);
 });
 
@@ -64,9 +76,9 @@ test('Update with external', () => {
   );
   expect(result).toMatchObject({
     kind: 'Update',
-    params: { filter_id_id0: '1234', name_id1: 'Paul' },
+    params: { filter_id_id1: '1234', name_id0: 'Paul' },
   });
-  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id1 WHERE users.id == :filter_id_id0`);
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == :filter_id_id1`);
 });
 
 test('Update One', () => {
@@ -76,6 +88,17 @@ test('Update One', () => {
     params: { name_id0: 'Paul' },
   });
   expect(format(result.sql)).toEqual(sql`UPDATE users SET name = :name_id0 WHERE users.id == '1234' LIMIT 1`);
+});
+
+test('Update date', () => {
+  const result = tasksDb.users.updateOne({ updatedAt: new Date('2023-12-25T22:30:12.250Z') }, (cols) =>
+    Expr.equal(cols.id, Expr.literal('1234')),
+  );
+  expect(result).toMatchObject({
+    kind: 'Update',
+    params: { updatedAt_id0: 1703543412250 },
+  });
+  expect(format(result.sql)).toEqual(sql`UPDATE users SET updatedAt = :updatedAt_id0 WHERE users.id == '1234' LIMIT 1`);
 });
 
 test('Query', () => {
@@ -152,6 +175,27 @@ test('read and write datatypes', () => {
     json: { baz: true, foo: 'bar' },
     number: 3.14,
     text: 'test',
+  });
+  const update = allDatatypesDb.datatype.updateOne({
+    id: '1',
+    text: 'test',
+    boolean: true,
+    date: new Date(2022, 8, 13, 15, 25, 12, 250),
+    integer: 42,
+    number: 3.14,
+    json: { foo: 'bar', baz: true },
+  });
+  expect(update).toMatchObject({
+    sql: 'UPDATE datatype SET id = :id_id7, text = :text_id8, integer = :integer_id9, boolean = :boolean_id10, date = :date_id11, json = :json_id12, number = :number_id13 LIMIT 1',
+    params: {
+      boolean_id10: 1,
+      date_id11: 1663075512250,
+      id_id7: '1',
+      integer_id9: 42,
+      json_id12: '{"foo":"bar","baz":true}',
+      number_id13: 3.14,
+      text_id8: 'test',
+    },
   });
 });
 
