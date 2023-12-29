@@ -48,12 +48,6 @@ test('Delete with external value', () => {
   expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == :delete_id_id0`);
 });
 
-test('Delete One', () => {
-  const result = tasksDb.users.deleteOne((cols) => Expr.equal(cols.id, Expr.literal('1')));
-  expect(result).toMatchObject({ kind: 'Delete', params: null });
-  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1' LIMIT 1`);
-});
-
 test('Update', () => {
   const result = tasksDb.users.update({ name: 'Paul' }, { where: (cols) => Expr.equal(cols.id, Expr.literal('1234')) });
   expect(result).toMatchObject({

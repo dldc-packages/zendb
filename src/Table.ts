@@ -23,8 +23,6 @@ import type {
 } from './utils/types';
 import { isNotNull, mapObject } from './utils/utils';
 
-export type DeleteOptions = { limit?: number };
-
 export type UpdateOptions<Cols extends AnyRecord> = {
   limit?: number;
   where?: ExprFnFromTable<Cols>;
@@ -39,8 +37,7 @@ export interface ITable<InputData extends AnyRecord, OutputCols extends ExprReco
   schema(options?: ITableSchemaOptions): ICreateTableOperation;
   query(): ITableQuery<OutputCols, OutputCols>;
   insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
-  delete(condition: ExprFnFromTable<OutputCols>, options?: DeleteOptions): IDeleteOperation;
-  deleteOne(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
+  delete(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
   update(data: Partial<InputData>, options?: UpdateOptions<OutputCols>): IUpdateOperation;
   updateOne(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
 }
@@ -59,7 +56,6 @@ export const Table = (() => {
     query,
     insert,
     delete: deleteFn,
-    deleteOne,
     update,
     updateOne,
 
@@ -74,8 +70,7 @@ export const Table = (() => {
       schema: (options) => schema(table, columns, options),
       query: () => query(table, columns),
       insert: (data) => insert(table, columns, data),
-      delete: (condition, options) => deleteFn(table, columns, condition, options),
-      deleteOne: (condition) => deleteOne(table, columns, condition),
+      delete: (condition) => deleteFn(table, columns, condition),
       update: (data, options) => update(table, columns, data, options),
       updateOne: (data, where) => updateOne(table, columns, data, where),
     };
@@ -209,24 +204,12 @@ export const Table = (() => {
     table: string,
     columns: Columns,
     condition: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
-    options: DeleteOptions = {},
   ): IDeleteOperation {
     const { columnsRefs } = getTableInfos(table, columns);
-    const node = b.DeleteStmt(table, {
-      where: condition(columnsRefs).ast,
-      limit: options.limit,
-    });
+    const node = b.DeleteStmt(table, { where: condition(columnsRefs).ast });
     const queryText = printNode(node);
     const params = extractParams(node);
     return { kind: 'Delete', sql: queryText, params, parse: (raw) => raw };
-  }
-
-  function deleteOne<Columns extends ColumnsBase>(
-    table: string,
-    columns: Columns,
-    condition: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
-  ): IDeleteOperation {
-    return deleteFn(table, columns, condition, { limit: 1 });
   }
 
   function update<Columns extends ColumnsBase>(

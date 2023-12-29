@@ -25,7 +25,7 @@ export type {
   IUpdateOperation,
 } from './Operation';
 export { Random } from './Random';
-export { Table, type DeleteOptions, type ITable, type ITableSchemaOptions, type UpdateOptions } from './Table';
+export { Table, type ITable, type ITableSchemaOptions, type UpdateOptions } from './Table';
 export type {
   AllColsFn,
   AllColsFnOrRes,
