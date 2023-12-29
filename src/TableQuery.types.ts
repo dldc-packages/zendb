@@ -8,7 +8,7 @@ import type {
   ExprRecordNested,
   ExprRecordOutput,
   ExprRecord_MakeNullable,
-  ExprResultFrom,
+  FilterEqualCols,
   Prettify,
 } from './utils/types';
 
@@ -89,24 +89,13 @@ export type ColsRefLeftJoined<
   [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
 };
 
-export type FilterEqualCols<InCols extends ExprRecordNested> = Partial<
-  {
-    [K in keyof InCols]: InCols[K] extends IExprUnknow
-      ? { [K2 in K & string]: ExprResultFrom<InCols[K]> }
-      : {
-          [K2 in keyof InCols[K] as `${K & string}.${K2 & string}`]: InCols[K][K2] extends IExprUnknow
-            ? ExprResultFrom<InCols[K][K2]>
-            : never;
-        };
-  }[keyof InCols]
->;
-
 export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
   readonly [TYPES]: OutCols;
   readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
 
   // Operations before select
   where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  filterEqual(filters: Prettify<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols>;
   groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols>;
   having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   // Select
@@ -117,9 +106,6 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
   limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-
-  // Shortcuts
-  filterEqual(filters: Prettify<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols>;
 
   // Joins
   innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
@@ -134,7 +120,6 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols>;
 
   // shortcut for ease of use
-  // filter(filters: FilterEqual<Cols>): ITableQuery<Cols>;
   // take(config: number | ITakeConfig): ITableQuery<Cols>;
   // paginate(config: number | IPaginateConfig): ITableQuery<Cols>;
   // groupByCol<NewCols extends SelectBase>(

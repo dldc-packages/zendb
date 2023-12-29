@@ -54,7 +54,8 @@ test('Find task by user email', () => {
         'id', users.id,
         'name', users.name,
         'email', users.email,
-        'displayName', users.displayName
+        'displayName', users.displayName,
+        'updatedAt', users.updatedAt
       ) AS user,
       json_object(
         'id', tasks.id,

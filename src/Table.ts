@@ -9,6 +9,7 @@ import { TableQuery } from './TableQuery';
 import type { ITableQuery } from './TableQuery.types';
 import { ZendbErreur } from './ZendbErreur';
 import { PRIV } from './utils/constants';
+import { isNotNull, mapObject } from './utils/functions';
 import { extractParams } from './utils/params';
 import type {
   AnyRecord,
@@ -18,13 +19,19 @@ import type {
   ExprFnFromTable,
   ExprRecord,
   ExprRecordOutput,
+  FilterEqualCols,
   Prettify,
 } from './utils/types';
-import { isNotNull, mapObject } from './utils/utils';
+import { whereEqual } from './utils/whereEqual';
 
 export type UpdateOptions<Cols extends AnyRecord> = {
   limit?: number;
   where?: ExprFnFromTable<Cols>;
+};
+
+export type UpdateEqualOptions<Cols extends ExprRecord> = {
+  limit?: number;
+  where?: Prettify<FilterEqualCols<Cols>>;
 };
 
 export interface ITableSchemaOptions {
@@ -37,8 +44,11 @@ export interface ITable<InputData extends AnyRecord, OutputCols extends ExprReco
   query(): ITableQuery<OutputCols, OutputCols>;
   insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   delete(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
+  deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): IDeleteOperation;
   update(data: Partial<InputData>, options?: UpdateOptions<OutputCols>): IUpdateOperation;
   updateOne(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
+  updateEqual(data: Partial<InputData>, options?: UpdateEqualOptions<OutputCols>): IUpdateOperation;
+  updateEqualOne(data: Partial<InputData>, where: Prettify<FilterEqualCols<OutputCols>>): IUpdateOperation;
 }
 
 interface TableInfos<Cols extends ExprRecord> {
@@ -55,8 +65,11 @@ export const Table = (() => {
     query,
     insert,
     delete: deleteFn,
+    deleteEqual,
     update,
     updateOne,
+    updateEqual,
+    updateEqualOne,
 
     from: TableQuery.createCteFrom,
   };
@@ -70,8 +83,11 @@ export const Table = (() => {
       query: () => query(table, columns),
       insert: (data) => insert(table, columns, data),
       delete: (condition) => deleteFn(table, columns, condition),
+      deleteEqual: (filters) => deleteEqual(table, columns, filters),
       update: (data, options) => update(table, columns, data, options),
       updateOne: (data, where) => updateOne(table, columns, data, where),
+      updateEqual: (data, options) => updateEqual(table, columns, data, options),
+      updateEqualOne: (data, where) => updateEqualOne(table, columns, data, where),
     };
   }
 
@@ -211,6 +227,14 @@ export const Table = (() => {
     return { kind: 'Delete', sql: queryText, params, parse: (raw) => raw };
   }
 
+  function deleteEqual<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    filters: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
+  ): IDeleteOperation {
+    return deleteFn(table, columns, (cols) => whereEqual(cols, filters));
+  }
+
   function update<Columns extends ColumnsBase>(
     table: string,
     columns: Columns,
@@ -248,6 +272,25 @@ export const Table = (() => {
     where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
   ): IUpdateOperation {
     return update(table, columns, data, { where, limit: 1 });
+  }
+
+  function updateEqual<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    data: Partial<ColumnsToInput<Columns>>,
+    options?: UpdateEqualOptions<ColumnsToExprRecord<Columns>>,
+  ): IUpdateOperation {
+    const { limit, where } = options || {};
+    return update(table, columns, data, { where: where ? (cols) => whereEqual(cols, where) : undefined, limit });
+  }
+
+  function updateEqualOne<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    data: Partial<ColumnsToInput<Columns>>,
+    where: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
+  ): IUpdateOperation {
+    return updateEqual(table, columns, data, { where, limit: 1 });
   }
 
   function query<Columns extends ColumnsBase>(

@@ -1,4 +1,4 @@
-import { createNanoid } from './utils/utils';
+import { createNanoid } from './utils/functions';
 
 export const Random = (() => {
   let createId = createNanoid('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 10);

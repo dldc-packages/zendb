@@ -59,3 +59,15 @@ export type Prettify<T> = { [K in keyof T]: T[K] } & {};
 export type ExprRecord_MakeNullable<Exprs extends ExprRecord> = {
   [K in keyof Exprs]: IExpr<Exprs[K][TYPES]['val'], true>;
 };
+
+export type FilterEqualCols<InCols extends ExprRecordNested> = Partial<
+  {
+    [K in keyof InCols]: InCols[K] extends IExprUnknow
+      ? { [K2 in K & string]: ExprResultFrom<InCols[K]> }
+      : {
+          [K2 in keyof InCols[K] as `${K & string}.${K2 & string}`]: InCols[K][K2] extends IExprUnknow
+            ? ExprResultFrom<InCols[K][K2]>
+            : never;
+        };
+  }[keyof InCols]
+>;

@@ -3,8 +3,8 @@ import { builder } from '@dldc/sqlite';
 import { Datatype } from './Datatype';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
+import { expectNever, mapObject } from './utils/functions';
 import type { ExprResultFrom, ExprsNullables } from './utils/types';
-import { expectNever, mapObject } from './utils/utils';
 
 export interface IExpr<Val, Nullable extends boolean> {
   readonly ast: Ast.Expr;

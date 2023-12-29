@@ -11,7 +11,6 @@ import type {
   ColsFnOrRes,
   ColsRefInnerJoined,
   ColsRefLeftJoined,
-  FilterEqualCols,
   ITableQuery,
   ITableQueryInternal,
   ITableQueryInternalBase,
@@ -20,9 +19,10 @@ import type {
 } from './TableQuery.types';
 import { ZendbErreur } from './ZendbErreur';
 import { PRIV, TYPES } from './utils/constants';
+import { mapObject } from './utils/functions';
 import { extractParams } from './utils/params';
-import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput } from './utils/types';
-import { mapObject } from './utils/utils';
+import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput, FilterEqualCols } from './utils/types';
+import { whereEqual } from './utils/whereEqual';
 
 export const TableQuery = (() => {
   return { createFromTable, createCteFrom };
@@ -209,22 +209,7 @@ export const TableQuery = (() => {
     }
 
     function filterEqual(filters: Partial<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols> {
-      return where((cols) => {
-        const filterExprs = Object.entries(filters).map(([key, value]) => {
-          if (value === null) {
-            return Expr.isNull(accessColFlatKey(cols, key));
-          }
-          return Expr.equal(accessColFlatKey(cols, key), Expr.external(value as any));
-        });
-        if (filterExprs.length === 0) {
-          return Expr.literal(true);
-        }
-        if (filterExprs.length === 1) {
-          return filterExprs[0];
-        }
-        const [first, second, ...rest] = filterExprs;
-        return rest.reduce((acc, expr) => Expr.and(acc, expr), Expr.and(first, second));
-      });
+      return where((cols) => whereEqual(cols, filters));
     }
 
     // function populate<Field extends string, Table extends ITableQuery<any, any>, Value>(
@@ -459,22 +444,5 @@ export const TableQuery = (() => {
       return prevParents;
     }
     return [...prevParents, parent];
-  }
-
-  /**
-   *
-   * @param cols
-   * @param flatKey A flatten key, e.g. 'a.b.c'
-   */
-  function accessColFlatKey(cols: ExprRecordNested, flatKey: string): IExprUnknow {
-    const parts = flatKey.split('.');
-    let current: ExprRecordNested | IExprUnknow = cols;
-    for (const part of parts) {
-      current = (current as any)[part];
-      if (current === undefined) {
-        throw ZendbErreur.ColumnNotFound(flatKey);
-      }
-    }
-    return current as IExprUnknow;
   }
 })();

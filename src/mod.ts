@@ -1,69 +1,11 @@
-export { Column, type DefaultValueBase, type IColumn, type IColumnAny } from './Column';
-export { Database } from './Database';
-export { Datatype, type DatatypeAny, type SqliteDatatype } from './Datatype';
-export {
-  Expr,
-  type ExprParser,
-  type IExpr,
-  type IExprAny,
-  type IExprAstParam,
-  type IExprInternal,
-  type IExprUnknow,
-  type JsonMode,
-} from './Expr';
-export type {
-  ICreateTableOperation,
-  IDeleteOperation,
-  IInsertOperation,
-  IListTablesOperation,
-  IOperation,
-  IOperationKind,
-  IOperationResult,
-  IPragmaOperation,
-  IPragmaSetOperation,
-  IQueryOperation,
-  IUpdateOperation,
-} from './Operation';
-export { Random } from './Random';
-export { Table, type ITable, type ITableSchemaOptions, type UpdateOptions } from './Table';
-export type {
-  AllColsFn,
-  AllColsFnOrRes,
-  ColsFn,
-  ColsFnOrRes,
-  ColsRefInnerJoined,
-  ColsRefLeftJoined,
-  FilterEqualCols,
-  IPaginateConfig,
-  ITableQuery,
-  ITableQueryInternal,
-  ITableQueryInternalBase,
-  ITableQueryState,
-  ITakeConfig,
-  OrderByItem,
-  OrderingTerms,
-  SelectFn,
-} from './TableQuery.types';
-export { ZendbErreur } from './ZendbErreur';
-export type {
-  AnyRecord,
-  ColumnInputValue,
-  ColumnOutputValue,
-  ColumnToExpr,
-  ColumnsBase,
-  ColumnsToExprRecord,
-  ColumnsToInput,
-  ExprFnFromTable,
-  ExprRecord,
-  ExprRecordNested,
-  ExprRecordOutput,
-  ExprRecord_MakeNullable,
-  ExprResult,
-  ExprResultFrom,
-  ExprsNullables,
-  ExtractDefinedKeys,
-  ExtractUndefinedKeys,
-  MarkUndefinedOptional,
-  Prettify,
-  QueryColumnValuePrimitive,
-} from './utils/types';
+export * from './Column';
+export * from './Database';
+export * from './Datatype';
+export * from './Expr';
+export * from './Operation';
+export * from './Random';
+export * from './Table';
+export * from './TableQuery.types';
+export * from './ZendbErreur';
+export * from './utils/types';
+export * from './utils/whereEqual';
