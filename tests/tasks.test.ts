@@ -235,7 +235,7 @@ test('Find task by user email', () => {
 });
 
 test('Update task', () => {
-  const res = db.exec(tasksDb.tasks.updateOne({ completed: true }, (c) => Expr.equal(c.id, Expr.literal('1'))));
+  const res = db.exec(tasksDb.tasks.update({ completed: true }, (c) => Expr.equal(c.id, Expr.literal('1'))));
   expect(res).toEqual({ updated: 1 });
   const task = db.exec(tasksDb.tasks.query().first());
   expect(task).toEqual({ completed: true, description: 'First task', id: '1', title: 'Task 1' });

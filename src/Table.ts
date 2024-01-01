@@ -24,16 +24,6 @@ import type {
 } from './utils/types';
 import { whereEqual } from './utils/whereEqual';
 
-export type UpdateOptions<Cols extends AnyRecord> = {
-  limit?: number;
-  where?: ExprFnFromTable<Cols>;
-};
-
-export type UpdateEqualOptions<Cols extends ExprRecord> = {
-  limit?: number;
-  where?: Prettify<FilterEqualCols<Cols>>;
-};
-
 export interface ITableSchemaOptions {
   ifNotExists?: boolean;
   strict?: boolean;
@@ -45,10 +35,8 @@ export interface ITable<InputData extends AnyRecord, OutputCols extends ExprReco
   insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   delete(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
   deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): IDeleteOperation;
-  update(data: Partial<InputData>, options?: UpdateOptions<OutputCols>): IUpdateOperation;
-  updateOne(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
-  updateEqual(data: Partial<InputData>, options?: UpdateEqualOptions<OutputCols>): IUpdateOperation;
-  updateEqualOne(data: Partial<InputData>, where: Prettify<FilterEqualCols<OutputCols>>): IUpdateOperation;
+  update(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
+  updateEqual(data: Partial<InputData>, where: Prettify<FilterEqualCols<OutputCols>>): IUpdateOperation;
 }
 
 interface TableInfos<Cols extends ExprRecord> {
@@ -67,9 +55,7 @@ export const Table = (() => {
     delete: deleteFn,
     deleteEqual,
     update,
-    updateOne,
     updateEqual,
-    updateEqualOne,
 
     from: TableQuery.createCteFrom,
   };
@@ -84,10 +70,8 @@ export const Table = (() => {
       insert: (data) => insert(table, columns, data),
       delete: (condition) => deleteFn(table, columns, condition),
       deleteEqual: (filters) => deleteEqual(table, columns, filters),
-      update: (data, options) => update(table, columns, data, options),
-      updateOne: (data, where) => updateOne(table, columns, data, where),
+      update: (data, where) => update(table, columns, data, where),
       updateEqual: (data, options) => updateEqual(table, columns, data, options),
-      updateEqualOne: (data, where) => updateEqualOne(table, columns, data, where),
     };
   }
 
@@ -239,7 +223,7 @@ export const Table = (() => {
     table: string,
     columns: Columns,
     data: Partial<ColumnsToInput<Columns>>,
-    { where, limit }: UpdateOptions<ColumnsToExprRecord<Columns>> = {},
+    where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
   ): IUpdateOperation {
     const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns).filter(([name]) => {
       const input = (data as any)[name];
@@ -257,7 +241,6 @@ export const Table = (() => {
     const { columnsRefs } = getTableInfos(table, columns);
     const queryNode = b.UpdateStmt(table, {
       where: where ? where(columnsRefs).ast : undefined,
-      limit: limit,
       setItems: setItems,
     });
     const params = extractParams(queryNode);
@@ -265,32 +248,13 @@ export const Table = (() => {
     return { kind: 'Update', sql: queryText, params, parse: (raw) => raw };
   }
 
-  function updateOne<Columns extends ColumnsBase>(
-    table: string,
-    columns: Columns,
-    data: Partial<ColumnsToInput<Columns>>,
-    where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
-  ): IUpdateOperation {
-    return update(table, columns, data, { where, limit: 1 });
-  }
-
   function updateEqual<Columns extends ColumnsBase>(
-    table: string,
-    columns: Columns,
-    data: Partial<ColumnsToInput<Columns>>,
-    options?: UpdateEqualOptions<ColumnsToExprRecord<Columns>>,
-  ): IUpdateOperation {
-    const { limit, where } = options || {};
-    return update(table, columns, data, { where: where ? (cols) => whereEqual(cols, where) : undefined, limit });
-  }
-
-  function updateEqualOne<Columns extends ColumnsBase>(
     table: string,
     columns: Columns,
     data: Partial<ColumnsToInput<Columns>>,
     where: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
   ): IUpdateOperation {
-    return updateEqual(table, columns, data, { where, limit: 1 });
+    return update(table, columns, data, whereEqual ? (cols) => whereEqual(cols, where) : undefined);
   }
 
   function query<Columns extends ColumnsBase>(
