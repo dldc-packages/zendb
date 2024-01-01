@@ -1,5 +1,5 @@
-import type { Ast, JoinItem } from '@dldc/sqlite';
-import { Utils, builder, printNode } from '@dldc/sqlite';
+import type { JoinItem } from '@dldc/sqlite';
+import { Ast, Utils, builder, printNode } from '@dldc/sqlite';
 import type { IExprUnknow, JsonMode } from './Expr';
 import { Expr } from './Expr';
 import type { IQueryOperation } from './Operation';
@@ -60,6 +60,8 @@ export const TableQuery = (() => {
       having,
       select,
       orderBy,
+      sortAsc,
+      sortDesk,
       limit,
       offset,
 
@@ -131,6 +133,24 @@ export const TableQuery = (() => {
         return self;
       }
       return create({ ...internal, state: { ...internal.state, orderBy: result } });
+    }
+
+    function appendOrderingExpr(expr: IExprUnknow, dir: 'Asc' | 'Desc'): ITableQuery<InCols, OutCols> {
+      const orderingTerm = Ast.createNode('OrderingTerm', { expr: expr.ast, direction: dir });
+      if (!internal.state.orderBy) {
+        return create({ ...internal, state: { ...internal.state, orderBy: [orderingTerm] } });
+      }
+      return create({ ...internal, state: { ...internal.state, orderBy: [...internal.state.orderBy, orderingTerm] } });
+    }
+
+    function sortAsc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
+      const expr = resolveColFn(exprFn)(internal.inputColsRefs);
+      return appendOrderingExpr(expr, 'Asc');
+    }
+
+    function sortDesk(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
+      const expr = resolveColFn(exprFn)(internal.inputColsRefs);
+      return appendOrderingExpr(expr, 'Desc');
     }
 
     function limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols> {

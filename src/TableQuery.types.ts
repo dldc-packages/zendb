@@ -93,17 +93,37 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   readonly [TYPES]: OutCols;
   readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
 
-  // Operations before select
+  // - Where
+  /**
+   * Add conditions to the where clause, you can call it multiple times (AND)
+   */
   where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  /**
+   * .where() shortcut to filter on equality
+   */
   filterEqual(filters: Prettify<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols>;
+  // - Group
   groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols>;
+  // - Having
   having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   // Select
   select<NewOutCols extends ExprRecord>(
     selectFn: SelectFn<InCols, OutCols, NewOutCols>,
   ): ITableQuery<InCols, NewOutCols>;
-  // Operations after select
+  // - Order
+  /**
+   * Set the order by clause, this will replace any previous order clause
+   */
   orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
+  /**
+   * Add an order by clause, this will not replace any previous order clause
+   */
+  sortAsc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  /**
+   * Add an order by clause, this will not replace any previous order clause
+   */
+  sortDesk(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  // - Limit / Offset
   limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
 
