@@ -254,7 +254,7 @@ export const Table = (() => {
     data: Partial<ColumnsToInput<Columns>>,
     where: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
   ): IUpdateOperation {
-    return update(table, columns, data, whereEqual ? (cols) => whereEqual(cols, where) : undefined);
+    return update(table, columns, data, where ? (cols) => whereEqual(cols, where) : undefined);
   }
 
   function query<Columns extends ColumnsBase>(
