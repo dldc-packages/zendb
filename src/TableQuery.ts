@@ -61,7 +61,7 @@ export const TableQuery = (() => {
       select,
       orderBy,
       sortAsc,
-      sortDesk,
+      sortDesc,
       limit,
       offset,
 
@@ -148,7 +148,7 @@ export const TableQuery = (() => {
       return appendOrderingExpr(expr, 'Asc');
     }
 
-    function sortDesk(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
+    function sortDesc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
       const expr = resolveColFn(exprFn)(internal.inputColsRefs);
       return appendOrderingExpr(expr, 'Desc');
     }

@@ -122,7 +122,7 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   /**
    * Add an order by clause, this will not replace any previous order clause
    */
-  sortDesk(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  sortDesc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   // - Limit / Offset
   limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
   offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
