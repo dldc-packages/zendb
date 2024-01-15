@@ -73,7 +73,6 @@ export const TableQuery = (() => {
       leftJoin,
       // populate,
 
-      // filter,
       // take,
       // paginate,
       // groupByCol,
@@ -208,13 +207,14 @@ export const TableQuery = (() => {
         ...internal.inputColsRefs,
         [alias]: mapObject(
           tableCte[PRIV].outputColsRefs,
+          // mark all columns as nullable since it's a left join
           (_, col: IExprUnknow): IExprUnknow => ({ ...col, [PRIV]: { ...col[PRIV], nullable: true } }),
         ),
       };
 
       const joinItem: JoinItem = {
         joinOperator: builder.JoinOperator.Join('Left'),
-        tableOrSubquery: builder.TableOrSubquery.Table(table[PRIV].from.name),
+        tableOrSubquery: builder.TableOrSubquery.Table(tableCte[PRIV].from.name),
         joinConstraint: builder.JoinConstraint.On(joinOn(newInColsRef).ast),
       };
       return create({
@@ -277,7 +277,7 @@ export const TableQuery = (() => {
         params,
         parse: (rows) => {
           return rows.map((row) =>
-            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false)),
+            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false, col[PRIV].nullable)),
           );
         },
       };
