@@ -1,5 +1,5 @@
 import type { Ast } from '@dldc/sqlite';
-import { builder } from '@dldc/sqlite';
+import { builder, Utils } from '@dldc/sqlite';
 import { Datatype } from './Datatype';
 import { Random } from './Random';
 import { PRIV, TYPES } from './utils/constants';
@@ -19,7 +19,7 @@ export type IExprUnknow = IExpr<any, boolean>;
 export type IExprAny = IExpr<any, false>;
 
 // json option is set to true when the expression was already JSON parsed
-export type ExprParser = (raw: any, json: boolean) => any;
+export type ExprParser = (raw: any, json: boolean, nullable: boolean) => any;
 
 export type JsonMode = 'JsonExpr' | 'JsonRef' | undefined;
 
@@ -62,6 +62,8 @@ export const Expr = (() => {
     greaterThanOrEqual,
     concatenate,
     isNull,
+    inList,
+    notInList,
 
     compare,
 
@@ -238,6 +240,20 @@ export const Expr = (() => {
     return create(builder.Expr.isNull(expr.ast), { parse: Datatype.boolean.parse, nullable: false });
   }
 
+  function inList(left: IExprUnknow, items: IExprUnknow[]): IExpr<boolean, false> {
+    return create(builder.Expr.In.list(left.ast, Utils.arrayToNonEmptyArray(items.map((item) => item.ast))), {
+      nullable: false,
+      parse: Datatype.boolean.parse,
+    });
+  }
+
+  function notInList(left: IExprUnknow, items: IExprUnknow[]): IExpr<boolean, false> {
+    return create(builder.Expr.NotIn.list(left.ast, Utils.arrayToNonEmptyArray(items.map((item) => item.ast))), {
+      nullable: false,
+      parse: Datatype.boolean.parse,
+    });
+  }
+
   function external<Val extends string | number | boolean | null>(
     val: Val,
     name?: string,
@@ -264,7 +280,10 @@ export const Expr = (() => {
 
   function json_group_array<Val, Nullable extends boolean>(expr: IExpr<Val, Nullable>): IExpr<Array<Val>, Nullable> {
     return create(builder.Expr.AggregateFunctions.json_group_array({ params: wrapInJson(expr).ast }), {
-      parse: (raw, json) => {
+      parse: (raw, json, nullable) => {
+        if (nullable && raw === null) {
+          return null;
+        }
         const arr: any[] = json ? raw : JSON.parse(raw);
         return arr.map((item: any) => parseExprVal(expr, item, true));
       },
@@ -319,7 +338,7 @@ export const Expr = (() => {
   }
 
   function parseExprVal<Val, Nullable extends boolean>(expr: IExpr<Val, Nullable>, raw: any, json: boolean): Val {
-    return expr[PRIV].parse(raw, json);
+    return expr[PRIV].parse(raw, json, expr[PRIV].nullable);
   }
 
   function someNullable(...exprs: IExprUnknow[]): boolean {
