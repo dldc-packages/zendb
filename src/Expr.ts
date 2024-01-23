@@ -75,16 +75,38 @@ export const Expr = (() => {
     json,
 
     AggregateFunctions: {
-      count: <Expr extends IExprUnknow>(expr: Expr): IExpr<number, Expr[TYPES]['nullable']> =>
-        create(builder.Expr.AggregateFunctions.count({ params: expr.ast }), {
+      count: <Expr extends IExprUnknow>(expr: Expr): IExpr<number, false> => {
+        // count always returns a number
+        return create(builder.Expr.AggregateFunctions.count({ params: expr.ast }), {
           parse: Datatype.number.parse,
-          nullable: expr[PRIV].nullable,
-        }),
-      avg: <Expr extends IExpr<number, boolean>>(expr: Expr): IExpr<number, Expr[TYPES]['nullable']> =>
-        create(builder.Expr.AggregateFunctions.avg({ params: expr.ast }), {
+          nullable: false,
+        });
+      },
+      // Note: for the following functions, the result is always nullable because the result is null when the input is empty
+      avg: <Expr extends IExpr<number, boolean>>(expr: Expr): IExpr<number, true> => {
+        return create(builder.Expr.AggregateFunctions.avg({ params: expr.ast }), {
           parse: Datatype.number.parse,
-          nullable: expr[PRIV].nullable,
-        }),
+          nullable: true,
+        });
+      },
+      sum: <Expr extends IExpr<number, boolean>>(expr: Expr): IExpr<number, true> => {
+        return create(builder.Expr.AggregateFunctions.sum({ params: expr.ast }), {
+          parse: Datatype.number.parse,
+          nullable: true,
+        });
+      },
+      min: <Expr extends IExprUnknow>(expr: Expr): IExpr<Expr[TYPES]['val'], true> => {
+        return create(builder.Expr.AggregateFunctions.min({ params: expr.ast }), {
+          parse: expr[PRIV].parse,
+          nullable: true,
+        });
+      },
+      max: <Expr extends IExprUnknow>(expr: Expr): IExpr<Expr[TYPES]['val'], true> => {
+        return create(builder.Expr.AggregateFunctions.max({ params: expr.ast }), {
+          parse: expr[PRIV].parse,
+          nullable: true,
+        });
+      },
     },
   };
 
