@@ -23,23 +23,39 @@ export interface ITableQueryState {
   readonly joins?: Array<JoinItem>;
 }
 
-export interface ITableQueryInternalBase<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
+export interface ICreateTableQueryParams<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
   readonly inputColsRefs: InCols;
   // Identifiers of the columns of the current query
   readonly outputColsRefs: OutCols;
   // Selected expressions of the current query
   readonly outputColsExprs: OutCols;
-  readonly from: Ast.Identifier; // table or cte name
-  readonly parents: Array<ITableQueryInternal<any, any>>;
-
+  // table or cte name
+  readonly from: Ast.Identifier;
+  // The current query state (select, filters, order, etc.)
   readonly state: ITableQueryState;
+  // parent queries
+  readonly dependencies: Array<ITableQueryDependency>;
 }
 
+export interface ITableQueryDependency {
+  // table or cte name
+  readonly from: Ast.Identifier;
+  // The current query state (select, filters, order, etc.)
+  readonly state: ITableQueryState;
+  // Name to use if we need to reference this query
+  readonly name: Ast.Identifier;
+}
+
+// The added properties are computed when creating a new TableQuery
 export interface ITableQueryInternal<InCols extends ExprRecordNested, OutCols extends ExprRecord>
-  extends ITableQueryInternalBase<InCols, OutCols> {
-  // The current query as a cte
-  readonly asCteName: Ast.Identifier;
-  readonly isBaseTable: boolean;
+  extends ITableQueryDependency {
+  readonly inputColsRefs: InCols;
+  // Identifiers of the columns of the current query
+  readonly outputColsRefs: OutCols;
+  // Selected expressions of the current query
+  readonly outputColsExprs: OutCols;
+  // parent queries
+  readonly dependencies: Array<ITableQueryDependency>;
 }
 
 export interface ITakeConfig {

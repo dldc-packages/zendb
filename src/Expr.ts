@@ -276,6 +276,13 @@ export const Expr = (() => {
     });
   }
 
+  // function inSubquery<RTable extends ITableQuery<any, any>>(expr: IExprUnknow, subquery: RTable): IExpr<boolean, false> {
+  //   return create(builder.Expr.In.select(left.ast, {}), {
+  //     nullable: false,
+  //     parse: Datatype.boolean.parse,
+  //   });
+  // }
+
   function external<Val extends string | number | boolean | null>(
     val: Val,
     name?: string,

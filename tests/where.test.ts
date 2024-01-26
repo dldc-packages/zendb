@@ -21,7 +21,7 @@ test('Simple filter', () => {
     SELECT *
     FROM tasks
     WHERE
-      tasks.id == :_id1
+      tasks.id == :_id0
   `);
 });
 
@@ -32,7 +32,7 @@ test('Filter twice', () => {
     SELECT *
     FROM tasks
     WHERE
-      tasks.id == :_id1 AND tasks.id == :_id3
+      tasks.id == :_id0 AND tasks.id == :_id2
   `);
 });
 
@@ -68,10 +68,10 @@ test('Find task by user email', () => {
       LEFT JOIN tasks ON users_tasks.task_id == tasks.id
       LEFT JOIN users ON users_tasks.user_id == users.id
     WHERE
-      users.email == :_id6
+      users.email == :_id3
   `);
 
-  expect(query.params).toEqual({ _id6: 'john@example.com' });
+  expect(query.params).toEqual({ _id3: 'john@example.com' });
 });
 
 test('Filter null value', () => {
@@ -90,8 +90,8 @@ test('Filter multiple values', () => {
   expect(format(query.sql)).toEqual(sql`
     SELECT *
     FROM users
-    WHERE users.displayName IS NULL AND users.email == :_id1
+    WHERE users.displayName IS NULL AND users.email == :_id0
   `);
 
-  expect(query.params).toEqual({ _id1: 'john@example.com' });
+  expect(query.params).toEqual({ _id0: 'john@example.com' });
 });

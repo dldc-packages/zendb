@@ -200,13 +200,13 @@ test('Query simple CTE', () => {
 
   expect(format(result.sql)).toEqual(sql`
     WITH
-      cte_id3 AS (
+      cte_id2 AS (
         SELECT users.id AS demo, users.id AS id
         FROM users
         GROUP BY users.name
         LIMIT 10
       )
-    SELECT * FROM cte_id3
+    SELECT * FROM cte_id2
   `);
   expect(result.params).toEqual(null);
 });
@@ -225,15 +225,15 @@ test('Query CTE', () => {
 
   expect(format(result.sql)).toEqual(sql`
     WITH
-      cte_id3 AS (
+      cte_id2 AS (
         SELECT users.id AS demo, users.id AS id
         FROM users
         GROUP BY users.name
         LIMIT 10
       )
-    SELECT cte_id3.demo AS demo2, cte_id3.id AS id
-    FROM cte_id3
-    WHERE cte_id3.id == 2
+    SELECT cte_id2.demo AS demo2, cte_id2.id AS id
+    FROM cte_id2
+    WHERE cte_id2.id == 2
     LIMIT 1
   `);
   expect(result.params).toEqual(null);

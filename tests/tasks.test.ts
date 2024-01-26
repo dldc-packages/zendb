@@ -218,7 +218,7 @@ test('Find task by user email', () => {
       LEFT JOIN tasks ON users_tasks.task_id == tasks.id
       LEFT JOIN users ON users_tasks.user_id == users.id
     WHERE
-      users.email == :_id6
+      users.email == :_id3
   `);
 
   const res = db.exec(query);

@@ -76,7 +76,7 @@ test('Json in json', () => {
 
   expect(format(res.sql)).toEqual(sql`
     WITH
-      cte_id1 AS (
+      cte_id0 AS (
         SELECT
           tasks.id AS id,
           json_object(
@@ -89,9 +89,9 @@ test('Json in json', () => {
           tasks
       )
     SELECT
-      cte_id1.id AS id,
-      json_object('data', json(cte_id1.data)) AS data
+      cte_id0.id AS id,
+      json_object('data', json(cte_id0.data)) AS data
     FROM
-      cte_id1
+      cte_id0
   `);
 });

@@ -115,7 +115,7 @@ test('Select ', () => {
 
   expect(format(query.sql)).toEqual(sql`
     WITH
-      cte_id46 AS (
+      cte_id43 AS (
         SELECT
           users_tasks.user_id AS userId,
           json_group_array(
@@ -142,10 +142,10 @@ test('Select ', () => {
       users.email AS email,
       users.displayName AS displayName,
       users.updatedAt AS updatedAt,
-      cte_id46.tasks AS tasks
+      cte_id43.tasks AS tasks
     FROM
       users
-      LEFT JOIN cte_id46 ON users.id == cte_id46.userId
+      LEFT JOIN cte_id43 ON users.id == cte_id43.userId
   `);
 
   const result = db.exec(query);

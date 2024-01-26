@@ -11,9 +11,11 @@ import type {
   ColsFnOrRes,
   ColsRefInnerJoined,
   ColsRefLeftJoined,
+  ICreateTableQueryParams,
   ITableQuery,
+  ITableQueryDependency,
   ITableQueryInternal,
-  ITableQueryInternalBase,
+  ITableQueryState,
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
@@ -25,30 +27,26 @@ import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput, FilterE
 import { whereEqual } from './utils/whereEqual';
 
 export const TableQuery = (() => {
-  return { createFromTable, createCteFrom };
+  return { createFromTable, createCteFrom: createFrom };
 
   function createFromTable<Cols extends ExprRecord>(table: Ast.Identifier, columnsRef: Cols): ITableQuery<Cols, Cols> {
-    return create(
-      {
-        parents: [],
-        from: table,
-        inputColsRefs: columnsRef,
-        outputColsRefs: columnsRef,
-        outputColsExprs: columnsRef,
-        state: {},
-      },
-      true,
-    );
+    return create({
+      dependencies: [],
+      from: table,
+      inputColsRefs: columnsRef,
+      outputColsRefs: columnsRef,
+      outputColsExprs: columnsRef,
+      state: {},
+    });
   }
 
   function create<InCols extends ExprRecordNested, OutCols extends ExprRecord>(
-    internalBase: ITableQueryInternalBase<InCols, OutCols>,
-    isBaseTable: boolean = false,
+    params: ICreateTableQueryParams<InCols, OutCols>,
   ): ITableQuery<InCols, OutCols> {
+    const isEmptyState = isStateEmpty(params.state);
     const internal: ITableQueryInternal<InCols, OutCols> = {
-      ...internalBase,
-      isBaseTable,
-      asCteName: builder.Expr.identifier(`cte_${Random.createId()}`),
+      ...params,
+      name: isEmptyState ? params.from : builder.Expr.identifier(`cte_${Random.createId()}`),
     };
 
     const self: ITableQuery<InCols, OutCols> = {
@@ -173,7 +171,7 @@ export const TableQuery = (() => {
       alias: Alias,
       joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow,
     ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols> {
-      const tableCte = createCteFrom(table);
+      const tableCte = createFrom(table);
 
       const newInColsRef: ColsRefInnerJoined<InCols, RTable, Alias> = {
         ...internal.inputColsRefs,
@@ -192,7 +190,7 @@ export const TableQuery = (() => {
           ...internal.state,
           joins: [...(internal.state.joins ?? []), joinItem],
         },
-        parents: mergeParent(internal.parents, table[PRIV]),
+        dependencies: mergeDependencies(internal.dependencies, table[PRIV]),
       });
     }
 
@@ -201,7 +199,7 @@ export const TableQuery = (() => {
       alias: Alias,
       joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow,
     ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols> {
-      const tableCte = createCteFrom(table);
+      const tableCte = createFrom(table);
 
       const newInColsRef: ColsRefLeftJoined<InCols, RTable, Alias> = {
         ...internal.inputColsRefs,
@@ -224,7 +222,7 @@ export const TableQuery = (() => {
           ...internal.state,
           joins: [...(internal.state.joins ?? []), joinItem],
         },
-        parents: mergeParent(internal.parents, table[PRIV]),
+        dependencies: mergeDependencies(internal.dependencies, table[PRIV]),
       });
     }
 
@@ -268,7 +266,7 @@ export const TableQuery = (() => {
     // --------------
 
     function all(): IQueryOperation<Array<ExprRecordOutput<OutCols>>> {
-      const node = buildFinalNode(internalBase);
+      const node = buildFinalNode(internal);
       const params = extractParams(node);
       const sql = printNode(node);
       return {
@@ -277,7 +275,7 @@ export const TableQuery = (() => {
         params,
         parse: (rows) => {
           return rows.map((row) =>
-            mapObject(internalBase.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false, col[PRIV].nullable)),
+            mapObject(internal.outputColsRefs, (key, col) => col[PRIV].parse(row[key], false, col[PRIV].nullable)),
           );
         },
       };
@@ -346,8 +344,8 @@ export const TableQuery = (() => {
     return fnResolved;
   }
 
-  function buildFinalNode(internal: ITableQueryInternalBase<any, any>): Ast.Node<'SelectStmt'> {
-    const ctes = extractCtes(internal);
+  function buildFinalNode(internal: ITableQueryInternal<any, any>): Ast.Node<'SelectStmt'> {
+    const ctes = buildCtes(internal.dependencies);
     const select = buildSelectNode(internal);
     return {
       ...select,
@@ -355,30 +353,25 @@ export const TableQuery = (() => {
     };
   }
 
-  function extractCtes(internal: ITableQueryInternalBase<any, any>): Array<Ast.Node<'CommonTableExpression'>> {
+  function buildCtes(dependencies: ITableQueryDependency[]): Array<Ast.Node<'CommonTableExpression'>> {
     const alreadyIncluded = new Set<string>();
     const ctes: Array<Ast.Node<'CommonTableExpression'>> = [];
-    traverse(internal.parents);
-    return ctes;
-
-    function traverse(parents: Array<ITableQueryInternal<any, any>>) {
-      for (const parent of parents) {
-        traverse(parent.parents);
-        const name = parent.asCteName.name;
-        if (alreadyIncluded.has(name)) {
-          continue;
-        }
-        alreadyIncluded.add(name);
-        ctes.push({
-          kind: 'CommonTableExpression',
-          tableName: parent.asCteName,
-          select: buildSelectNode(parent),
-        });
+    dependencies.forEach((dep) => {
+      const name = dep.name.name;
+      if (alreadyIncluded.has(name)) {
+        return;
       }
-    }
+      alreadyIncluded.add(name);
+      ctes.push({
+        kind: 'CommonTableExpression',
+        tableName: dep.name,
+        select: buildSelectNode(dep),
+      });
+    });
+    return ctes;
   }
 
-  function buildSelectNode(internal: ITableQueryInternalBase<AnyRecord, AnyRecord>): Ast.Node<'SelectStmt'> {
+  function buildSelectNode(internal: ITableQueryDependency): Ast.Node<'SelectStmt'> {
     const { state } = internal;
     const [firstJoin, ...restJoins] = state.joins || [];
 
@@ -425,21 +418,17 @@ export const TableQuery = (() => {
     });
   }
 
-  function createCteFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(
+  function createFrom<Table extends ITableQuery<ExprRecordNested, ExprRecord>>(
     table: Table,
   ): ITableQuery<Table[TYPES], Table[TYPES]> {
-    const parentInternal = table[PRIV];
-    if (parentInternal.isBaseTable) {
+    const internal = table[PRIV];
+    if (isStateEmpty(internal.state)) {
+      // if there are no state, there is no need to create a CTE
       return table as any;
     }
-    const hasState = Object.values(parentInternal.state).some((v) => v !== undefined);
-    if (!hasState) {
-      return table as any;
-    }
-
-    const colsRef = mapObject(parentInternal.outputColsRefs, (key, col) => {
+    const colsRef = mapObject(internal.outputColsRefs, (key, col) => {
       const jsonMode: JsonMode | undefined = col[PRIV].jsonMode === undefined ? undefined : 'JsonRef';
-      return Expr.column(parentInternal.asCteName, key, {
+      return Expr.column(internal.name, key, {
         parse: col[PRIV].parse,
         jsonMode,
         nullable: col[PRIV].nullable,
@@ -447,8 +436,8 @@ export const TableQuery = (() => {
     });
 
     return create({
-      from: parentInternal.asCteName,
-      parents: [parentInternal],
+      from: internal.name,
+      dependencies: [internal],
       inputColsRefs: colsRef,
       outputColsRefs: colsRef,
       outputColsExprs: colsRef,
@@ -456,13 +445,23 @@ export const TableQuery = (() => {
     });
   }
 
-  function mergeParent(
-    prevParents: Array<ITableQueryInternal<any, any>>,
-    parent: ITableQueryInternal<any, any>,
-  ): Array<ITableQueryInternal<any, any>> {
-    if (parent.isBaseTable) {
-      return prevParents;
+  function mergeDependencies(
+    prevDeps: Array<ITableQueryDependency>,
+    table: ITableQueryInternal<any, any>,
+  ): Array<ITableQueryDependency> {
+    if (isStateEmpty(table.state)) {
+      if (table.dependencies.length === 0) {
+        // No state and no dependencies, this is a base table, we can skip it
+        return prevDeps;
+      }
+      // No state but has dependencies, we can just keep the dependencies
+      return [...prevDeps, ...table.dependencies];
     }
-    return [...prevParents, parent];
+    // Has state, we need to add it to the dependencies as well as all its dependencies
+    return [...prevDeps, ...table.dependencies, table];
+  }
+
+  function isStateEmpty(state: ITableQueryState): boolean {
+    return Object.values(state).every((v) => v === undefined);
   }
 })();
