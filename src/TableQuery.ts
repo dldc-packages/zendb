@@ -15,13 +15,14 @@ import type {
   ITableQuery,
   ITableQueryDependency,
   ITableQueryInternal,
-  ITableQueryState,
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
 import { ZendbErreur } from './ZendbErreur';
 import { PRIV, TYPES } from './utils/constants';
+import { appendDependencies, mergeDependencies } from './utils/dependencies';
 import { mapObject } from './utils/functions';
+import { isStateEmpty } from './utils/isStateEmpty';
 import { extractParams } from './utils/params';
 import type { AnyRecord, ExprRecord, ExprRecordNested, ExprRecordOutput, FilterEqualCols } from './utils/types';
 import { whereEqual } from './utils/whereEqual';
@@ -87,11 +88,12 @@ export const TableQuery = (() => {
 
     function where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols> {
       const result = resolveColFn(whereFn)(internal.inputColsRefs);
+      const nextDependencies = mergeDependencies(internal.dependencies, result[PRIV].dependencies);
       if (internal.state.where) {
         const whereAnd = Expr.and(internal.state.where, result);
-        return create({ ...internal, state: { ...internal.state, where: whereAnd } });
+        return create({ ...internal, dependencies: nextDependencies, state: { ...internal.state, where: whereAnd } });
       }
-      return create({ ...internal, state: { ...internal.state, where: result } });
+      return create({ ...internal, dependencies: nextDependencies, state: { ...internal.state, where: result } });
     }
 
     function groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols> {
@@ -104,7 +106,11 @@ export const TableQuery = (() => {
       if (having === internal.state.having) {
         return self;
       }
-      return create({ ...internal, state: { ...internal.state, having } });
+      return create({
+        ...internal,
+        dependencies: mergeDependencies(internal.dependencies, having[PRIV].dependencies),
+        state: { ...internal.state, having },
+      });
     }
 
     function select<NewOutCols extends ExprRecord>(
@@ -115,11 +121,12 @@ export const TableQuery = (() => {
       if ((nextOutputColsExprs as any) === internal.outputColsExprs) {
         return self as any;
       }
-      const { select, columnsRef } = resolvedColumns(internal.from, nextOutputColsExprs);
+      const { select, columnsRef, dependencies } = resolvedColumns(internal.from, nextOutputColsExprs);
       return create<InCols, NewOutCols>({
         ...internal,
         outputColsRefs: nextOutputColsExprs,
         outputColsExprs: columnsRef as any,
+        dependencies: mergeDependencies(internal.dependencies, dependencies),
         state: { ...internal.state, select },
       });
     }
@@ -190,7 +197,7 @@ export const TableQuery = (() => {
           ...internal.state,
           joins: [...(internal.state.joins ?? []), joinItem],
         },
-        dependencies: mergeDependencies(internal.dependencies, table[PRIV]),
+        dependencies: appendDependencies(internal.dependencies, table[PRIV]),
       });
     }
 
@@ -222,7 +229,7 @@ export const TableQuery = (() => {
           ...internal.state,
           joins: [...(internal.state.joins ?? []), joinItem],
         },
-        dependencies: mergeDependencies(internal.dependencies, table[PRIV]),
+        dependencies: appendDependencies(internal.dependencies, table[PRIV]),
       });
     }
 
@@ -385,7 +392,9 @@ export const TableQuery = (() => {
           : builder.From.Table(internal.from.name),
         resultColumns: state.select ? Utils.arrayToNonEmptyArray(state.select) : [builder.ResultColumn.Star()],
         where: state.where?.ast,
-        groupBy: state.groupBy ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy.map((e) => e.ast)) } : undefined,
+        groupBy: state.groupBy
+          ? { exprs: Utils.arrayToNonEmptyArray(state.groupBy.map((e) => e.ast)), having: state.having?.ast }
+          : undefined,
       },
       orderBy: state.orderBy ? Utils.arrayToNonEmptyArray(state.orderBy) : undefined,
       limit: state.limit
@@ -401,12 +410,14 @@ export const TableQuery = (() => {
   function resolvedColumns(
     table: Ast.Identifier,
     selected: ExprRecord,
-  ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecord } {
+  ): { select: Array<Ast.Node<'ResultColumn'>>; columnsRef: ExprRecord; dependencies: ITableQueryDependency[] } {
+    let dependencies: ITableQueryDependency[] = [];
     const select = Object.entries(selected).map(([key, expr]): Ast.Node<'ResultColumn'> => {
+      dependencies = mergeDependencies(dependencies, expr[PRIV].dependencies);
       return builder.ResultColumn.Expr(expr.ast, key);
     });
     const columnsRef = exprsToRefs(table, selected);
-    return { select, columnsRef };
+    return { select, columnsRef, dependencies };
   }
 
   function exprsToRefs(table: Ast.Identifier, exprs: ExprRecord): ExprRecord {
@@ -443,25 +454,5 @@ export const TableQuery = (() => {
       outputColsExprs: colsRef,
       state: {},
     });
-  }
-
-  function mergeDependencies(
-    prevDeps: Array<ITableQueryDependency>,
-    table: ITableQueryInternal<any, any>,
-  ): Array<ITableQueryDependency> {
-    if (isStateEmpty(table.state)) {
-      if (table.dependencies.length === 0) {
-        // No state and no dependencies, this is a base table, we can skip it
-        return prevDeps;
-      }
-      // No state but has dependencies, we can just keep the dependencies
-      return [...prevDeps, ...table.dependencies];
-    }
-    // Has state, we need to add it to the dependencies as well as all its dependencies
-    return [...prevDeps, ...table.dependencies, table];
-  }
-
-  function isStateEmpty(state: ITableQueryState): boolean {
-    return Object.values(state).every((v) => v === undefined);
   }
 })();

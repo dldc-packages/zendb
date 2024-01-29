@@ -2,7 +2,9 @@ import type { Ast } from '@dldc/sqlite';
 import { builder, Utils } from '@dldc/sqlite';
 import { Datatype } from './Datatype';
 import { Random } from './Random';
+import type { ITableQuery, ITableQueryDependency } from './TableQuery.types';
 import { PRIV, TYPES } from './utils/constants';
+import { appendDependencies } from './utils/dependencies';
 import { expectNever, mapObject } from './utils/functions';
 import type { ExprResultFrom, ExprsNullables } from './utils/types';
 
@@ -32,6 +34,8 @@ export interface IExprInternal {
   // JsonExpr is transformed to JsonRef when converted to a ref
   // JsonRef is wrapped in a json() function when unsed in other json functions
   readonly jsonMode?: JsonMode;
+  // Used for X in (select X from ...) where the target is a CTE that needs to be defined
+  readonly dependencies?: Array<ITableQueryDependency>;
 }
 
 export const Expr = (() => {
@@ -64,6 +68,8 @@ export const Expr = (() => {
     isNull,
     inList,
     notInList,
+    inSubquery,
+    notInSubquery,
 
     compare,
 
@@ -80,6 +86,7 @@ export const Expr = (() => {
         return create(builder.Expr.AggregateFunctions.count({ params: expr.ast }), {
           parse: Datatype.number.parse,
           nullable: false,
+          dependencies: expr[PRIV].dependencies,
         });
       },
       // Note: for the following functions, the result is always nullable because the result is null when the input is empty
@@ -87,24 +94,28 @@ export const Expr = (() => {
         return create(builder.Expr.AggregateFunctions.avg({ params: expr.ast }), {
           parse: Datatype.number.parse,
           nullable: true,
+          dependencies: expr[PRIV].dependencies,
         });
       },
       sum: <Expr extends IExpr<number, boolean>>(expr: Expr): IExpr<number, true> => {
         return create(builder.Expr.AggregateFunctions.sum({ params: expr.ast }), {
           parse: Datatype.number.parse,
           nullable: true,
+          dependencies: expr[PRIV].dependencies,
         });
       },
       min: <Expr extends IExprUnknow>(expr: Expr): IExpr<Expr[TYPES]['val'], true> => {
         return create(builder.Expr.AggregateFunctions.min({ params: expr.ast }), {
           parse: expr[PRIV].parse,
           nullable: true,
+          dependencies: expr[PRIV].dependencies,
         });
       },
       max: <Expr extends IExprUnknow>(expr: Expr): IExpr<Expr[TYPES]['val'], true> => {
         return create(builder.Expr.AggregateFunctions.max({ params: expr.ast }), {
           parse: expr[PRIV].parse,
           nullable: true,
+          dependencies: expr[PRIV].dependencies,
         });
       },
     },
@@ -130,6 +141,7 @@ export const Expr = (() => {
     return create(builder.Expr.add(left.ast, right.ast), {
       parse: Datatype.number.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -140,6 +152,7 @@ export const Expr = (() => {
     return create(builder.Expr.equal(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -174,6 +187,7 @@ export const Expr = (() => {
     return create(builder.Expr.different(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -184,6 +198,7 @@ export const Expr = (() => {
     return create(builder.Expr.like(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -191,6 +206,7 @@ export const Expr = (() => {
     return create(builder.Expr.or(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -201,6 +217,7 @@ export const Expr = (() => {
     return create(builder.Expr.and(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -215,6 +232,7 @@ export const Expr = (() => {
     return create(builder.Expr.lowerThan(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -225,6 +243,7 @@ export const Expr = (() => {
     return create(builder.Expr.lowerThanOrEqual(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -235,6 +254,7 @@ export const Expr = (() => {
     return create(builder.Expr.greaterThan(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -245,6 +265,7 @@ export const Expr = (() => {
     return create(builder.Expr.greaterThanOrEqual(left.ast, right.ast), {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
@@ -255,17 +276,23 @@ export const Expr = (() => {
     return create(builder.Expr.concatenate(left.ast, right.ast), {
       parse: Datatype.text.parse,
       nullable: someNullable(left, right),
+      dependencies: mergeExprDependencies(left, right),
     });
   }
 
   function isNull(expr: IExprUnknow): IExpr<boolean, false> {
-    return create(builder.Expr.isNull(expr.ast), { parse: Datatype.boolean.parse, nullable: false });
+    return create(builder.Expr.isNull(expr.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: false,
+      dependencies: expr[PRIV].dependencies,
+    });
   }
 
   function inList(left: IExprUnknow, items: IExprUnknow[]): IExpr<boolean, false> {
     return create(builder.Expr.In.list(left.ast, Utils.arrayToNonEmptyArray(items.map((item) => item.ast))), {
       nullable: false,
       parse: Datatype.boolean.parse,
+      dependencies: mergeExprDependencies(left, ...items),
     });
   }
 
@@ -273,15 +300,31 @@ export const Expr = (() => {
     return create(builder.Expr.NotIn.list(left.ast, Utils.arrayToNonEmptyArray(items.map((item) => item.ast))), {
       nullable: false,
       parse: Datatype.boolean.parse,
+      dependencies: mergeExprDependencies(left, ...items),
     });
   }
 
-  // function inSubquery<RTable extends ITableQuery<any, any>>(expr: IExprUnknow, subquery: RTable): IExpr<boolean, false> {
-  //   return create(builder.Expr.In.select(left.ast, {}), {
-  //     nullable: false,
-  //     parse: Datatype.boolean.parse,
-  //   });
-  // }
+  function inSubquery<RTable extends ITableQuery<any, any>>(
+    expr: IExprUnknow,
+    subquery: RTable,
+  ): IExpr<boolean, false> {
+    return create(builder.Expr.In.tableName(expr.ast, subquery[PRIV].name), {
+      nullable: false,
+      parse: Datatype.boolean.parse,
+      dependencies: appendDependencies(expr[PRIV].dependencies ?? [], subquery[PRIV]),
+    });
+  }
+
+  function notInSubquery<RTable extends ITableQuery<any, any>>(
+    expr: IExprUnknow,
+    subquery: RTable,
+  ): IExpr<boolean, false> {
+    return create(builder.Expr.NotIn.tableName(expr.ast, subquery[PRIV].name), {
+      nullable: false,
+      parse: Datatype.boolean.parse,
+      dependencies: [subquery[PRIV]],
+    });
+  }
 
   function external<Val extends string | number | boolean | null>(
     val: Val,
@@ -372,5 +415,9 @@ export const Expr = (() => {
 
   function someNullable(...exprs: IExprUnknow[]): boolean {
     return exprs.some((expr) => expr[PRIV].nullable);
+  }
+
+  function mergeExprDependencies(...exprs: IExprUnknow[]): ITableQueryDependency[] {
+    return exprs.flatMap((expr) => expr[PRIV].dependencies ?? []);
   }
 })();

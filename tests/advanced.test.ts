@@ -12,16 +12,7 @@ const db = TestDatabase.create();
 beforeAll(() => {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
-});
 
-beforeEach(() => {
-  nextRandomId = 0;
-});
-
-type UserInput = (typeof tasksDb)['users'] extends ITable<infer Val, any> ? Val : never;
-type TaksInput = (typeof tasksDb)['tasks'] extends ITable<infer Val, any> ? Val : never;
-
-test('Select ', () => {
   db.execMany(Database.schema(tasksDb));
 
   const users: UserInput[] = [
@@ -46,6 +37,13 @@ test('Select ', () => {
       displayName: 'Jack',
       updatedAt: new Date('2023-12-24T22:30:12.250Z'),
     },
+    {
+      id: '4',
+      name: 'Jill Doe',
+      email: 'jill@example.com',
+      displayName: 'Jill',
+      updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+    },
   ];
 
   users.forEach((user) => db.exec(tasksDb.users.insert(user)));
@@ -63,7 +61,19 @@ test('Select ', () => {
   db.exec(tasksDb.users_tasks.insert({ user_id: '1', task_id: '1' }));
   db.exec(tasksDb.users_tasks.insert({ user_id: '1', task_id: '2' }));
   db.exec(tasksDb.users_tasks.insert({ user_id: '2', task_id: '3' }));
+  db.exec(tasksDb.users_tasks.insert({ user_id: '3', task_id: '1' }));
 
+  nextRandomId = 0;
+});
+
+beforeEach(() => {
+  nextRandomId = 0;
+});
+
+type UserInput = (typeof tasksDb)['users'] extends ITable<infer Val, any> ? Val : never;
+type TaksInput = (typeof tasksDb)['tasks'] extends ITable<infer Val, any> ? Val : never;
+
+test('Find all user with their linked tasks', () => {
   const allUsers = tasksDb.users.query();
   const tasksByUserId = tasksDb.users_tasks
     .query()
@@ -99,13 +109,14 @@ test('Select ', () => {
 
   expect(tasksByUserIdResult).toEqual([
     {
+      userId: '1',
       tasks: [
         { completed: false, description: 'First Task', id: '1', title: 'First Task' },
         { completed: true, description: 'Second Task', id: '2', title: 'Second Task' },
       ],
-      userId: '1',
     },
-    { tasks: [{ completed: true, description: 'Third Task', id: '3', title: 'Third Task' }], userId: '2' },
+    { userId: '2', tasks: [{ completed: true, description: 'Third Task', id: '3', title: 'Third Task' }] },
+    { userId: '3', tasks: [{ completed: false, description: 'First Task', id: '1', title: 'First Task' }] },
   ]);
 
   const query = allUsers
@@ -115,7 +126,7 @@ test('Select ', () => {
 
   expect(format(query.sql)).toEqual(sql`
     WITH
-      cte_id43 AS (
+      cte_id2 AS (
         SELECT
           users_tasks.user_id AS userId,
           json_group_array(
@@ -142,10 +153,10 @@ test('Select ', () => {
       users.email AS email,
       users.displayName AS displayName,
       users.updatedAt AS updatedAt,
-      cte_id43.tasks AS tasks
+      cte_id2.tasks AS tasks
     FROM
       users
-      LEFT JOIN cte_id43 ON users.id == cte_id43.userId
+      LEFT JOIN cte_id2 ON users.id == cte_id2.userId
   `);
 
   const result = db.exec(query);
@@ -175,7 +186,122 @@ test('Select ', () => {
       email: 'jack@example.com',
       id: '3',
       name: 'Jack Doe',
+      tasks: [{ completed: false, description: 'First Task', id: '1', title: 'First Task' }],
+      updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+    },
+    {
+      displayName: 'Jill',
+      email: 'jill@example.com',
+      id: '4',
+      name: 'Jill Doe',
       tasks: null,
+      updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+    },
+  ]);
+});
+
+test('Find all users with only task 1 & 2 using subquery in expression', () => {
+  const subQuery = tasksDb.users_tasks
+    .query()
+    .where((c) => Expr.inList(c.task_id, [Expr.literal('1'), Expr.literal('2')]))
+    .groupBy((c) => [c.user_id])
+    .select((c) => ({ id: c.user_id }))
+    .having((c) => Expr.equal(Expr.AggregateFunctions.count(c.task_id), Expr.literal(2)));
+
+  const subQueryOp = subQuery.all();
+
+  expect(format(subQueryOp.sql)).toEqual(sql`
+    SELECT
+      users_tasks.user_id AS id
+    FROM
+      users_tasks
+    WHERE
+      users_tasks.task_id IN ('1', '2')
+    GROUP BY
+      users_tasks.user_id
+    HAVING
+      count(users_tasks.task_id) == 2
+  `);
+
+  const subQueryRes = db.exec(subQueryOp);
+  expect(subQueryRes).toEqual([{ id: '1' }]);
+
+  const filteredUsers = tasksDb.users
+    .query()
+    .where((c) => Expr.inSubquery(c.id, subQuery))
+    .all();
+
+  expect(format(filteredUsers.sql)).toEqual(sql`
+    WITH
+      cte_id3 AS (
+        SELECT
+          users_tasks.user_id AS id
+        FROM
+          users_tasks
+        WHERE
+          users_tasks.task_id IN ('1', '2')
+        GROUP BY
+          users_tasks.user_id
+        HAVING
+          count(users_tasks.task_id) == 2
+      )
+    SELECT
+      *
+    FROM
+      users
+    WHERE
+      users.id IN cte_id3
+  `);
+
+  const result = db.exec(filteredUsers);
+  expect(result).toEqual([
+    {
+      displayName: null,
+      email: 'john@exmaple.com',
+      id: '1',
+      name: 'John Doe',
+      updatedAt: new Date('2023-12-24T22:30:12.250Z'),
+    },
+  ]);
+});
+
+test('Find all users with no tasks', () => {
+  const usersWithTasks = tasksDb.users_tasks
+    .query()
+    .groupBy((c) => [c.user_id])
+    .select((c) => ({ id: c.user_id }));
+
+  const usersWithNoTasks = tasksDb.users
+    .query()
+    .where((c) => Expr.notInSubquery(c.id, usersWithTasks))
+    .all();
+
+  expect(format(usersWithNoTasks.sql)).toEqual(sql`
+    WITH
+      cte_id1 AS (
+        SELECT
+          users_tasks.user_id AS id
+        FROM
+          users_tasks
+        GROUP BY
+          users_tasks.user_id
+      )
+    SELECT
+      *
+    FROM
+      users
+    WHERE
+      users.id NOT IN cte_id1
+  `);
+
+  const result = db.exec(usersWithNoTasks);
+
+  expect(result).toEqual([
+    {
+      displayName: 'Jill',
+      email: 'jill@example.com',
+      id: '4',
+      name: 'Jill Doe',
       updatedAt: new Date('2023-12-24T22:30:12.250Z'),
     },
   ]);
