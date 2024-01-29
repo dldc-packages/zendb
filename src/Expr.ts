@@ -322,7 +322,7 @@ export const Expr = (() => {
     return create(builder.Expr.NotIn.tableName(expr.ast, subquery[PRIV].name), {
       nullable: false,
       parse: Datatype.boolean.parse,
-      dependencies: [subquery[PRIV]],
+      dependencies: appendDependencies(expr[PRIV].dependencies ?? [], subquery[PRIV]),
     });
   }
 
