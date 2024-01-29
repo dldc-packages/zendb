@@ -59,6 +59,7 @@ export const Expr = (() => {
     like,
     or,
     and,
+    not,
     notNull,
     lowerThan,
     lowerThanOrEqual,
@@ -218,6 +219,14 @@ export const Expr = (() => {
       parse: Datatype.boolean.parse,
       nullable: someNullable(left, right),
       dependencies: mergeExprDependencies(left, right),
+    });
+  }
+
+  function not<E extends IExprUnknow>(expr: E): IExpr<boolean, E[TYPES]['nullable']> {
+    return create(builder.Expr.not(expr.ast), {
+      parse: Datatype.boolean.parse,
+      nullable: expr[PRIV].nullable,
+      dependencies: expr[PRIV].dependencies,
     });
   }
 
