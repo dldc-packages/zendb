@@ -448,7 +448,7 @@ export const TableQuery = (() => {
 
     return create({
       from: internal.name,
-      dependencies: [internal],
+      dependencies: [internal, ...internal.dependencies],
       inputColsRefs: colsRef,
       outputColsRefs: colsRef,
       outputColsExprs: colsRef,
