@@ -28,6 +28,10 @@ export const TestDatabase = (() => {
         sqlDb.prepare(op.sql).run(op.params);
         return opResult<zen.IInsertOperation<any>>(op.parse());
       }
+      if (op.kind === 'InsertMany') {
+        sqlDb.prepare(op.sql).run(op.params);
+        return opResult<zen.IInsertOperation<any>>(op.parse());
+      }
       if (op.kind === 'Delete') {
         const stmt = sqlDb.prepare(op.sql);
         const res = op.params ? stmt.run(op.params) : stmt.run();

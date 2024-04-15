@@ -46,7 +46,7 @@ beforeAll(() => {
     },
   ];
 
-  users.forEach((user) => db.exec(tasksDb.users.insert(user)));
+  db.exec(tasksDb.users.insertMany(users));
 
   const tasks: TaksInput[] = [
     { id: '1', title: 'First Task', description: 'First Task', completed: false },

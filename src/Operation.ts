@@ -65,6 +65,7 @@ export type IOperation =
   | IDeleteOperation
   | IUpdateOperation
   | IInsertOperation<any>
+  | IInsertManyOperation<any>
   | IQueryOperation<any>
   | ICreateTableOperation
   | IListTablesOperation
@@ -79,14 +80,16 @@ export type IOperationResult<T extends IOperation> = T extends IDeleteOperation
     ? { updated: number }
     : T extends IInsertOperation<infer Inserted>
       ? Inserted
-      : T extends IQueryOperation<infer Result>
-        ? Result
-        : T extends ICreateTableOperation
-          ? null
-          : T extends IListTablesOperation
-            ? Array<string>
-            : T extends IPragmaOperation<infer Value>
-              ? Value
-              : T extends IPragmaSetOperation
-                ? null
-                : never;
+      : T extends IInsertManyOperation<infer Inserted>
+        ? Inserted[]
+        : T extends IQueryOperation<infer Result>
+          ? Result
+          : T extends ICreateTableOperation
+            ? null
+            : T extends IListTablesOperation
+              ? Array<string>
+              : T extends IPragmaOperation<infer Value>
+                ? Value
+                : T extends IPragmaSetOperation
+                  ? null
+                  : never;
