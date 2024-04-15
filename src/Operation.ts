@@ -19,6 +19,13 @@ export interface IInsertOperation<Inserted> {
   parse: () => Inserted;
 }
 
+export interface IInsertManyOperation<Inserted> {
+  kind: 'InsertMany';
+  sql: string;
+  params: Record<string, any> | null;
+  parse: () => Inserted[];
+}
+
 export interface IQueryOperation<Result> {
   kind: 'Query';
   sql: string;

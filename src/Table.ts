@@ -4,7 +4,13 @@ import type { IColumnAny } from './Column';
 import { Column } from './Column';
 import type { IExprUnknow } from './Expr';
 import { Expr } from './Expr';
-import type { ICreateTableOperation, IDeleteOperation, IInsertOperation, IUpdateOperation } from './Operation';
+import type {
+  ICreateTableOperation,
+  IDeleteOperation,
+  IInsertManyOperation,
+  IInsertOperation,
+  IUpdateOperation,
+} from './Operation';
 import { TableQuery } from './TableQuery';
 import type { ITableQuery } from './TableQuery.types';
 import { ZendbErreur } from './ZendbErreur';
@@ -33,6 +39,7 @@ export interface ITable<InputData extends AnyRecord, OutputCols extends ExprReco
   schema(options?: ITableSchemaOptions): ICreateTableOperation;
   query(): ITableQuery<OutputCols, OutputCols>;
   insert(data: InputData): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  insertMany(data: InputData[]): IInsertManyOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   delete(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
   deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): IDeleteOperation;
   update(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): IUpdateOperation;
@@ -52,6 +59,7 @@ export const Table = (() => {
     schema,
     query,
     insert,
+    insertMany,
     delete: deleteFn,
     deleteEqual,
     update,
@@ -68,6 +76,7 @@ export const Table = (() => {
       schema: (options) => schema(table, columns, options),
       query: () => query(table, columns),
       insert: (data) => insert(table, columns, data),
+      insertMany: (data) => insertMany(table, columns, data),
       delete: (condition) => deleteFn(table, columns, condition),
       deleteEqual: (filters) => deleteEqual(table, columns, filters),
       update: (data, where) => update(table, columns, data, where),
@@ -174,25 +183,26 @@ export const Table = (() => {
     columns: Columns,
     data: ColumnsToInput<Columns>,
   ): IInsertOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
-    const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns);
-    const resolvedData: Record<string, any> = {};
-    const parsedData: Record<string, any> = {};
-    columnsEntries.forEach(([name, column]) => {
-      const input = (data as any)[name];
-      const serialized = Column.serialize(column, input);
-      resolvedData[name] = serialized;
-      parsedData[name] = Column.parse(column, serialized);
-    });
-    const values = columnsEntries.map(([name]) => Expr.external(resolvedData[name], name));
-    const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
-    const queryNode = b.InsertStmt(table, {
-      columnNames: cols,
-      data: b.InsertStmtData.Values([values.map((e) => e.ast)]),
-    });
-    const params = extractParams(queryNode);
-    const insertStatement = printNode(queryNode);
+    const { insertStatement, params, parsedData } = prepareInsert(table, columns, [data]);
     return {
       kind: 'Insert',
+      sql: insertStatement,
+      params,
+      parse: () => parsedData[0] as any,
+    };
+  }
+
+  function insertMany<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    data: ColumnsToInput<Columns>[],
+  ): IInsertManyOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
+    if (data.length === 0) {
+      throw ZendbErreur.CannotInsertEmptyArray(table);
+    }
+    const { insertStatement, params, parsedData } = prepareInsert(table, columns, data);
+    return {
+      kind: 'InsertMany',
       sql: insertStatement,
       params,
       parse: () => parsedData as any,
@@ -263,5 +273,38 @@ export const Table = (() => {
   ): ITableQuery<ColumnsToExprRecord<Columns>, ColumnsToExprRecord<Columns>> {
     const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
     return TableQuery.createFromTable(tableIdentifier, columnsRefs);
+  }
+
+  function prepareInsert<Columns extends ColumnsBase>(
+    table: string,
+    columns: Columns,
+    data: ColumnsToInput<Columns>[],
+  ) {
+    const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns);
+    const resolvedData: Record<string, any>[] = [];
+    const parsedData: Record<string, any>[] = [];
+    const values: IExprUnknow[][] = [];
+    data.forEach((dataItem) => {
+      const resolvedItem: Record<string, any> = {};
+      const parsedItem: Record<string, any> = {};
+      columnsEntries.forEach(([name, column]) => {
+        const input = (dataItem as any)[name];
+        const serialized = Column.serialize(column, input);
+        resolvedItem[name] = serialized;
+        parsedItem[name] = Column.parse(column, serialized);
+      });
+      const itemValues = columnsEntries.map(([name]) => Expr.external(resolvedItem[name], name));
+      resolvedData.push(resolvedItem);
+      parsedData.push(parsedItem);
+      values.push(itemValues);
+    });
+    const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
+    const queryNode = b.InsertStmt(table, {
+      columnNames: cols,
+      data: b.InsertStmtData.Values(values.map((values) => values.map((e) => e.ast))),
+    });
+    const params = extractParams(queryNode);
+    const insertStatement = printNode(queryNode);
+    return { insertStatement, params, parsedData, resolvedData };
   }
 })();

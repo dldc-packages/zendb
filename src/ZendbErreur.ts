@@ -7,7 +7,8 @@ export type TZendbErreurData =
   | { kind: 'InvalidUniqueConstraint'; constraintName: string | null }
   | { kind: 'NoRows' }
   | { kind: 'ColumnNotFound'; columnKey: string }
-  | { kind: 'ColumnDoesNotExist'; column: string };
+  | { kind: 'ColumnDoesNotExist'; column: string }
+  | { kind: 'CannotInsertEmptyArray'; table: string };
 
 export const ZendbErreurKey: TKey<TZendbErreurData, false> = Key.create<TZendbErreurData>('ZendbErreur');
 
@@ -40,6 +41,11 @@ export const ZendbErreur = {
   ColumnDoesNotExist: (column: string) => {
     return Erreur.create(new Error(`Column "${column}" does not exist`))
       .with(ZendbErreurKey.Provider({ kind: 'ColumnDoesNotExist', column }))
+      .withName('ZendbErreur');
+  },
+  CannotInsertEmptyArray: (table: string) => {
+    return Erreur.create(new Error(`No data to insert into table ${table}`))
+      .with(ZendbErreurKey.Provider({ kind: 'CannotInsertEmptyArray', table }))
       .withName('ZendbErreur');
   },
 };
