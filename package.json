@@ -82,28 +82,28 @@
     "root": true
   },
   "dependencies": {
-    "@dldc/erreur": "^6.0.6",
-    "@dldc/sqlite": "^2.0.7"
+    "@dldc/erreur": "^7.1.0",
+    "@dldc/sqlite": "^2.0.8"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.9",
+    "@types/better-sqlite3": "^7.6.10",
     "@types/dedent": "^0.7.2",
-    "@types/node": "^20.12.7",
-    "@typescript-eslint/eslint-plugin": "^7.6.0",
-    "@typescript-eslint/parser": "^7.6.0",
-    "@vitest/coverage-v8": "^1.5.0",
+    "@types/node": "^20.12.8",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@vitest/coverage-v8": "^1.5.3",
     "auto-changelog": "^2.4.0",
-    "better-sqlite3": "^9.5.0",
+    "better-sqlite3": "^9.6.0",
     "dedent": "^1.5.3",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
-    "release-it": "^17.2.0",
+    "release-it": "^17.2.1",
     "rimraf": "^5.0.5",
-    "sql-formatter": "^15.3.0",
+    "sql-formatter": "^15.3.1",
     "tsup": "^8.0.2",
     "typescript": "^5.4.5",
-    "vitest": "^1.5.0"
+    "vitest": "^1.5.3"
   },
   "packageManager": "pnpm@8.9.0",
   "publishConfig": {
