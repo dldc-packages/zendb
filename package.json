@@ -1,6 +1,6 @@
 {
   "name": "@dldc/zendb",
-  "version": "6.6.1",
+  "version": "7.0.0",
   "description": "Type safe SQLite",
   "keywords": [],
   "homepage": "https://github.com/dldc-packages/zendb#readme",
