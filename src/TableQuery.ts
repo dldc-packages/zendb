@@ -18,7 +18,7 @@ import type {
   OrderingTerms,
   SelectFn,
 } from './TableQuery.types';
-import { ZendbErreur } from './ZendbErreur';
+import { createNoRows } from './ZendbErreur';
 import { PRIV, TYPES } from './utils/constants';
 import { appendDependencies, mergeDependencies } from './utils/dependencies';
 import { mapObject } from './utils/functions';
@@ -306,7 +306,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeOneOp.parse(rows);
           if (res === null) {
-            throw ZendbErreur.NoRows();
+            throw createNoRows();
           }
           return res;
         },
@@ -331,7 +331,7 @@ export const TableQuery = (() => {
         parse: (rows) => {
           const res = maybeFirstOp.parse(rows);
           if (res === null) {
-            throw ZendbErreur.NoRows();
+            throw createNoRows();
           }
           return res;
         },

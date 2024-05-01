@@ -13,7 +13,7 @@ import type {
 } from './Operation';
 import { TableQuery } from './TableQuery';
 import type { ITableQuery } from './TableQuery.types';
-import { ZendbErreur } from './ZendbErreur';
+import { createCannotInsertEmptyArray, createInvalidUniqueConstraint, createMissingPrimaryKey } from './ZendbErreur';
 import { PRIV } from './utils/constants';
 import { isNotNull, mapObject } from './utils/functions';
 import { extractParams } from './utils/params';
@@ -120,7 +120,7 @@ export const Table = (() => {
     const columnsEntries = Object.entries(columns);
     const primaryKeys = columnsEntries.filter(([, column]) => column[PRIV].primary).map(([columnName]) => columnName);
     if (primaryKeys.length === 0) {
-      throw ZendbErreur.MissingPrimaryKey(table);
+      throw createMissingPrimaryKey(table);
     }
     const multiPrimaryKey = primaryKeys.length > 1;
     const uniqueContraints = new Map<string | null, Array<string>>();
@@ -144,7 +144,7 @@ export const Table = (() => {
         uniqueColumns.push(columns[0]);
         return;
       }
-      throw ZendbErreur.InvalidUniqueConstraint(constraintName);
+      throw createInvalidUniqueConstraint(constraintName);
     });
 
     const tableConstraints = [
@@ -198,7 +198,7 @@ export const Table = (() => {
     data: ColumnsToInput<Columns>[],
   ): IInsertManyOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
     if (data.length === 0) {
-      throw ZendbErreur.CannotInsertEmptyArray(table);
+      throw createCannotInsertEmptyArray(table);
     }
     const { insertStatement, params, parsedData } = prepareInsert(table, columns, data);
     return {

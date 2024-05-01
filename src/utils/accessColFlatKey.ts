@@ -1,5 +1,5 @@
 import type { IExprUnknow } from '../Expr';
-import { ZendbErreur } from '../ZendbErreur';
+import { createColumnNotFound } from '../ZendbErreur';
 import type { ExprRecordNested } from './types';
 
 /**
@@ -13,7 +13,7 @@ export function accessColFlatKey(cols: ExprRecordNested, flatKey: string): IExpr
   for (const part of parts) {
     current = (current as any)[part];
     if (current === undefined) {
-      throw ZendbErreur.ColumnNotFound(flatKey);
+      throw createColumnNotFound(flatKey);
     }
   }
   return current as IExprUnknow;

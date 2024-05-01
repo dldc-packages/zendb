@@ -1,4 +1,4 @@
-import { ZendbErreur } from './ZendbErreur';
+import { createInvalidLiteral } from './ZendbErreur';
 import type { TYPES } from './utils/constants';
 
 export type SqliteDatatype = 'INTEGER' | 'TEXT' | 'REAL' | 'BLOB';
@@ -75,7 +75,7 @@ export const Datatype = (() => {
     if (typeof val === 'string') return Datatype.text as any;
     if (typeof val === 'number') return Datatype.number as any;
     if (typeof val === 'boolean') return Datatype.boolean as any;
-    throw ZendbErreur.InvalidLiteral(val);
+    throw createInvalidLiteral(val);
   }
 
   function createDatatype<External, Internal>(
