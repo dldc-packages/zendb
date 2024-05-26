@@ -1,24 +1,31 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
-import { Expr, Random } from '../src/mod';
-import { format, sql } from './utils/sql';
-import { tasksDb } from './utils/tasksDb';
+import { expect } from "@std/expect";
+import { Expr, Random } from "../mod.ts";
+import { format, sql } from "./utils/sql.ts";
+import { tasksDb } from "./utils/tasksDb.ts";
 
 let nextRandomId = 0;
 
-beforeAll(() => {
+function setup() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
-});
-
-beforeEach(() => {
   nextRandomId = 0;
-});
+}
 
-test('Query innerJoin', () => {
+Deno.test("Query innerJoin", () => {
+  setup();
+
   const result = tasksDb.users
     .query()
-    .innerJoin(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
-    .select((cols) => ({ id: cols.id, email: cols.email, taskId: cols.usersTasks.task_id }))
+    .innerJoin(
+      tasksDb.users_tasks.query(),
+      "usersTasks",
+      (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
+    )
+    .select((cols) => ({
+      id: cols.id,
+      email: cols.email,
+      taskId: cols.usersTasks.task_id,
+    }))
     .all();
 
   expect(format(result.sql)).toEqual(sql`
@@ -32,12 +39,26 @@ test('Query innerJoin', () => {
   `);
 });
 
-test('Query joins', () => {
+Deno.test("Query joins", () => {
+  setup();
+
   const result = tasksDb.users
     .query()
-    .innerJoin(tasksDb.users_tasks.query(), 'usersTasks', (cols) => Expr.equal(cols.usersTasks.user_id, cols.id))
-    .innerJoin(tasksDb.tasks.query(), 'tasks', (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id))
-    .select((cols) => ({ id: cols.id, email: cols.email, taskName: cols.tasks.title }))
+    .innerJoin(
+      tasksDb.users_tasks.query(),
+      "usersTasks",
+      (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
+    )
+    .innerJoin(
+      tasksDb.tasks.query(),
+      "tasks",
+      (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id),
+    )
+    .select((cols) => ({
+      id: cols.id,
+      email: cols.email,
+      taskName: cols.tasks.title,
+    }))
     .all();
 
   expect(format(result.sql)).toEqual(sql`

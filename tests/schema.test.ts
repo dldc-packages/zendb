@@ -1,7 +1,7 @@
-import { expect, test } from 'vitest';
-import { Database, Table } from '../src/mod';
+import { expect } from "@std/expect";
+import { Database, Table } from "../mod.ts";
 
-test('Init empty schema', () => {
+Deno.test("Init empty schema", () => {
   const db = Table.declareMany({});
   expect(Database.schema(db)).toEqual([]);
 });

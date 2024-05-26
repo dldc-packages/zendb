@@ -1,15 +1,15 @@
-import { expect, test } from 'vitest';
-import { Database } from '../src/mod';
-import { TestDatabase } from './utils/TestDatabase';
+import { expect } from "@std/expect";
+import { Database } from "../mod.ts";
+import { TestDatabase } from "./utils/TestDatabase.ts";
 
 const db = TestDatabase.create();
 
-test('read pragma', () => {
+Deno.test("read pragma", () => {
   const res = db.exec(Database.userVersion());
   expect(res).toEqual(0);
 });
 
-test('write pragma', () => {
+Deno.test("write pragma", () => {
   const res = db.exec(Database.setUserVersion(42));
   expect(res).toEqual(null);
   const version = db.exec(Database.userVersion());

@@ -1,3 +1,0 @@
-{
-  "additionalDevDependencies": ["@types/better-sqlite3", "better-sqlite3", "@types/dedent", "dedent", "sql-formatter"]
-}

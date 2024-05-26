@@ -1,21 +1,21 @@
-import { Column, Table } from '../../src/mod';
+import { Column, Table } from "../../mod.ts";
 
 export const tasksDb = Table.declareMany({
   tasks: {
-    id: Column.dt.text().primary(),
-    title: Column.dt.text(),
-    description: Column.dt.text(),
-    completed: Column.dt.boolean(),
+    id: Column.text().primary(),
+    title: Column.text(),
+    description: Column.text(),
+    completed: Column.boolean(),
   },
   users: {
-    id: Column.dt.text().primary(),
-    name: Column.dt.text(),
-    email: Column.dt.text(),
-    displayName: Column.dt.text().nullable(),
-    updatedAt: Column.dt.date().nullable(),
+    id: Column.text().primary(),
+    name: Column.text(),
+    email: Column.text(),
+    displayName: Column.text().nullable(),
+    updatedAt: Column.date().nullable(),
   },
   users_tasks: {
-    user_id: Column.dt.text().primary(),
-    task_id: Column.dt.text().primary(),
+    user_id: Column.text().primary(),
+    task_id: Column.text().primary(),
   },
 });

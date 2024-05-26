@@ -1,69 +1,92 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
-import { Database, Expr, Random } from '../src/mod';
-import { TestDatabase } from './utils/TestDatabase';
-import { format, sql } from './utils/sql';
-import { tasksDb } from './utils/tasksDb';
+import { expect } from "@std/expect";
+import { Database, Expr, Random } from "../mod.ts";
+import { TestDatabase } from "./utils/TestDatabase.ts";
+import { format, sql } from "./utils/sql.ts";
+import { tasksDb } from "./utils/tasksDb.ts";
 
 let nextRandomId = 0;
 
-beforeAll(() => {
+function setup() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
-});
-
-beforeEach(() => {
   nextRandomId = 0;
-});
+}
 
 const db = TestDatabase.create();
 
-test('create database', () => {
+Deno.test("create database", () => {
+  setup();
+
   const res = db.execMany(Database.schema(tasksDb));
   expect(res).toEqual([null, null, null]);
   const tables = db.exec(Database.tables());
-  expect(tables).toEqual(['tasks', 'users', 'users_tasks']);
+  expect(tables).toEqual(["tasks", "users", "users_tasks"]);
 });
 
-test('insert tasks', () => {
-  const res = db.exec(tasksDb.tasks.insert({ id: '1', title: 'Task 1', completed: false, description: 'First task' }));
-  expect(res).toEqual({ id: '1', title: 'Task 1', completed: false, description: 'First task' });
+Deno.test("insert tasks", () => {
+  setup();
+
+  const res = db.exec(
+    tasksDb.tasks.insert({
+      id: "1",
+      title: "Task 1",
+      completed: false,
+      description: "First task",
+    }),
+  );
+  expect(res).toEqual({
+    id: "1",
+    title: "Task 1",
+    completed: false,
+    description: "First task",
+  });
 });
 
-test('find tasks', () => {
+Deno.test("find tasks", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.tasks
       .query()
       .select(({ id, title }) => ({ id, title }))
       .all(),
   );
-  expect(res).toEqual([{ id: '1', title: 'Task 1' }]);
+  expect(res).toEqual([{ id: "1", title: "Task 1" }]);
 });
 
-test('create user', () => {
+Deno.test("create user", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.users.insert({
-      id: '1',
-      name: 'John',
-      email: 'john@example.com',
+      id: "1",
+      name: "John",
+      email: "john@example.com",
       displayName: null,
-      updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+      updatedAt: new Date("2023-12-25T22:30:12.250Z"),
     }),
   );
   expect(res).toEqual({
-    id: '1',
-    name: 'John',
-    email: 'john@example.com',
+    id: "1",
+    name: "John",
+    email: "john@example.com",
     displayName: null,
-    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
 
-test('link task and user', () => {
-  const res = db.exec(tasksDb.users_tasks.insert({ user_id: '1', task_id: '1' }));
-  expect(res).toEqual({ user_id: '1', task_id: '1' });
+Deno.test("link task and user", () => {
+  setup();
+
+  const res = db.exec(
+    tasksDb.users_tasks.insert({ user_id: "1", task_id: "1" }),
+  );
+  expect(res).toEqual({ user_id: "1", task_id: "1" });
 });
 
-test('Query tasks as object', () => {
+Deno.test("Query tasks as object", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.tasks
       .query()
@@ -74,12 +97,22 @@ test('Query tasks as object', () => {
       .all(),
   );
   res.forEach((r) => {
-    expect(typeof r.data.completed).toBe('boolean');
+    expect(typeof r.data.completed).toBe("boolean");
   });
-  expect(res).toEqual([{ data: { completed: false, description: 'First task', id: '1', title: 'Task 1' }, id: '1' }]);
+  expect(res).toEqual([{
+    data: {
+      completed: false,
+      description: "First task",
+      id: "1",
+      title: "Task 1",
+    },
+    id: "1",
+  }]);
 });
 
-test('Query users as object', () => {
+Deno.test("Query users as object", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.users
       .query()
@@ -93,17 +126,19 @@ test('Query users as object', () => {
     {
       data: {
         displayName: null,
-        email: 'john@example.com',
-        id: '1',
-        name: 'John',
-        updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+        email: "john@example.com",
+        id: "1",
+        name: "John",
+        updatedAt: new Date("2023-12-25T22:30:12.250Z"),
       },
-      id: '1',
+      id: "1",
     },
   ]);
 });
 
-test('Concatenate nullable should return nullable', () => {
+Deno.test("Concatenate nullable should return nullable", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.users
       .query()
@@ -113,59 +148,77 @@ test('Concatenate nullable should return nullable', () => {
       }))
       .first(),
   );
-  expect(res).toEqual({ id: '1', name: null });
+  expect(res).toEqual({ id: "1", name: null });
 });
 
-test('Find user by email', () => {
+Deno.test("Find user by email", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.users
       .query()
-      .where((c) => Expr.equal(c.email, Expr.external('john@example.com')))
+      .where((c) => Expr.equal(c.email, Expr.external("john@example.com")))
       .first(),
   );
 
   expect(res).toEqual({
-    id: '1',
+    id: "1",
     displayName: null,
-    name: 'John',
-    email: 'john@example.com',
-    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    name: "John",
+    email: "john@example.com",
+    updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
 
-test('Find user by email using compare', () => {
+Deno.test("Find user by email using compare", () => {
+  setup();
+
   const res = db.exec(
     tasksDb.users
       .query()
-      .where((c) => Expr.compare(c.email, '=', 'john@example.com'))
+      .where((c) => Expr.compare(c.email, "=", "john@example.com"))
       .first(),
   );
 
   expect(res).toEqual({
-    id: '1',
+    id: "1",
     displayName: null,
-    name: 'John',
-    email: 'john@example.com',
-    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    name: "John",
+    email: "john@example.com",
+    updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
 
-test('Find user by email using filterEqual', () => {
-  const res = db.exec(tasksDb.users.query().filterEqual({ email: 'john@example.com' }).first());
+Deno.test("Find user by email using filterEqual", () => {
+  setup();
+
+  const res = db.exec(
+    tasksDb.users.query().filterEqual({ email: "john@example.com" }).first(),
+  );
   expect(res).toEqual({
-    id: '1',
+    id: "1",
     displayName: null,
-    name: 'John',
-    email: 'john@example.com',
-    updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+    name: "John",
+    email: "john@example.com",
+    updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
 
-test('Find tasks with user', () => {
+Deno.test("Find tasks with user", () => {
+  setup();
+
   const tasksWithUser = tasksDb.users_tasks
     .query()
-    .leftJoin(tasksDb.tasks.query(), 'task', (cols) => Expr.equal(cols.task_id, cols.task.id))
-    .leftJoin(tasksDb.users.query(), 'user', (cols) => Expr.equal(cols.user_id, cols.user.id))
+    .leftJoin(
+      tasksDb.tasks.query(),
+      "task",
+      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    )
+    .leftJoin(
+      tasksDb.users.query(),
+      "user",
+      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
       task: Expr.jsonObj(cols.task),
@@ -174,29 +227,45 @@ test('Find tasks with user', () => {
   const res = db.exec(tasksWithUser.all());
   expect(res).toEqual([
     {
-      task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
+      task: {
+        completed: false,
+        description: "First task",
+        id: "1",
+        title: "Task 1",
+      },
       user: {
         displayName: null,
-        email: 'john@example.com',
-        id: '1',
-        name: 'John',
-        updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+        email: "john@example.com",
+        id: "1",
+        name: "John",
+        updatedAt: new Date("2023-12-25T22:30:12.250Z"),
       },
     },
   ]);
 });
 
-test('Find task by user email', () => {
+Deno.test("Find task by user email", () => {
+  setup();
+
   const tasksWithUser = tasksDb.users_tasks
     .query()
-    .leftJoin(tasksDb.tasks.query(), 'task', (cols) => Expr.equal(cols.task_id, cols.task.id))
-    .leftJoin(tasksDb.users.query(), 'user', (cols) => Expr.equal(cols.user_id, cols.user.id))
+    .leftJoin(
+      tasksDb.tasks.query(),
+      "task",
+      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    )
+    .leftJoin(
+      tasksDb.users.query(),
+      "user",
+      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.filterEqual({ 'user.email': 'john@example.com' }).first();
+  const query = tasksWithUser.filterEqual({ "user.email": "john@example.com" })
+    .first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT
@@ -223,25 +292,44 @@ test('Find task by user email', () => {
 
   const res = db.exec(query);
   expect(res).toEqual({
-    task: { completed: false, description: 'First task', id: '1', title: 'Task 1' },
+    task: {
+      completed: false,
+      description: "First task",
+      id: "1",
+      title: "Task 1",
+    },
     user: {
       displayName: null,
-      email: 'john@example.com',
-      id: '1',
-      name: 'John',
-      updatedAt: new Date('2023-12-25T22:30:12.250Z'),
+      email: "john@example.com",
+      id: "1",
+      name: "John",
+      updatedAt: new Date("2023-12-25T22:30:12.250Z"),
     },
   });
 });
 
-test('Update task', () => {
-  const res = db.exec(tasksDb.tasks.update({ completed: true }, (c) => Expr.equal(c.id, Expr.literal('1'))));
+Deno.test("Update task", () => {
+  setup();
+
+  const res = db.exec(
+    tasksDb.tasks.update(
+      { completed: true },
+      (c) => Expr.equal(c.id, Expr.literal("1")),
+    ),
+  );
   expect(res).toEqual({ updated: 1 });
   const task = db.exec(tasksDb.tasks.query().first());
-  expect(task).toEqual({ completed: true, description: 'First task', id: '1', title: 'Task 1' });
+  expect(task).toEqual({
+    completed: true,
+    description: "First task",
+    id: "1",
+    title: "Task 1",
+  });
 });
 
-// test('tasks grouped by userId', () => {
+// Deno.test('tasks grouped by userId', () => {
+setup();
+
 //   const op = tasksDb.users_tasks
 //     .query()
 //     .groupBy((c) => [c.user_id])
@@ -257,7 +345,9 @@ test('Update task', () => {
 //   expect(res).toEqual([{ user_id: '1', tasks: [{ completed: false, description: 'First task', id: '1', title: 'Task 1' }] }]);
 // });
 
-// test('find tasks for user email', () => {
+// Deno.test('find tasks for user email', () => {
+setup();
+
 //   const tasksByUserId = tasksDb.users_tasks
 //     .query()
 //     .groupBy((c) => [c.user_id])

@@ -1,13 +1,13 @@
-import { Column, Table } from '../../src/mod';
+import { Column, Table } from "../../mod.ts";
 
 export const allDatatypesDb = Table.declareMany({
   datatype: {
-    id: Column.dt.text().primary(),
-    text: Column.dt.text(),
-    integer: Column.dt.integer(),
-    boolean: Column.dt.boolean(),
-    date: Column.dt.date(),
-    json: Column.dt.json(),
-    number: Column.dt.number(),
+    id: Column.text().primary(),
+    text: Column.text(),
+    integer: Column.integer(),
+    boolean: Column.boolean(),
+    date: Column.date(),
+    json: Column.json(),
+    number: Column.number(),
   },
 });

@@ -1,5 +1,8 @@
-import type { ITableQueryDependency, ITableQueryInternal } from '../TableQuery.types';
-import { isStateEmpty } from './isStateEmpty';
+import type {
+  ITableQueryDependency,
+  ITableQueryInternal,
+} from "../Query.types.ts";
+import { isStateEmpty } from "./isStateEmpty.ts";
 
 export function appendDependencies(
   prevDeps: Array<ITableQueryDependency>,
@@ -17,7 +20,9 @@ export function appendDependencies(
   return [...prevDeps, ...table.dependencies, table];
 }
 
-export function asTableDependency(table: ITableQueryInternal<any, any>): Array<ITableQueryDependency> {
+export function asTableDependency(
+  table: ITableQueryInternal<any, any>,
+): Array<ITableQueryDependency> {
   if (isStateEmpty(table.state)) {
     if (table.dependencies.length === 0) {
       // No state and no dependencies, this is a base table, we can skip it

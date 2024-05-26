@@ -1,20 +1,19 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
-import { Expr, Random, Table } from '../src/mod';
-import { format, sql } from './utils/sql';
-import { tasksDb } from './utils/tasksDb';
+import { expect } from "@std/expect";
+import { Expr, queryFrom, Random } from "../mod.ts";
+import { format, sql } from "./utils/sql.ts";
+import { tasksDb } from "./utils/tasksDb.ts";
 
 let nextRandomId = 0;
 
-beforeAll(() => {
+function setup() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
-});
-
-beforeEach(() => {
   nextRandomId = 0;
-});
+}
 
-test('Basic json function', () => {
+Deno.test("Basic json function", () => {
+  setup();
+
   const res = tasksDb.tasks
     .query()
     .select((c) => ({
@@ -37,12 +36,18 @@ test('Basic json function', () => {
   `);
 });
 
-test('Nested json object', () => {
+Deno.test("Nested json object", () => {
+  setup();
+
   const res = tasksDb.tasks
     .query()
     .select(({ id, title, description }) => ({
       id,
-      data: Expr.jsonObj({ title, description, inner: Expr.jsonObj({ title, description }) }),
+      data: Expr.jsonObj({
+        title,
+        description,
+        inner: Expr.jsonObj({ title, description }),
+      }),
     }))
     .all();
 
@@ -61,13 +66,15 @@ test('Nested json object', () => {
   `);
 });
 
-test('Json in json', () => {
+Deno.test("Json in json", () => {
+  setup();
+
   const base = tasksDb.tasks.query().select((c) => ({
     id: c.id,
     data: Expr.jsonObj(c),
   }));
 
-  const res = Table.from(base)
+  const res = queryFrom(base)
     .select((c) => ({
       id: c.id,
       data: Expr.jsonObj({ data: c.data }),

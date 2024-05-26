@@ -1,21 +1,20 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
-import { Expr, Random } from '../src/mod';
-import { format, sql } from './utils/sql';
-import { tasksDb } from './utils/tasksDb';
+import { expect } from "@std/expect";
+import { Expr, Random } from "../mod.ts";
+import { format, sql } from "./utils/sql.ts";
+import { tasksDb } from "./utils/tasksDb.ts";
 
 let nextRandomId = 0;
 
-beforeAll(() => {
+function setup() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
-});
-
-beforeEach(() => {
   nextRandomId = 0;
-});
+}
 
-test('Simple filter', () => {
-  const query = tasksDb.tasks.query().filterEqual({ id: '1' }).first();
+Deno.test("Simple filter", () => {
+  setup();
+
+  const query = tasksDb.tasks.query().filterEqual({ id: "1" }).first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT *
@@ -25,8 +24,12 @@ test('Simple filter', () => {
   `);
 });
 
-test('Filter twice', () => {
-  const query = tasksDb.tasks.query().filterEqual({ id: '1' }).filterEqual({ id: '2' }).first();
+Deno.test("Filter twice", () => {
+  setup();
+
+  const query = tasksDb.tasks.query().filterEqual({ id: "1" }).filterEqual({
+    id: "2",
+  }).first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT *
@@ -36,17 +39,28 @@ test('Filter twice', () => {
   `);
 });
 
-test('Find task by user email', () => {
+Deno.test("Find task by user email", () => {
+  setup();
+
   const tasksWithUser = tasksDb.users_tasks
     .query()
-    .leftJoin(tasksDb.tasks.query(), 'task', (cols) => Expr.equal(cols.task_id, cols.task.id))
-    .leftJoin(tasksDb.users.query(), 'user', (cols) => Expr.equal(cols.user_id, cols.user.id))
+    .leftJoin(
+      tasksDb.tasks.query(),
+      "task",
+      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    )
+    .leftJoin(
+      tasksDb.users.query(),
+      "user",
+      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.filterEqual({ 'user.email': 'john@example.com' }).first();
+  const query = tasksWithUser.filterEqual({ "user.email": "john@example.com" })
+    .first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT
@@ -71,11 +85,14 @@ test('Find task by user email', () => {
       users.email == :_id3
   `);
 
-  expect(query.params).toEqual({ _id3: 'john@example.com' });
+  expect(query.params).toEqual({ _id3: "john@example.com" });
 });
 
-test('Filter null value', () => {
-  const query = tasksDb.users.query().filterEqual({ displayName: null }).first();
+Deno.test("Filter null value", () => {
+  setup();
+
+  const query = tasksDb.users.query().filterEqual({ displayName: null })
+    .first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT *
@@ -84,8 +101,13 @@ test('Filter null value', () => {
   `);
 });
 
-test('Filter multiple values', () => {
-  const query = tasksDb.users.query().filterEqual({ displayName: null, email: 'john@example.com' }).first();
+Deno.test("Filter multiple values", () => {
+  setup();
+
+  const query = tasksDb.users.query().filterEqual({
+    displayName: null,
+    email: "john@example.com",
+  }).first();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT *
@@ -93,5 +115,5 @@ test('Filter multiple values', () => {
     WHERE users.displayName IS NULL AND users.email == :_id0
   `);
 
-  expect(query.params).toEqual({ _id0: 'john@example.com' });
+  expect(query.params).toEqual({ _id0: "john@example.com" });
 });

@@ -1,13 +1,15 @@
-import { createNanoid } from './utils/functions';
+import { createNanoid } from "./utils/functions.ts";
 
-export const Random = (() => {
-  let createId = createNanoid('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 10);
+let createIdInternal = createNanoid(
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+  10,
+);
 
-  return {
-    // used for testing
-    setCreateId: (fn: () => string) => {
-      createId = fn;
-    },
-    createId: () => createId(),
-  };
-})();
+// used for testing
+export function setCreateId(fn: () => string) {
+  createIdInternal = fn;
+}
+
+export function createId(): string {
+  return createIdInternal();
+}

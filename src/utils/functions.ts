@@ -1,8 +1,13 @@
-export function mapObject<In extends Record<string, any>, Out extends Record<keyof In, any>>(
+export function mapObject<
+  In extends Record<string, any>,
+  Out extends Record<keyof In, any>,
+>(
   obj: In,
   mapper: (key: string, value: In[keyof In]) => Out[keyof In],
 ): Out {
-  return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, mapper(key, val)])) as any;
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, val]) => [key, mapper(key, val)]),
+  ) as any;
 }
 
 export function expectNever(val: never): never {
@@ -25,10 +30,11 @@ export function dotCol(table: string, col: string): string {
   return `${table}__${col}`;
 }
 
-const urlAlphabet = 'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict';
+const urlAlphabet =
+  "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
 
 export function nanoid(size = 21) {
-  let id = '';
+  let id = "";
   // A compact alternative for `for (var i = 0; i < step; i++)`.
   let i = size;
   while (i--) {
@@ -40,7 +46,7 @@ export function nanoid(size = 21) {
 
 export function createNanoid(alphabet: string, defaultSize = 21): () => string {
   return (size = defaultSize) => {
-    let id = '';
+    let id = "";
     // A compact alternative for `for (var i = 0; i < step; i++)`.
     let i = size;
     while (i--) {
@@ -49,4 +55,15 @@ export function createNanoid(alphabet: string, defaultSize = 21): () => string {
     }
     return id;
   };
+}
+
+/**
+ * Some SQLite client do the JSON parsing automatically, in such cases we don't
+ * want to parse the JSON twice as it will throw an error.
+ */
+export function maybeParseJson(value: unknown): unknown {
+  if (typeof value === "string") {
+    return JSON.parse(value);
+  }
+  return value;
 }

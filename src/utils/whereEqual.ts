@@ -1,11 +1,11 @@
-import { Expr, type IExprUnknow } from '../Expr';
-import { accessColFlatKey } from './accessColFlatKey';
-import type { ExprRecordNested, FilterEqualCols } from './types';
+import * as Expr from "../expr/Expr.ts";
+import { accessColFlatKey } from "./accessColFlatKey.ts";
+import type { ExprRecordNested, FilterEqualCols } from "./types.ts";
 
 export function whereEqual<Cols extends ExprRecordNested>(
   cols: Cols,
   filters: Partial<FilterEqualCols<Cols>>,
-): IExprUnknow {
+): Expr.TExprUnknow {
   const filterExprs = Object.entries(filters).map(([key, value]) => {
     const col = accessColFlatKey(cols, key);
     if (value === null) {
@@ -20,5 +20,8 @@ export function whereEqual<Cols extends ExprRecordNested>(
     return filterExprs[0];
   }
   const [first, second, ...rest] = filterExprs;
-  return rest.reduce((acc, expr) => Expr.and(acc, expr), Expr.and(first, second));
+  return rest.reduce(
+    (acc, expr) => Expr.and(acc, expr),
+    Expr.and(first, second),
+  );
 }

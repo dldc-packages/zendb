@@ -1,29 +1,32 @@
-import type { Ast, JoinItem } from '@dldc/sqlite';
-import type { IExprUnknow } from './Expr';
-import type { IQueryOperation } from './Operation';
-import type { PRIV, TYPES } from './utils/constants';
+import type { Ast, builder } from "@dldc/sqlite";
+import type { IQueryOperation } from "./Operation.ts";
+import type { TExprUnknow } from "./expr/Expr.ts";
+import type { PRIV, TYPES } from "./utils/constants.ts";
 import type {
   AnyRecord,
   ExprRecord,
+  ExprRecord_MakeNullable,
   ExprRecordNested,
   ExprRecordOutput,
-  ExprRecord_MakeNullable,
   FilterEqualCols,
   Prettify,
-} from './utils/types';
+} from "./utils/types.ts";
 
 export interface ITableQueryState {
-  readonly where?: IExprUnknow;
-  readonly groupBy?: Array<IExprUnknow>;
-  readonly having?: IExprUnknow;
-  readonly select?: Array<Ast.Node<'ResultColumn'>>;
+  readonly where?: TExprUnknow;
+  readonly groupBy?: Array<TExprUnknow>;
+  readonly having?: TExprUnknow;
+  readonly select?: Array<Ast.Node<"ResultColumn">>;
   readonly orderBy?: OrderingTerms;
-  readonly limit?: IExprUnknow;
-  readonly offset?: IExprUnknow;
-  readonly joins?: Array<JoinItem>;
+  readonly limit?: TExprUnknow;
+  readonly offset?: TExprUnknow;
+  readonly joins?: Array<builder.SelectStmt.JoinItem>;
 }
 
-export interface ICreateTableQueryParams<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
+export interface ICreateTableQueryParams<
+  InCols extends ExprRecordNested,
+  OutCols extends ExprRecord,
+> {
   readonly inputColsRefs: InCols;
   // Identifiers of the columns of the current query
   readonly outputColsRefs: OutCols;
@@ -47,8 +50,10 @@ export interface ITableQueryDependency {
 }
 
 // The added properties are computed when creating a new TableQuery
-export interface ITableQueryInternal<InCols extends ExprRecordNested, OutCols extends ExprRecord>
-  extends ITableQueryDependency {
+export interface ITableQueryInternal<
+  InCols extends ExprRecordNested,
+  OutCols extends ExprRecord,
+> extends ITableQueryDependency {
   readonly inputColsRefs: InCols;
   // Identifiers of the columns of the current query
   readonly outputColsRefs: OutCols;
@@ -68,24 +73,40 @@ export interface IPaginateConfig {
   page?: number;
 }
 
-export type OrderByItem<Cols extends AnyRecord> = [keyof Cols, 'Asc' | 'Desc'];
+export type OrderByItem<Cols extends AnyRecord> = [keyof Cols, "Asc" | "Desc"];
 
-export type OrderingTerms = Array<Ast.Node<'OrderingTerm'>>;
+export type OrderingTerms = Array<Ast.Node<"OrderingTerm">>;
 
-export type SelectFn<InColsRef extends ExprRecordNested, CurrentColsRefs extends ExprRecordNested, Result> = (
+export type SelectFn<
+  InColsRef extends ExprRecordNested,
+  CurrentColsRefs extends ExprRecordNested,
+  Result,
+> = (
   cols: InColsRef,
   current: CurrentColsRefs,
 ) => Result;
 
-export type ColsFn<InColsRef extends ExprRecordNested, Result> = (cols: InColsRef) => Result;
-export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> = ColsFn<InColsRef, Result> | Result;
+export type ColsFn<InColsRef extends ExprRecordNested, Result> = (
+  cols: InColsRef,
+) => Result;
+export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> =
+  | ColsFn<InColsRef, Result>
+  | Result;
 
-export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (
+export type AllColsFn<
+  InCols extends ExprRecordNested,
+  OutCols extends ExprRecord,
+  Result,
+> = (
   inCols: InCols,
   outCols: OutCols,
 ) => Result;
 
-export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyRecord, Result> =
+export type AllColsFnOrRes<
+  InCols extends ExprRecordNested,
+  OutCols extends AnyRecord,
+  Result,
+> =
   | AllColsFn<InCols, OutCols, Result>
   | Result;
 
@@ -93,19 +114,26 @@ export type ColsRefInnerJoined<
   Base extends ExprRecordNested,
   RTable extends ITableQuery<any, any>,
   Alias extends string,
-> = Base & {
-  [K in Alias]: RTable[TYPES];
-};
+> =
+  & Base
+  & {
+    [K in Alias]: RTable[TYPES];
+  };
 
 export type ColsRefLeftJoined<
   Base extends ExprRecordNested,
   RTable extends ITableQuery<any, any>,
   Alias extends string,
-> = Base & {
-  [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
-};
+> =
+  & Base
+  & {
+    [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
+  };
 
-export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
+export interface ITableQuery<
+  InCols extends ExprRecordNested,
+  OutCols extends ExprRecord,
+> {
   readonly [TYPES]: OutCols;
   readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
 
@@ -113,15 +141,19 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   /**
    * Add conditions to the where clause, you can call it multiple times (AND)
    */
-  where(whereFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  where(whereFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
   /**
    * .where() shortcut to filter on equality
    */
-  filterEqual(filters: Prettify<FilterEqualCols<InCols>>): ITableQuery<InCols, OutCols>;
+  filterEqual(
+    filters: Prettify<FilterEqualCols<InCols>>,
+  ): ITableQuery<InCols, OutCols>;
   // - Group
-  groupBy(groupFn: ColsFn<InCols, Array<IExprUnknow>>): ITableQuery<InCols, OutCols>;
+  groupBy(
+    groupFn: ColsFn<InCols, Array<TExprUnknow>>,
+  ): ITableQuery<InCols, OutCols>;
   // - Having
-  having(havingFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  having(havingFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
   // Select
   select<NewOutCols extends ExprRecord>(
     selectFn: SelectFn<InCols, OutCols, NewOutCols>,
@@ -130,29 +162,35 @@ export interface ITableQuery<InCols extends ExprRecordNested, OutCols extends Ex
   /**
    * Set the order by clause, this will replace any previous order clause
    */
-  orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): ITableQuery<InCols, OutCols>;
+  orderBy(
+    orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>,
+  ): ITableQuery<InCols, OutCols>;
   /**
    * Add an order by clause, this will not replace any previous order clause
    */
-  sortAsc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  sortAsc(exprFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
   /**
    * Add an order by clause, this will not replace any previous order clause
    */
-  sortDesc(exprFn: ColsFn<InCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  sortDesc(exprFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
   // - Limit / Offset
-  limit(limitFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
-  offset(offsetFn: AllColsFnOrRes<InCols, OutCols, IExprUnknow>): ITableQuery<InCols, OutCols>;
+  limit(
+    limitFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols>;
+  offset(
+    offsetFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols>;
 
   // Joins
   innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
-    joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => IExprUnknow,
+    joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols>;
   leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
-    joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => IExprUnknow,
+    joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols>;
 
   // shortcut for ease of use
