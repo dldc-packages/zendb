@@ -214,7 +214,7 @@ Deno.test("read and write datatypes", () => {
     id: "1",
     text: "test",
     boolean: true,
-    date: new Date(2022, 8, 13, 15, 25, 12, 250),
+    date: new Date(1663075512250),
     integer: 42,
     number: 3.14,
     json: { foo: "bar", baz: true },
