@@ -1,12 +1,13 @@
 export * as Column from "./src/Column.ts";
 export * as Database from "./src/Database.ts";
 export * as Datatype from "./src/Datatype.ts";
+export * as Expr from "./src/expr/Expr.ts";
+export * as ExprUtils from "./src/expr/ExprUtils.ts";
 export * from "./src/Operation.ts";
 export * from "./src/Query.ts";
 export * from "./src/Query.types.ts";
 export * as Random from "./src/Random.ts";
 export * as Table from "./src/Table.ts";
-export * from "./src/ZendbErreur.ts";
-export * as Expr from "./src/expr/Expr.ts";
 export * from "./src/utils/types.ts";
 export * from "./src/utils/whereEqual.ts";
+export * from "./src/ZendbErreur.ts";

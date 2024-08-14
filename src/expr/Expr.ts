@@ -7,6 +7,7 @@ import { PRIV, TYPES } from "../utils/constants.ts";
 import { appendDependencies } from "../utils/dependencies.ts";
 import { expectNever, mapObject, maybeParseJson } from "../utils/functions.ts";
 import type { ExprResultFrom, ExprsNullables } from "../utils/types.ts";
+import * as ExprUtils from "./ExprUtils.ts";
 
 export * as Aggregate from "./Aggregate.ts";
 
@@ -62,8 +63,8 @@ export function add<
 ): TExpr<number, ExprsNullables<[L, R]>> {
   return create(builder.Operations.add(left.ast, right.ast), {
     parse: Datatype.number.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -73,8 +74,8 @@ export function equal<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, L[TYPES]["nullable"] | R[TYPES]["nullable"]> {
   return create(builder.Operations.equal(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -108,8 +109,8 @@ export function different<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.different(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -119,8 +120,8 @@ export function like<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.like(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -130,8 +131,8 @@ export function or<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.or(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -141,8 +142,8 @@ export function and<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.and(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -169,8 +170,8 @@ export function lowerThan<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.lowerThan(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -180,8 +181,8 @@ export function lowerThanOrEqual<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.lowerThanOrEqual(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -191,8 +192,8 @@ export function greaterThan<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.greaterThan(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -202,8 +203,8 @@ function greaterThanOrEqual<L extends TExprUnknow, R extends TExprUnknow>(
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.greaterThanOrEqual(left.ast, right.ast), {
     parse: Datatype.boolean.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -216,8 +217,8 @@ export function concatenate<
 ): TExpr<string, ExprsNullables<[L, R]>> {
   return create(builder.Operations.concatenate(left.ast, right.ast), {
     parse: Datatype.text.parse,
-    nullable: someNullable(left, right),
-    dependencies: mergeExprDependencies(left, right),
+    nullable: ExprUtils.someNullable(left, right),
+    dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
 }
 
@@ -241,7 +242,7 @@ export function inList(
     {
       nullable: false,
       parse: Datatype.boolean.parse,
-      dependencies: mergeExprDependencies(left, ...items),
+      dependencies: ExprUtils.mergeExprDependencies(left, ...items),
     },
   );
 }
@@ -258,7 +259,7 @@ export function notInList(
     {
       nullable: false,
       parse: Datatype.boolean.parse,
-      dependencies: mergeExprDependencies(left, ...items),
+      dependencies: ExprUtils.mergeExprDependencies(left, ...items),
     },
   );
 }
@@ -337,7 +338,7 @@ export function jsonGroupArray<Val, Nullable extends boolean>(
           return null;
         }
         const arr: any[] = json ? raw : maybeParseJson(raw);
-        return arr.map((item: any) => parseExprVal(expr, item, true));
+        return arr.map((item: any) => ExprUtils.parseExpr(expr, item, true));
       },
       jsonMode: "JsonExpr",
       nullable: expr[PRIV].nullable,
@@ -364,7 +365,7 @@ export function jsonObj<Items extends Record<string, TExprUnknow>>(
         const obj = json ? raw : maybeParseJson(raw);
         return mapObject(
           items,
-          (name, expr) => parseExprVal(expr, obj[name], true),
+          (name, expr) => ExprUtils.parseExpr(expr, obj[name], true),
         );
       },
       jsonMode: "JsonExpr",
@@ -401,22 +402,4 @@ export function createLiteral<Val extends string | number | boolean | null>(
     parse: Datatype.fromLiteral(val).parse,
     nullable: val === null,
   });
-}
-
-export function parseExprVal<Val, Nullable extends boolean>(
-  expr: TExpr<Val, Nullable>,
-  raw: any,
-  json: boolean,
-): Val {
-  return expr[PRIV].parse(raw, json, expr[PRIV].nullable);
-}
-
-export function someNullable(...exprs: TExprUnknow[]): boolean {
-  return exprs.some((expr) => expr[PRIV].nullable);
-}
-
-export function mergeExprDependencies(
-  ...exprs: TExprUnknow[]
-): ITableQueryDependency[] {
-  return exprs.flatMap((expr) => expr[PRIV].dependencies ?? []);
 }

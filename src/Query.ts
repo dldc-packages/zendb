@@ -1,4 +1,5 @@
 import { Ast, builder, printNode, Utils } from "@dldc/sqlite";
+import { ExprUtils } from "../mod.ts";
 import type { TExprUnknow, TJsonMode } from "./expr/Expr.ts";
 import * as Expr from "./expr/Expr.ts";
 import type { IQueryOperation } from "./Operation.ts";
@@ -48,9 +49,7 @@ export function queryFromTable<Cols extends ExprRecord>(
 
 export function queryFrom<
   Table extends ITableQuery<ExprRecordNested, ExprRecord>,
->(
-  table: Table,
-): ITableQuery<Table[TYPES], Table[TYPES]> {
+>(table: Table): ITableQuery<Table[TYPES], Table[TYPES]> {
   const internal = table[PRIV];
   if (isStateEmpty(internal.state)) {
     // if there are no state, there is no need to create a CTE
@@ -316,10 +315,7 @@ function createQuery<
     });
   }
 
-  function leftJoin<
-    RTable extends ITableQuery<any, any>,
-    Alias extends string,
-  >(
+  function leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
     joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => TExprUnknow,
@@ -340,9 +336,7 @@ function createQuery<
 
     const joinItem: builder.SelectStmt.JoinItem = {
       joinOperator: builder.SelectStmt.JoinOperator("Left"),
-      tableOrSubquery: builder.SelectStmt.Table(
-        tableCte[PRIV].from.name,
-      ),
+      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name),
       joinConstraint: builder.SelectStmt.OnJoinConstraint(
         joinOn(newInColsRef).ast,
       ),
@@ -411,7 +405,7 @@ function createQuery<
         return rows.map((row) =>
           mapObject(
             internal.outputColsRefs,
-            (key, col) => col[PRIV].parse(row[key], false, col[PRIV].nullable),
+            (key, col) => ExprUtils.parseExpr(col, row[key], false),
           )
         );
       },
@@ -567,10 +561,7 @@ function buildSelectNode(
 }
 
 function resolveLocalColumns<Cols extends ExprRecord>(cols: Cols): Cols {
-  return mapObject(
-    cols,
-    (key, col): any => Expr.column(null, key, col[PRIV]),
-  );
+  return mapObject(cols, (key, col): any => Expr.column(null, key, col[PRIV]));
 }
 
 function resolvedColumns(
