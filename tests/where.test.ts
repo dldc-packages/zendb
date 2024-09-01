@@ -17,7 +17,7 @@ Deno.test("Simple filter", () => {
   const query = tasksDb.tasks.query().filterEqual({ id: "1" }).first();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT *
+    SELECT tasks.*
     FROM tasks
     WHERE
       tasks.id == :_id0
@@ -32,7 +32,7 @@ Deno.test("Filter twice", () => {
   }).first();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT *
+    SELECT tasks.*
     FROM tasks
     WHERE
       tasks.id == :_id0 AND tasks.id == :_id2
@@ -95,7 +95,7 @@ Deno.test("Filter null value", () => {
     .first();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT *
+    SELECT users.*
     FROM users
     WHERE users.displayName IS NULL
   `);
@@ -110,7 +110,7 @@ Deno.test("Filter multiple values", () => {
   }).first();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT *
+    SELECT users.*
     FROM users
     WHERE users.displayName IS NULL AND users.email == :_id0
   `);

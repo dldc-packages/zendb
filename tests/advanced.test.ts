@@ -333,7 +333,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
           count(users_tasks.task_id) == 2
       )
     SELECT
-      *
+      users.*
     FROM
       users
     WHERE
@@ -376,7 +376,7 @@ Deno.test("Find all users with no tasks", () => {
           users_tasks.user_id
       )
     SELECT
-      *
+      users.*
     FROM
       users
     WHERE

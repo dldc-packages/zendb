@@ -253,7 +253,7 @@ Deno.test("Query simple CTE", () => {
         GROUP BY users.name
         LIMIT 10
       )
-    SELECT * FROM cte_id2
+    SELECT cte_id2.* FROM cte_id2
   `);
   expect(result.params).toEqual(null);
 });

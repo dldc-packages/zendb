@@ -14,7 +14,8 @@
     "test:run": "deno test -A --unstable-ffi",
     "test:watch": "deno test -A --unstable-ffi --watch",
     "bump": "deno run -A jsr:@mys/bump@1",
-    "update": "deno run --allow-read=. --allow-write=. --allow-net https://deno.land/x/udd@0.8.2/main.ts *.ts deno.jsonc",
+    "update": "deno run -A jsr:@molt/cli deno.json",
+    "update:commit": "deno task -q update --commit deno.json",
     "check": "deno fmt --check . && deno lint . && deno task test:run"
   },
   "lint": {

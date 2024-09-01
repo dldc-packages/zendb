@@ -537,7 +537,7 @@ function buildSelectNode(
         : builder.SelectStmt.FromTable(internal.from.name),
       resultColumns: state.select
         ? Utils.arrayToNonEmptyArray(state.select)
-        : [builder.ResultColumn.Star()],
+        : [builder.ResultColumn.TableStar(internal.from)],
       where: state.where?.ast,
       groupBy: state.groupBy
         ? {
