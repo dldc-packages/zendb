@@ -18,9 +18,9 @@ Deno.test("create database", () => {
   setup();
 
   const res = db.execMany(Database.schema(tasksDb));
-  expect(res).toEqual([null, null, null]);
+  expect(res).toEqual([null, null, null, null]);
   const tables = db.exec(Database.tables());
-  expect(tables).toEqual(["tasks", "users", "users_tasks"]);
+  expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
 });
 
 Deno.test("insert tasks", () => {
@@ -64,6 +64,7 @@ Deno.test("create user", () => {
       email: "john@example.com",
       displayName: null,
       updatedAt: new Date("2023-12-25T22:30:12.250Z"),
+      groupId: "1",
     }),
   );
   expect(res).toEqual({
@@ -71,6 +72,7 @@ Deno.test("create user", () => {
     name: "John",
     email: "john@example.com",
     displayName: null,
+    groupId: "1",
     updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
@@ -79,7 +81,7 @@ Deno.test("link task and user", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users_tasks.insert({ user_id: "1", task_id: "1" }),
+    tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
   );
   expect(res).toEqual({ user_id: "1", task_id: "1" });
 });
@@ -129,6 +131,7 @@ Deno.test("Query users as object", () => {
         email: "john@example.com",
         id: "1",
         name: "John",
+        groupId: "1",
         updatedAt: new Date("2023-12-25T22:30:12.250Z"),
       },
       id: "1",
@@ -166,6 +169,7 @@ Deno.test("Find user by email", () => {
     displayName: null,
     name: "John",
     email: "john@example.com",
+    groupId: "1",
     updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
@@ -185,6 +189,7 @@ Deno.test("Find user by email using compare", () => {
     displayName: null,
     name: "John",
     email: "john@example.com",
+    groupId: "1",
     updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
@@ -200,6 +205,7 @@ Deno.test("Find user by email using filterEqual", () => {
     displayName: null,
     name: "John",
     email: "john@example.com",
+    groupId: "1",
     updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   });
 });
@@ -207,7 +213,7 @@ Deno.test("Find user by email using filterEqual", () => {
 Deno.test("Find tasks with user", () => {
   setup();
 
-  const tasksWithUser = tasksDb.users_tasks
+  const tasksWithUser = tasksDb.joinUsersTasks
     .query()
     .leftJoin(
       tasksDb.tasks.query(),
@@ -238,6 +244,7 @@ Deno.test("Find tasks with user", () => {
         email: "john@example.com",
         id: "1",
         name: "John",
+        groupId: "1",
         updatedAt: new Date("2023-12-25T22:30:12.250Z"),
       },
     },
@@ -247,7 +254,7 @@ Deno.test("Find tasks with user", () => {
 Deno.test("Find task by user email", () => {
   setup();
 
-  const tasksWithUser = tasksDb.users_tasks
+  const tasksWithUser = tasksDb.joinUsersTasks
     .query()
     .leftJoin(
       tasksDb.tasks.query(),
@@ -274,6 +281,7 @@ Deno.test("Find task by user email", () => {
         'name', users.name,
         'email', users.email,
         'displayName', users.displayName,
+        'groupId', users.groupId,
         'updatedAt', users.updatedAt
       ) AS user,
       json_object(
@@ -283,9 +291,9 @@ Deno.test("Find task by user email", () => {
         'completed', tasks.completed
       ) AS task
     FROM
-      users_tasks
-      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
-      LEFT JOIN users ON users_tasks.user_id == users.id
+      joinUsersTasks
+      LEFT JOIN tasks ON joinUsersTasks.task_id == tasks.id
+      LEFT JOIN users ON joinUsersTasks.user_id == users.id
     WHERE
       users.email == :_id3
   `);
@@ -303,6 +311,7 @@ Deno.test("Find task by user email", () => {
       email: "john@example.com",
       id: "1",
       name: "John",
+      groupId: "1",
       updatedAt: new Date("2023-12-25T22:30:12.250Z"),
     },
   });
@@ -330,7 +339,7 @@ Deno.test("Update task", () => {
 // Deno.test('tasks grouped by userId', () => {
 setup();
 
-//   const op = tasksDb.users_tasks
+//   const op = tasksDb.joinUsersTasks
 //     .query()
 //     .groupBy((c) => [c.user_id])
 //     .join(
@@ -348,7 +357,7 @@ setup();
 // Deno.test('find tasks for user email', () => {
 setup();
 
-//   const tasksByUserId = tasksDb.users_tasks
+//   const tasksByUserId = tasksDb.joinUsersTasks
 //     .query()
 //     .groupBy((c) => [c.user_id])
 //     .join(

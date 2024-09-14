@@ -299,7 +299,7 @@ function createQuery<
 
     const joinItem: builder.SelectStmt.JoinItem = {
       joinOperator: builder.SelectStmt.InnerJoinOperator(),
-      tableOrSubquery: builder.SelectStmt.Table(table[PRIV].from.name),
+      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name),
       joinConstraint: builder.SelectStmt.OnJoinConstraint(
         joinOn(newInColsRef).ast,
       ),

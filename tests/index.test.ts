@@ -21,6 +21,7 @@ Deno.test("Insert", () => {
     email: "john@exemple.com",
     displayName: null,
     updatedAt: new Date("2023-12-24T22:30:12.250Z"),
+    groupId: "1",
   });
   expect(result).toMatchObject({
     kind: "Insert",
@@ -36,11 +37,12 @@ Deno.test("Insert", () => {
     id: "1",
     name: "John Doe",
     displayName: null,
+    groupId: "1",
     updatedAt: new Date("2023-12-24T22:30:12.250Z"),
   });
   expect(format(result.sql)).toEqual(sql`
-    INSERT INTO users (id, name, email, displayName, updatedAt)
-    VALUES (:id_id0, :name_id1, :email_id2, :displayName_id3, :updatedAt_id4)
+    INSERT INTO users (id, name, email, displayName, groupId, updatedAt)
+    VALUES (:id_id0, :name_id1, :email_id2, :displayName_id3, :groupId_id4, :updatedAt_id5)
   `);
 });
 
@@ -306,7 +308,7 @@ Deno.test("Query add select column", () => {
 Deno.test("Query with json", () => {
   setup();
 
-  const result = tasksDb.users_tasks
+  const result = tasksDb.joinUsersTasks
     .query()
     .innerJoin(
       tasksDb.tasks.query(),
@@ -318,15 +320,15 @@ Deno.test("Query with json", () => {
 
   expect(format(result.sql)).toEqual(sql`
     SELECT
-      users_tasks.user_id AS userId,
+      joinUsersTasks.user_id AS userId,
       json_object(
         'id', tasks.id,
         'title', tasks.title,
         'description', tasks.description,
         'completed', tasks.completed
       ) AS task
-    FROM users_tasks
-      INNER JOIN tasks ON users_tasks.task_id == tasks.id
+    FROM joinUsersTasks
+      INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
   `);
 });
 
@@ -337,7 +339,7 @@ Deno.test("Query with json", () => {
 //     .populate(
 //       'taskIds',
 //       (c) => c.id,
-//       tasksDb.users_tasks.query(),
+//       tasksDb.joinUsersTasks.query(),
 //       (c) => c.user_id,
 //       (c) => c.task_id
 //     )
@@ -347,21 +349,21 @@ Deno.test("Query with json", () => {
 //     WITH
 //       cte_id4 AS (
 //         SELECT
-//           users_tasks.user_id AS key,
-//           json_group_array(users_tasks.task_id) AS value
-//         FROM users_tasks
-//         GROUP BY users_tasks.user_id
+//           joinUsersTasks.user_id AS key,
+//           json_group_array(joinUsersTasks.task_id) AS value
+//         FROM joinUsersTasks
+//         GROUP BY joinUsersTasks.user_id
 //       )
 //     SELECT
 //       users.id AS id,
-//       json_group_array(users_tasks.task_id) AS taskIds
+//       json_group_array(joinUsersTasks.task_id) AS taskIds
 //     FROM users
-//       LEFT JOIN users_tasks ON users.id == users_tasks.user_id
+//       LEFT JOIN joinUsersTasks ON users.id == joinUsersTasks.user_id
 //   `);
 // });
 
 // test('Query populate', () => {
-//   const tasksWithUserId = tasksDb.users_tasks
+//   const tasksWithUserId = tasksDb.joinUsersTasks
 //     .query()
 //     .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
 //     .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
@@ -382,15 +384,15 @@ Deno.test("Query with json", () => {
 //     WITH
 //       cte_id3 AS (
 //         SELECT
-//           users_tasks.user_id AS userId,
+//           joinUsersTasks.user_id AS userId,
 //           json_object(
 //             'id', tasks.id,
 //             'title', tasks.title,
 //             'description', tasks.description,
 //             'completed', tasks.completed
 //           ) AS task
-//         FROM users_tasks
-//           LEFT JOIN tasks ON users_tasks.task_id == tasks.id
+//         FROM joinUsersTasks
+//           LEFT JOIN tasks ON joinUsersTasks.task_id == tasks.id
 //       ),
 //       cte_id8 AS (
 //         SELECT
@@ -404,6 +406,6 @@ Deno.test("Query with json", () => {
 //       json_group_array(json(cte_id3.task)) AS tasks
 //     FROM
 //       users
-//       LEFT JOIN users_tasks ON users.id == cte_id3.userId
+//       LEFT JOIN joinUsersTasks ON users.id == cte_id3.userId
 //   `);
 // });

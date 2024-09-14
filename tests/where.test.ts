@@ -42,7 +42,7 @@ Deno.test("Filter twice", () => {
 Deno.test("Find task by user email", () => {
   setup();
 
-  const tasksWithUser = tasksDb.users_tasks
+  const tasksWithUser = tasksDb.joinUsersTasks
     .query()
     .leftJoin(
       tasksDb.tasks.query(),
@@ -69,6 +69,7 @@ Deno.test("Find task by user email", () => {
         'name', users.name,
         'email', users.email,
         'displayName', users.displayName,
+        'groupId', users.groupId,
         'updatedAt', users.updatedAt
       ) AS user,
       json_object(
@@ -78,9 +79,9 @@ Deno.test("Find task by user email", () => {
         'completed', tasks.completed
       ) AS task
     FROM
-      users_tasks
-      LEFT JOIN tasks ON users_tasks.task_id == tasks.id
-      LEFT JOIN users ON users_tasks.user_id == users.id
+      joinUsersTasks
+      LEFT JOIN tasks ON joinUsersTasks.task_id == tasks.id
+      LEFT JOIN users ON joinUsersTasks.user_id == users.id
     WHERE
       users.email == :_id3
   `);

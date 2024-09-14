@@ -23,6 +23,7 @@ function setupDatabase() {
       email: "john@exmaple.com",
       displayName: null,
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
+      groupId: "1",
     },
     {
       id: "2",
@@ -30,6 +31,7 @@ function setupDatabase() {
       email: "jane@example.com",
       displayName: "Jane",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
+      groupId: "1",
     },
     {
       id: "3",
@@ -37,6 +39,7 @@ function setupDatabase() {
       email: "jack@example.com",
       displayName: "Jack",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
+      groupId: "1",
     },
     {
       id: "4",
@@ -44,6 +47,7 @@ function setupDatabase() {
       email: "jill@example.com",
       displayName: "Jill",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
+      groupId: "1",
     },
   ];
 
@@ -84,10 +88,10 @@ function setupDatabase() {
 
   tasks.forEach((task) => db.exec(tasksDb.tasks.insert(task)));
 
-  db.exec(tasksDb.users_tasks.insert({ user_id: "1", task_id: "1" }));
-  db.exec(tasksDb.users_tasks.insert({ user_id: "1", task_id: "2" }));
-  db.exec(tasksDb.users_tasks.insert({ user_id: "2", task_id: "3" }));
-  db.exec(tasksDb.users_tasks.insert({ user_id: "3", task_id: "1" }));
+  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "1" }));
+  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "2" }));
+  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "2", task_id: "3" }));
+  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "3", task_id: "1" }));
 
   nextRandomId = 0;
 }
@@ -103,7 +107,7 @@ type TaksInput = (typeof tasksDb)["tasks"] extends Table.TTable<infer Val, any>
 Deno.test("Find all user with their linked tasks", () => {
   setupDatabase();
   const allUsers = tasksDb.users.query();
-  const tasksByUserId = tasksDb.users_tasks
+  const tasksByUserId = tasksDb.joinUsersTasks
     .query()
     .innerJoin(
       tasksDb.tasks.query(),
@@ -120,7 +124,7 @@ Deno.test("Find all user with their linked tasks", () => {
 
   expect(format(tasksByUserIdOp.sql)).toEqual(sql`
     SELECT
-      users_tasks.user_id AS userId,
+      joinUsersTasks.user_id AS userId,
       json_group_array(
         json_object(
           'id',
@@ -134,10 +138,10 @@ Deno.test("Find all user with their linked tasks", () => {
         )
       ) AS tasks
     FROM
-      users_tasks
-      INNER JOIN tasks ON users_tasks.task_id == tasks.id
+      joinUsersTasks
+      INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
     GROUP BY
-      users_tasks.user_id
+      joinUsersTasks.user_id
   `);
 
   const tasksByUserIdResult = db.exec(tasksByUserIdOp);
@@ -189,7 +193,7 @@ Deno.test("Find all user with their linked tasks", () => {
     WITH
       cte_id2 AS (
         SELECT
-          users_tasks.user_id AS userId,
+          joinUsersTasks.user_id AS userId,
           json_group_array(
             json_object(
               'id',
@@ -203,16 +207,17 @@ Deno.test("Find all user with their linked tasks", () => {
             )
           ) AS tasks
         FROM
-          users_tasks
-          INNER JOIN tasks ON users_tasks.task_id == tasks.id
+          joinUsersTasks
+          INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
         GROUP BY
-          users_tasks.user_id
+          joinUsersTasks.user_id
       )
     SELECT
       users.id AS id,
       users.name AS name,
       users.email AS email,
       users.displayName AS displayName,
+      users.groupId AS groupId,
       users.updatedAt AS updatedAt,
       cte_id2.tasks AS tasks
     FROM
@@ -227,6 +232,7 @@ Deno.test("Find all user with their linked tasks", () => {
       displayName: null,
       email: "john@exmaple.com",
       id: "1",
+      groupId: "1",
       name: "John Doe",
       tasks: [
         {
@@ -248,6 +254,7 @@ Deno.test("Find all user with their linked tasks", () => {
       displayName: "Jane",
       email: "jane@example.com",
       id: "2",
+      groupId: "1",
       name: "Jane Doe",
       tasks: [{
         completed: true,
@@ -261,6 +268,7 @@ Deno.test("Find all user with their linked tasks", () => {
       displayName: "Jack",
       email: "jack@example.com",
       id: "3",
+      groupId: "1",
       name: "Jack Doe",
       tasks: [{
         completed: false,
@@ -274,6 +282,7 @@ Deno.test("Find all user with their linked tasks", () => {
       displayName: "Jill",
       email: "jill@example.com",
       id: "4",
+      groupId: "1",
       name: "Jill Doe",
       tasks: null,
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
@@ -284,7 +293,7 @@ Deno.test("Find all user with their linked tasks", () => {
 Deno.test("Find all users with only task 1 & 2 using subquery in expression", () => {
   setupDatabase();
 
-  const subQuery = tasksDb.users_tasks
+  const subQuery = tasksDb.joinUsersTasks
     .query()
     .where((c) =>
       Expr.inList(c.task_id, [Expr.literal("1"), Expr.literal("2")])
@@ -299,15 +308,15 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
 
   expect(format(subQueryOp.sql)).toEqual(sql`
     SELECT
-      users_tasks.user_id AS id
+      joinUsersTasks.user_id AS id
     FROM
-      users_tasks
+      joinUsersTasks
     WHERE
-      users_tasks.task_id IN ('1', '2')
+      joinUsersTasks.task_id IN ('1', '2')
     GROUP BY
-      users_tasks.user_id
+      joinUsersTasks.user_id
     HAVING
-      count(users_tasks.task_id) == 2
+      count(joinUsersTasks.task_id) == 2
   `);
 
   const subQueryRes = db.exec(subQueryOp);
@@ -322,15 +331,15 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
     WITH
       cte_id3 AS (
         SELECT
-          users_tasks.user_id AS id
+          joinUsersTasks.user_id AS id
         FROM
-          users_tasks
+          joinUsersTasks
         WHERE
-          users_tasks.task_id IN ('1', '2')
+          joinUsersTasks.task_id IN ('1', '2')
         GROUP BY
-          users_tasks.user_id
+          joinUsersTasks.user_id
         HAVING
-          count(users_tasks.task_id) == 2
+          count(joinUsersTasks.task_id) == 2
       )
     SELECT
       users.*
@@ -343,10 +352,11 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
   const result = db.exec(filteredUsers);
   expect(result).toEqual([
     {
+      id: "1",
       displayName: null,
       email: "john@exmaple.com",
-      id: "1",
       name: "John Doe",
+      groupId: "1",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     },
   ]);
@@ -355,7 +365,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
 Deno.test("Find all users with no tasks", () => {
   setupDatabase();
 
-  const usersWithTasks = tasksDb.users_tasks
+  const usersWithTasks = tasksDb.joinUsersTasks
     .query()
     .groupBy((c) => [c.user_id])
     .select((c) => ({ id: c.user_id }));
@@ -369,11 +379,11 @@ Deno.test("Find all users with no tasks", () => {
     WITH
       cte_id1 AS (
         SELECT
-          users_tasks.user_id AS id
+          joinUsersTasks.user_id AS id
         FROM
-          users_tasks
+          joinUsersTasks
         GROUP BY
-          users_tasks.user_id
+          joinUsersTasks.user_id
       )
     SELECT
       users.*
@@ -387,10 +397,11 @@ Deno.test("Find all users with no tasks", () => {
 
   expect(result).toEqual([
     {
+      id: "4",
       displayName: "Jill",
       email: "jill@example.com",
-      id: "4",
       name: "Jill Doe",
+      groupId: "1",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     },
   ]);

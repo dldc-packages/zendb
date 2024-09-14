@@ -12,10 +12,15 @@ export const tasksDb = Table.declareMany({
     name: Column.text(),
     email: Column.text(),
     displayName: Column.text().nullable(),
+    groupId: Column.text(),
     updatedAt: Column.date().nullable(),
   },
-  users_tasks: {
+  joinUsersTasks: {
     user_id: Column.text().primary(),
     task_id: Column.text().primary(),
+  },
+  groups: {
+    id: Column.text().primary(),
+    name: Column.text(),
   },
 });
