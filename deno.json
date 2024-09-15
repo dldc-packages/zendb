@@ -1,6 +1,6 @@
 {
   "name": "@dldc/zendb",
-  "version": "8.0.3",
+  "version": "8.0.4",
   "exports": "./mod.ts",
   "imports": {
     "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
