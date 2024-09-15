@@ -294,7 +294,12 @@ function createQuery<
 
     const newInColsRef: ColsRefInnerJoined<InCols, RTable, Alias> = {
       ...internal.inputColsRefs,
-      [alias]: tableCte[PRIV].outputColsRefs,
+      [alias]: mapObject(tableCte[PRIV].outputColsRefs, (_, col) => {
+        return {
+          ...col,
+          [PRIV]: { ...col[PRIV], nullable: true },
+        };
+      }),
     };
 
     const joinItem: builder.SelectStmt.JoinItem = {
