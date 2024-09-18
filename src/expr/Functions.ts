@@ -22,3 +22,7 @@ export function simpleFunctionInvocation<Exprs extends TExprUnknow[], Res>(
     { parse, nullable },
   );
 }
+
+export function random(): TExpr<number, false> {
+  return simpleFunctionInvocation<[], number>("random", (v) => v);
+}
