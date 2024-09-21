@@ -9,8 +9,8 @@ import { expectNever, mapObject, maybeParseJson } from "../utils/functions.ts";
 import type { ExprResultFrom, ExprsNullables } from "../utils/types.ts";
 import * as ExprUtils from "./ExprUtils.ts";
 
-export * as Functions from "./Functions.ts";
 export * as Aggregate from "./Aggregate.ts";
+export * as Functions from "./Functions.ts";
 
 export interface TExpr<Val, Nullable extends boolean> {
   readonly ast: Ast.Expr;
@@ -198,7 +198,10 @@ export function greaterThan<L extends TExprUnknow, R extends TExprUnknow>(
   });
 }
 
-function greaterThanOrEqual<L extends TExprUnknow, R extends TExprUnknow>(
+export function greaterThanOrEqual<
+  L extends TExprUnknow,
+  R extends TExprUnknow,
+>(
   left: L,
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
