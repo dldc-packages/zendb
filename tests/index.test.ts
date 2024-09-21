@@ -285,7 +285,6 @@ Deno.test("Query CTE", () => {
     SELECT cte_id2.demo AS demo2, cte_id2.id AS id
     FROM cte_id2
     WHERE cte_id2.id == 2
-    LIMIT 1
   `);
   expect(result.params).toEqual(null);
 });
@@ -322,13 +321,13 @@ Deno.test("Query with json", () => {
     SELECT
       joinUsersTasks.user_id AS userId,
       json_object(
-        'id', tasks.id,
-        'title', tasks.title,
-        'description', tasks.description,
-        'completed', tasks.completed
+        'id', t_id0.id,
+        'title', t_id0.title,
+        'description', t_id0.description,
+        'completed', t_id0.completed
       ) AS task
     FROM joinUsersTasks
-      INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
+    INNER JOIN tasks AS t_id0 ON joinUsersTasks.task_id == t_id0.id
   `);
 });
 

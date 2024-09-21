@@ -14,7 +14,7 @@ function setup() {
 Deno.test("Simple filter", () => {
   setup();
 
-  const query = tasksDb.tasks.query().filterEqual({ id: "1" }).first();
+  const query = tasksDb.tasks.query().andFilterEqual({ id: "1" }).one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT tasks.*
@@ -27,9 +27,10 @@ Deno.test("Simple filter", () => {
 Deno.test("Filter twice", () => {
   setup();
 
-  const query = tasksDb.tasks.query().filterEqual({ id: "1" }).filterEqual({
-    id: "2",
-  }).first();
+  const query = tasksDb.tasks.query().andFilterEqual({ id: "1" })
+    .andFilterEqual({
+      id: "2",
+    }).one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT tasks.*
@@ -59,41 +60,40 @@ Deno.test("Find task by user email", () => {
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.filterEqual({ "user.email": "john@example.com" })
-    .first();
+  const query = tasksWithUser.andFilterEqual({
+    "user.email": "john@example.com",
+  })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT
-      json_object(
-        'id', users.id,
-        'name', users.name,
-        'email', users.email,
-        'displayName', users.displayName,
-        'groupId', users.groupId,
-        'updatedAt', users.updatedAt
+    SELECT json_object(
+        'id', t_id2.id,
+        'name', t_id2.name,
+        'email', t_id2.email,
+        'displayName', t_id2.displayName,
+        'groupId', t_id2.groupId,
+        'updatedAt', t_id2.updatedAt
       ) AS user,
       json_object(
-        'id', tasks.id,
-        'title', tasks.title,
-        'description', tasks.description,
-        'completed', tasks.completed
+        'id', t_id0.id,
+        'title', t_id0.title,
+        'description', t_id0.description,
+        'completed', t_id0.completed
       ) AS task
-    FROM
-      joinUsersTasks
-      LEFT JOIN tasks ON joinUsersTasks.task_id == tasks.id
-      LEFT JOIN users ON joinUsersTasks.user_id == users.id
-    WHERE
-      users.email == :_id3
+    FROM joinUsersTasks
+      LEFT JOIN tasks AS t_id0 ON joinUsersTasks.task_id == t_id0.id
+      LEFT JOIN users AS t_id2 ON joinUsersTasks.user_id == t_id2.id
+    WHERE t_id2.email == :_id5
   `);
 
-  expect(query.params).toEqual({ _id3: "john@example.com" });
+  expect(query.params).toEqual({ _id5: "john@example.com" });
 });
 
 Deno.test("Filter null value", () => {
   setup();
 
-  const query = tasksDb.users.query().filterEqual({ displayName: null })
-    .first();
+  const query = tasksDb.users.query().andFilterEqual({ displayName: null })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT users.*
@@ -105,10 +105,10 @@ Deno.test("Filter null value", () => {
 Deno.test("Filter multiple values", () => {
   setup();
 
-  const query = tasksDb.users.query().filterEqual({
+  const query = tasksDb.users.query().andFilterEqual({
     displayName: null,
     email: "john@example.com",
-  }).first();
+  }).one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT users.*

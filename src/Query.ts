@@ -22,7 +22,9 @@ import { PRIV, TYPES } from "./utils/constants.ts";
 import { appendDependencies, mergeDependencies } from "./utils/dependencies.ts";
 import { mapObject } from "./utils/functions.ts";
 import { isStateEmpty } from "./utils/isStateEmpty.ts";
+import { markColumnsNullable } from "./utils/markColumnsNullable.ts";
 import { extractParams } from "./utils/params.ts";
+import { remapColumnsTables } from "./utils/remapColumnsTables.ts";
 import type {
   AnyRecord,
   ExprRecord,
@@ -31,7 +33,7 @@ import type {
   FilterEqualCols,
 } from "./utils/types.ts";
 import { whereEqual } from "./utils/whereEqual.ts";
-import { createNoRows } from "./ZendbErreur.ts";
+import { createNoRows, createTooManyRows } from "./ZendbErreur.ts";
 
 export function queryFromTable<Cols extends ExprRecord>(
   table: Ast.Identifier,
@@ -48,12 +50,12 @@ export function queryFromTable<Cols extends ExprRecord>(
 }
 
 export function queryFrom<
-  Table extends ITableQuery<ExprRecordNested, ExprRecord>,
->(table: Table): ITableQuery<Table[TYPES], Table[TYPES]> {
-  const internal = table[PRIV];
+  Query extends ITableQuery<ExprRecordNested, ExprRecord>,
+>(query: Query): ITableQuery<Query[TYPES], Query[TYPES]> {
+  const internal = query[PRIV];
   if (isStateEmpty(internal.state)) {
     // if there are no state, there is no need to create a CTE
-    return table as any;
+    return query as any;
   }
   const colsRef = mapObject(internal.outputColsRefs, (key, col) => {
     const jsonMode: TJsonMode | undefined = col[PRIV].jsonMode === undefined
@@ -95,17 +97,24 @@ function createQuery<
     [TYPES]: {} as any,
 
     where,
+    andWhere,
+    andFilterEqual,
+
     groupBy,
+    andGroupBy,
+
     having,
+    andHaving,
+
     select,
+
     orderBy,
-    sortAsc,
-    sortDesc,
+    andSortAsc,
+    andSortDesc,
     limit,
     offset,
 
     // Shortcuts
-    filterEqual,
 
     // joins
     innerJoin,
@@ -134,6 +143,21 @@ function createQuery<
       internal.dependencies,
       result[PRIV].dependencies,
     );
+    return createQuery({
+      ...internal,
+      dependencies: nextDependencies,
+      state: { ...internal.state, where: result },
+    });
+  }
+
+  function andWhere(
+    whereFn: ColsFn<InCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols> {
+    const result = resolveColFn(whereFn)(internal.inputColsRefs);
+    const nextDependencies = mergeDependencies(
+      internal.dependencies,
+      result[PRIV].dependencies,
+    );
     if (internal.state.where) {
       const whereAnd = Expr.and(internal.state.where, result);
       return createQuery({
@@ -149,11 +173,28 @@ function createQuery<
     });
   }
 
+  function andFilterEqual(
+    filters: Partial<FilterEqualCols<InCols>>,
+  ): ITableQuery<InCols, OutCols> {
+    return andWhere((cols) => whereEqual(cols, filters));
+  }
+
   function groupBy(
     groupFn: ColsFn<InCols, Array<TExprUnknow>>,
   ): ITableQuery<InCols, OutCols> {
     const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
     return createQuery({ ...internal, state: { ...internal.state, groupBy } });
+  }
+
+  function andGroupBy(
+    groupFn: ColsFn<InCols, Array<TExprUnknow>>,
+  ): ITableQuery<InCols, OutCols> {
+    const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
+    const nextGroupBy = [...(internal.state.groupBy ?? []), ...groupBy];
+    return createQuery({
+      ...internal,
+      state: { ...internal.state, groupBy: nextGroupBy },
+    });
   }
 
   function having(
@@ -162,6 +203,31 @@ function createQuery<
     const having = resolveColFn(havingFn)(internal.inputColsRefs);
     if (having === internal.state.having) {
       return self;
+    }
+    return createQuery({
+      ...internal,
+      dependencies: mergeDependencies(
+        internal.dependencies,
+        having[PRIV].dependencies,
+      ),
+      state: { ...internal.state, having },
+    });
+  }
+
+  function andHaving(
+    havingFn: ColsFn<InCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols> {
+    const having = resolveColFn(havingFn)(internal.inputColsRefs);
+    if (internal.state.having) {
+      const havingAnd = Expr.and(internal.state.having, having);
+      return createQuery({
+        ...internal,
+        dependencies: mergeDependencies(
+          internal.dependencies,
+          having[PRIV].dependencies,
+        ),
+        state: { ...internal.state, having: havingAnd },
+      });
     }
     return createQuery({
       ...internal,
@@ -213,37 +279,14 @@ function createQuery<
     });
   }
 
-  function appendOrderingExpr(
-    expr: TExprUnknow,
-    dir: "Asc" | "Desc",
-  ): ITableQuery<InCols, OutCols> {
-    const orderingTerm = Ast.createNode("OrderingTerm", {
-      expr: expr.ast,
-      direction: dir,
-    });
-    if (!internal.state.orderBy) {
-      return createQuery({
-        ...internal,
-        state: { ...internal.state, orderBy: [orderingTerm] },
-      });
-    }
-    return createQuery({
-      ...internal,
-      state: {
-        ...internal.state,
-        orderBy: [...internal.state.orderBy, orderingTerm],
-      },
-    });
-  }
-
-  function sortAsc(
+  function andSortAsc(
     exprFn: ColsFn<InCols, TExprUnknow>,
   ): ITableQuery<InCols, OutCols> {
     const expr = resolveColFn(exprFn)(internal.inputColsRefs);
     return appendOrderingExpr(expr, "Asc");
   }
 
-  function sortDesc(
+  function andSortDesc(
     exprFn: ColsFn<InCols, TExprUnknow>,
   ): ITableQuery<InCols, OutCols> {
     const expr = resolveColFn(exprFn)(internal.inputColsRefs);
@@ -291,20 +334,18 @@ function createQuery<
     joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols> {
     const tableCte = queryFrom(table);
+    const tableAlias = builder.Expr.identifier(`t_${Random.createId()}`);
 
     const newInColsRef: ColsRefInnerJoined<InCols, RTable, Alias> = {
       ...internal.inputColsRefs,
-      [alias]: mapObject(tableCte[PRIV].outputColsRefs, (_, col) => {
-        return {
-          ...col,
-          [PRIV]: { ...col[PRIV], nullable: true },
-        };
-      }),
+      [alias]: remapColumnsTables(tableCte[PRIV].outputColsRefs, tableAlias),
     };
 
     const joinItem: builder.SelectStmt.JoinItem = {
       joinOperator: builder.SelectStmt.InnerJoinOperator(),
-      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name),
+      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name, {
+        alias: tableAlias,
+      }),
       joinConstraint: builder.SelectStmt.OnJoinConstraint(
         joinOn(newInColsRef).ast,
       ),
@@ -326,22 +367,20 @@ function createQuery<
     joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols> {
     const tableCte = queryFrom(table);
+    const tableAlias = builder.Expr.identifier(`t_${Random.createId()}`);
 
     const newInColsRef: ColsRefLeftJoined<InCols, RTable, Alias> = {
       ...internal.inputColsRefs,
-      [alias]: mapObject(
-        tableCte[PRIV].outputColsRefs,
-        // mark all columns as nullable since it's a left join
-        (_, col: TExprUnknow): TExprUnknow => ({
-          ...col,
-          [PRIV]: { ...col[PRIV], nullable: true },
-        }),
+      [alias]: markColumnsNullable(
+        remapColumnsTables(tableCte[PRIV].outputColsRefs, tableAlias),
       ),
     };
 
     const joinItem: builder.SelectStmt.JoinItem = {
       joinOperator: builder.SelectStmt.JoinOperator("Left"),
-      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name),
+      tableOrSubquery: builder.SelectStmt.Table(tableCte[PRIV].from.name, {
+        alias: tableAlias,
+      }),
       joinConstraint: builder.SelectStmt.OnJoinConstraint(
         joinOn(newInColsRef).ast,
       ),
@@ -356,47 +395,6 @@ function createQuery<
       dependencies: appendDependencies(internal.dependencies, table[PRIV]),
     });
   }
-
-  function filterEqual(
-    filters: Partial<FilterEqualCols<InCols>>,
-  ): ITableQuery<InCols, OutCols> {
-    return where((cols) => whereEqual(cols, filters));
-  }
-
-  // function populate<Field extends string, Table extends ITableQuery<any, any>, Value>(
-  //   field: Field,
-  //   leftExpr: (cols: InCols) => IExpr,
-  //   table: Table,
-  //   rightKey: (cols: ExprRecordFrom<Table[TYPES]>) => IExpr,
-  //   rightExpr: (cols: ExprRecordFrom<Table[TYPES]>) => IExpr<Value>
-  // ): ITableQuery<InCols, OutCols & { [K in Field]: Value }> {
-  //   const tableGrouped = createCteFrom(table)
-  //     .groupBy((cols) => [rightKey(cols)])
-  //     .select((cols) => ({
-  //       key: rightKey(cols),
-  //       value: Expr.AggregateFunctions.json_group_array(rightExpr(cols)),
-  //     }));
-  //   const joinItem: JoinItem = {
-  //     joinOperator: builder.JoinOperator.Join('Left'),
-  //     tableOrSubquery: builder.TableOrSubquery.Table(table[PRIV].from.name),
-  //     joinConstraint: builder.JoinConstraint.On(Expr.equal(leftExpr(internal.inputColsRefs), tableGrouped[PRIV].outputColsRefs.key)),
-  //   };
-  //   const joined = create({
-  //     ...internal,
-  //     state: {
-  //       ...internal.state,
-  //       joins: [...(internal.state.joins ?? []), joinItem],
-  //     },
-  //     parents: mergeParent(internal.parents, tableGrouped[PRIV]),
-  //   });
-
-  //   return joined.select((_cols, prev) => ({
-  //     ...prev,
-  //     [field]: tableGrouped[PRIV].outputColsRefs.value,
-  //   })) as any;
-  // }
-
-  // --------------
 
   function all(): IQueryOperation<Array<ExprRecordOutput<OutCols>>> {
     const node = buildFinalNode(internal);
@@ -418,11 +416,16 @@ function createQuery<
   }
 
   function maybeOne(): IQueryOperation<ExprRecordOutput<OutCols> | null> {
-    const allOp = limit(() => Expr.literal(1)).all();
+    // Note: here we could limit to 2 rows to detect if there are too many rows
+    // But we don't because we want to know how many rows there are in the error
+    const allOp = all();
     return {
       ...allOp,
       parse: (rows) => {
         const res = allOp.parse(rows);
+        if (res.length > 1) {
+          throw createTooManyRows(res.length);
+        }
         return res.length === 0 ? null : res[0];
       },
     };
@@ -443,7 +446,7 @@ function createQuery<
   }
 
   function maybeFirst(): IQueryOperation<ExprRecordOutput<OutCols> | null> {
-    const allOp = all();
+    const allOp = limit(Expr.literal(1)).all();
     return {
       ...allOp,
       parse: (rows) => {
@@ -465,6 +468,31 @@ function createQuery<
         return res;
       },
     };
+  }
+
+  // UTILS
+
+  function appendOrderingExpr(
+    expr: TExprUnknow,
+    dir: "Asc" | "Desc",
+  ): ITableQuery<InCols, OutCols> {
+    const orderingTerm = Ast.createNode("OrderingTerm", {
+      expr: expr.ast,
+      direction: dir,
+    });
+    if (!internal.state.orderBy) {
+      return createQuery({
+        ...internal,
+        state: { ...internal.state, orderBy: [orderingTerm] },
+      });
+    }
+    return createQuery({
+      ...internal,
+      state: {
+        ...internal.state,
+        orderBy: [...internal.state.orderBy, orderingTerm],
+      },
+    });
   }
 }
 

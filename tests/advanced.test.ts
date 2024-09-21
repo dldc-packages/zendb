@@ -128,18 +128,18 @@ Deno.test("Find all user with their linked tasks", () => {
       json_group_array(
         json_object(
           'id',
-          tasks.id,
+          t_id0.id,
           'title',
-          tasks.title,
+          t_id0.title,
           'description',
-          tasks.description,
+          t_id0.description,
           'completed',
-          tasks.completed
+          t_id0.completed
         )
       ) AS tasks
     FROM
       joinUsersTasks
-      INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
+      INNER JOIN tasks AS t_id0 ON joinUsersTasks.task_id == t_id0.id
     GROUP BY
       joinUsersTasks.user_id
   `);
@@ -191,24 +191,20 @@ Deno.test("Find all user with their linked tasks", () => {
 
   expect(format(query.sql)).toEqual(sql`
     WITH
-      cte_id2 AS (
+      cte_id3 AS (
         SELECT
           joinUsersTasks.user_id AS userId,
           json_group_array(
             json_object(
-              'id',
-              tasks.id,
-              'title',
-              tasks.title,
-              'description',
-              tasks.description,
-              'completed',
-              tasks.completed
+              'id', t_id0.id,
+              'title', t_id0.title,
+              'description', t_id0.description,
+              'completed', t_id0.completed
             )
           ) AS tasks
         FROM
           joinUsersTasks
-          INNER JOIN tasks ON joinUsersTasks.task_id == tasks.id
+          INNER JOIN tasks AS t_id0 ON joinUsersTasks.task_id == t_id0.id
         GROUP BY
           joinUsersTasks.user_id
       )
@@ -219,10 +215,10 @@ Deno.test("Find all user with their linked tasks", () => {
       users.displayName AS displayName,
       users.groupId AS groupId,
       users.updatedAt AS updatedAt,
-      cte_id2.tasks AS tasks
+      t_id4.tasks AS tasks
     FROM
       users
-      LEFT JOIN cte_id2 ON users.id == cte_id2.userId
+      LEFT JOIN cte_id3 AS t_id4 ON users.id == t_id4.userId
   `);
 
   const result = db.exec(query);

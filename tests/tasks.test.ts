@@ -198,7 +198,7 @@ Deno.test("Find user by email using filterEqual", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users.query().filterEqual({ email: "john@example.com" }).first(),
+    tasksDb.users.query().andFilterEqual({ email: "john@example.com" }).first(),
   );
   expect(res).toEqual({
     id: "1",
@@ -271,31 +271,40 @@ Deno.test("Find task by user email", () => {
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.filterEqual({ "user.email": "john@example.com" })
-    .first();
+  const query = tasksWithUser.andFilterEqual({
+    "user.email": "john@example.com",
+  })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
-    SELECT
-      json_object(
-        'id', users.id,
-        'name', users.name,
-        'email', users.email,
-        'displayName', users.displayName,
-        'groupId', users.groupId,
-        'updatedAt', users.updatedAt
+    SELECT json_object(
+        'id',
+        t_id2.id,
+        'name',
+        t_id2.name,
+        'email',
+        t_id2.email,
+        'displayName',
+        t_id2.displayName,
+        'groupId',
+        t_id2.groupId,
+        'updatedAt',
+        t_id2.updatedAt
       ) AS user,
       json_object(
-        'id', tasks.id,
-        'title', tasks.title,
-        'description', tasks.description,
-        'completed', tasks.completed
+        'id',
+        t_id0.id,
+        'title',
+        t_id0.title,
+        'description',
+        t_id0.description,
+        'completed',
+        t_id0.completed
       ) AS task
-    FROM
-      joinUsersTasks
-      LEFT JOIN tasks ON joinUsersTasks.task_id == tasks.id
-      LEFT JOIN users ON joinUsersTasks.user_id == users.id
-    WHERE
-      users.email == :_id3
+    FROM joinUsersTasks
+      LEFT JOIN tasks AS t_id0 ON joinUsersTasks.task_id == t_id0.id
+      LEFT JOIN users AS t_id2 ON joinUsersTasks.user_id == t_id2.id
+    WHERE t_id2.email == :_id5
   `);
 
   const res = db.exec(query);

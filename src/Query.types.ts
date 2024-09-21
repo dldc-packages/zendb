@@ -137,79 +137,156 @@ export interface ITableQuery<
   readonly [TYPES]: OutCols;
   readonly [PRIV]: ITableQueryInternal<InCols, OutCols>;
 
-  // - Where
   /**
-   * Add conditions to the where clause, you can call it multiple times (AND)
+   * Set the WHERE clause, this will replace any previous WHERE clause
+   * @param whereFn An expression function that should return an expression
    */
   where(whereFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
+
   /**
-   * .where() shortcut to filter on equality
+   * Add conditions to the WHERE clause using en AND operator
+   * @param whereFn An expression function that should return an expression
    */
-  filterEqual(
+  andWhere(whereFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
+
+  /**
+   * .andWhere() shortcut to filter on equality, values passed wiil be injected as variables (Expr.external)
+   * @param filters An object with the columns to filter
+   */
+  andFilterEqual(
     filters: Prettify<FilterEqualCols<InCols>>,
   ): ITableQuery<InCols, OutCols>;
-  // - Group
+
+  /**
+   * Set the GROUP BY clause, this will replace any previous GROUP BY clause
+   * @param groupFn An expression function that should return an array of expressions
+   */
   groupBy(
     groupFn: ColsFn<InCols, Array<TExprUnknow>>,
   ): ITableQuery<InCols, OutCols>;
-  // - Having
+
+  /**
+   * Add items to GROUP BY clause expression list
+   * @param groupFn An expression function that should return an array of expressions
+   */
+  andGroupBy(
+    groupFn: ColsFn<InCols, Array<TExprUnknow>>,
+  ): ITableQuery<InCols, OutCols>;
+
+  /**
+   * Set the HAVING clause, this will replace any previous HAVING clause.
+   * @param havingFn An expression function that should return an expression
+   */
   having(havingFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
-  // Select
+
+  /**
+   * Add conditions to the HAVING clause using en AND operator
+   * @param havingFn An expression function that should return an expression
+   */
+  andHaving(
+    havingFn: ColsFn<InCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols>;
+
+  /**
+   * Set the selected columns, this will replace any previous select clause
+   * @param selectFn An expression function that should return an object with the columns to select. This expression will receive as a second argument the current selected columns
+   */
   select<NewOutCols extends ExprRecord>(
     selectFn: SelectFn<InCols, OutCols, NewOutCols>,
   ): ITableQuery<InCols, NewOutCols>;
-  // - Order
+
   /**
-   * Set the order by clause, this will replace any previous order clause
+   * Set the ORDER BY clause, this will replace any previous order clause.
+   * For most use cases, you should use `andSortAsc` or `andSortDesc` instead
+   * @param orderByFn An expression function that should return an array of OrderingTerm objects (also accept the OrderingTerm array directly)
    */
   orderBy(
     orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>,
   ): ITableQuery<InCols, OutCols>;
+
   /**
-   * Add an order by clause, this will not replace any previous order clause
+   * Add a `expression ASC` to the existing ORDER BY clause
+   * @param exprFn An expression function that should return an expression, usually `c => c.myColumn`
    */
-  sortAsc(exprFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
+  andSortAsc(exprFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
+
   /**
-   * Add an order by clause, this will not replace any previous order clause
+   * Add a `expression DESC` to the existing ORDER BY clause
+   * @param exprFn An expression function that should return an expression, usually `c => c.myColumn`
    */
-  sortDesc(exprFn: ColsFn<InCols, TExprUnknow>): ITableQuery<InCols, OutCols>;
-  // - Limit / Offset
+  andSortDesc(
+    exprFn: ColsFn<InCols, TExprUnknow>,
+  ): ITableQuery<InCols, OutCols>;
+
+  /**
+   * Set the LIMIT clause, this will replace any previous LIMIT clause
+   * @param limitFn An expression function that should return an expression, usually `Expr.external(myLimit)`
+   */
   limit(
     limitFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
   ): ITableQuery<InCols, OutCols>;
+
+  /**
+   * Set the OFFSET clause, this will replace any previous OFFSET clause
+   * @param offsetFn An expression function that should return an expression, usually `Expr.external(myOffset)`
+   */
   offset(
     offsetFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
   ): ITableQuery<InCols, OutCols>;
 
-  // Joins
+  /**
+   * Create an INNER JOIN with another table.
+   * @param table A Query object, usually created by `schema.someTable.query()`
+   * @param alias string that will be used as an alias for the table. This will be used to reference the columns of the table in the expression function.
+   * @param joinOn An expression function that should return a boolean expression that will be used to join the tables
+   */
   innerJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
     joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols>;
+
+  /**
+   * Create a LEFT JOIN with another table. The joined columns will be nullable as the join may not find a match
+   * @param table A Query object, usually created by `schema.someTable.query()`
+   * @param alias string that will be used as an alias for the table. This will be used to reference the columns of the table in the expression function.
+   * @param joinOn An expression function that should return a boolean expression that will be used to join the tables
+   */
   leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
     joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => TExprUnknow,
   ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols>;
 
-  // shortcut for ease of use
-  // take(config: number | ITakeConfig): ITableQuery<Cols>;
-  // paginate(config: number | IPaginateConfig): ITableQuery<Cols>;
-  // groupByCol<NewCols extends SelectBase>(
-  //   cols: Array<keyof Cols>,
-  //   selectFn: ColsFnOrRes<Cols, NewCols>
-  // ): ITableQuery<ColsFromSelect<NewCols>>;
-  // orderByCol(...cols: Array<keyof Cols | OrderByItem<Cols>>): ITableQuery<Cols>;
-
-  // Returns an Array
+  /**
+   * Return an Database operation that will execute the query and return all the results
+   */
   all(): IQueryOperation<Array<Prettify<ExprRecordOutput<OutCols>>>>;
-  // Throw if result count is > 1
+
+  /**
+   * Return an Database operation that will execute the query and return a single result
+   * If no result is found, will return null
+   * If more than one result is found, will throw
+   */
   maybeOne(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>> | null>;
-  // Throw if result count is not === 1
+
+  /**
+   * Return an Database operation that will execute the query and return a single result
+   * If results count is not exactly 1, will throw
+   */
   one(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>>>;
-  // Never throws
+
+  /**
+   * Return an Database operation that will execute the query and return the first result
+   * This will override any limit clause by `LIMIT 1`
+   * If no result is found, will return null
+   */
   maybeFirst(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>> | null>;
-  // Throw if result count is === 0
+
+  /**
+   * Return an Database operation that will execute the query and return the first result
+   * This will override any limit clause by `LIMIT 1`
+   * If no result is found, will throw
+   */
   first(): IQueryOperation<Prettify<ExprRecordOutput<OutCols>>>;
 }

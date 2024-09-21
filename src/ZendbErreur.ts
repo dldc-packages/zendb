@@ -5,6 +5,7 @@ export type TZendbErreurData =
   | { kind: "MissingPrimaryKey"; table: string }
   | { kind: "InvalidUniqueConstraint"; constraintName: string | null }
   | { kind: "NoRows" }
+  | { kind: "TooManyRows"; rowsCount: number }
   | { kind: "ColumnNotFound"; columnKey: string }
   | { kind: "ColumnDoesNotExist"; column: string }
   | { kind: "CannotInsertEmptyArray"; table: string };
@@ -51,6 +52,13 @@ export function createNoRows(): Error {
   return ZendbErreurInternal.setAndReturn(
     new Error("Expected one row, got 0"),
     { kind: "NoRows" },
+  );
+}
+
+export function createTooManyRows(rowCount: number): Error {
+  return ZendbErreurInternal.setAndReturn(
+    new Error(`Expected one row, got ${rowCount}`),
+    { kind: "TooManyRows", rowsCount: rowCount },
   );
 }
 
