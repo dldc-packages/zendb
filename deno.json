@@ -1,6 +1,6 @@
 {
   "name": "@dldc/zendb",
-  "version": "8.0.5",
+  "version": "9.0.0",
   "exports": "./mod.ts",
   "imports": {
     "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
@@ -10,7 +10,9 @@
     "dedent": "npm:dedent@^1.5.3",
     "sql-formatter": "npm:sql-formatter@^15.3.1"
   },
-  "unstable": ["ffi"],
+  "unstable": [
+    "ffi"
+  ],
   "tasks": {
     "test:run": "deno test -A",
     "test:watch": "deno test -A --watch",
