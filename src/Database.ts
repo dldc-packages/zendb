@@ -1,20 +1,20 @@
 import { Ast, builder as b, printNode } from "@dldc/sqlite";
 import type {
-  ICreateTableOperation,
-  IListTablesOperation,
-  IPragmaOperation,
-  IPragmaSetOperation,
+  TCreateTableOperation,
+  TListTablesOperation,
+  TPragmaOperation,
+  TPragmaSetOperation,
 } from "./Operation.ts";
-import type { ITableSchemaOptions, TTable } from "./Table.ts";
+import type { TCreateTableOptions, TTable } from "./Table.ts";
 
 export function schema<Tables extends Record<string, TTable<any, any>>>(
   tables: Tables,
-  options?: ITableSchemaOptions,
-): Array<ICreateTableOperation> {
-  return Object.values(tables).map((table) => table.schema(options));
+  options?: TCreateTableOptions,
+): Array<TCreateTableOperation> {
+  return Object.values(tables).map((table) => table.schema.create(options));
 }
 
-export function tables(): IListTablesOperation {
+export function tables(): TListTablesOperation {
   const query = b.SelectStmt.build({
     resultColumns: [b.ResultColumn.column("name")],
     from: b.SelectStmt.FromTable("sqlite_master"),
@@ -31,7 +31,7 @@ export function tables(): IListTablesOperation {
   };
 }
 
-export function userVersion(): IPragmaOperation<number> {
+export function userVersion(): TPragmaOperation<number> {
   const query = Ast.createNode("PragmaStmt", {
     pragmaName: b.Expr.identifier("user_version"),
   });
@@ -43,7 +43,7 @@ export function userVersion(): IPragmaOperation<number> {
   };
 }
 
-export function setUserVersion(version: number): IPragmaSetOperation {
+export function setUserVersion(version: number): TPragmaSetOperation {
   const query = Ast.createNode("PragmaStmt", {
     pragmaName: b.Expr.identifier("user_version"),
     value: {

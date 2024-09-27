@@ -1,16 +1,17 @@
 import type { Ast } from "@dldc/sqlite";
 import { builder as b, printNode } from "@dldc/sqlite";
-import type { IColumnAny } from "./Column.ts";
+import type { TColumnAny } from "./Column.ts";
 import * as Column from "./Column.ts";
 import type {
-  ICreateTableOperation,
-  IDeleteOperation,
-  IInsertManyOperation,
-  IInsertOperation,
-  IUpdateOperation,
+  TCreateTableOperation,
+  TDeleteOperation,
+  TDropTableOperation,
+  TInsertManyOperation,
+  TInsertOperation,
+  TUpdateOperation,
 } from "./Operation.ts";
 import { queryFromTable } from "./Query.ts";
-import type { ITableQuery } from "./Query.types.ts";
+import type { TTableQuery } from "./Query.types.ts";
 import {
   createCannotInsertEmptyArray,
   createInvalidUniqueConstraint,
@@ -34,33 +35,40 @@ import type {
 } from "./utils/types.ts";
 import { whereEqual } from "./utils/whereEqual.ts";
 
-export interface ITableSchemaOptions {
+export interface TCreateTableOptions {
   ifNotExists?: boolean;
   strict?: boolean;
+}
+
+export interface TDropTableOptions {
+  ifExists?: boolean;
 }
 
 export interface TTable<
   InputData extends AnyRecord,
   OutputCols extends ExprRecord,
 > {
-  schema(options?: ITableSchemaOptions): ICreateTableOperation;
-  query(): ITableQuery<OutputCols, OutputCols>;
+  schema: {
+    create(options?: TCreateTableOptions): TCreateTableOperation;
+    drop(options?: TDropTableOptions): TDropTableOperation;
+  };
+  query(): TTableQuery<OutputCols, OutputCols>;
   insert(
     data: InputData,
-  ): IInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  ): TInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   insertMany(
     data: InputData[],
-  ): IInsertManyOperation<Prettify<ExprRecordOutput<OutputCols>>>;
-  delete(condition: ExprFnFromTable<OutputCols>): IDeleteOperation;
-  deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): IDeleteOperation;
+  ): TInsertManyOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  delete(condition: ExprFnFromTable<OutputCols>): TDeleteOperation;
+  deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): TDeleteOperation;
   update(
     data: Partial<InputData>,
     where?: ExprFnFromTable<OutputCols>,
-  ): IUpdateOperation;
+  ): TUpdateOperation;
   updateEqual(
     data: Partial<InputData>,
     where: Prettify<FilterEqualCols<OutputCols>>,
-  ): IUpdateOperation;
+  ): TUpdateOperation;
 }
 
 interface TableInfos<Cols extends ExprRecord> {
@@ -73,7 +81,10 @@ export function declare<Columns extends ColumnsBase>(
   columns: Columns,
 ): TTable<ColumnsToInput<Columns>, ColumnsToExprRecord<Columns>> {
   return {
-    schema: (options) => schema(table, columns, options),
+    schema: {
+      create: (options) => createTable(table, columns, options),
+      drop: (options) => dropTable(table, options),
+    },
     query: () => query(table, columns),
     insert: (data) => insert(table, columns, data),
     insertMany: (data) => insertMany(table, columns, data),
@@ -114,14 +125,12 @@ function getTableInfos<Columns extends ColumnsBase>(
   return { table: tableIdentifier, columnsRefs };
 }
 
-export function schema<Columns extends ColumnsBase>(
+export function createTable<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
-  options: ITableSchemaOptions = {},
-): ICreateTableOperation {
+  options: TCreateTableOptions = {},
+): TCreateTableOperation {
   const { ifNotExists = false, strict = true } = options;
-  // TODO: handle IF NOT EXISTS
-
   const columnsEntries = Object.entries(columns);
   const primaryKeys = columnsEntries.filter(([, column]) =>
     column[PRIV].primary
@@ -200,11 +209,27 @@ export function schema<Columns extends ColumnsBase>(
   };
 }
 
+export function dropTable(
+  table: string,
+  options: TDropTableOptions = {},
+): TDropTableOperation {
+  const { ifExists = false } = options;
+  const node = b.DropTableStmt.build(table, {
+    ifExists: ifExists === true ? true : undefined,
+  });
+  return {
+    kind: "DropTable",
+    sql: printNode(node),
+    params: null,
+    parse: () => null,
+  };
+}
+
 export function insert<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
   data: ColumnsToInput<Columns>,
-): IInsertOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
+): TInsertOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
   const { insertStatement, params, parsedData } = prepareInsert(
     table,
     columns,
@@ -222,7 +247,7 @@ function insertMany<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
   data: ColumnsToInput<Columns>[],
-): IInsertManyOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
+): TInsertManyOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
   if (data.length === 0) {
     throw createCannotInsertEmptyArray(table);
   }
@@ -243,7 +268,7 @@ export function deleteFn<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
   condition: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
-): IDeleteOperation {
+): TDeleteOperation {
   const { columnsRefs } = getTableInfos(table, columns);
   const node = b.DeleteStmt.build(table, {
     where: condition(columnsRefs).ast,
@@ -257,7 +282,7 @@ export function deleteEqual<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
   filters: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
-): IDeleteOperation {
+): TDeleteOperation {
   return deleteFn(table, columns, (cols) => whereEqual(cols, filters));
 }
 
@@ -266,8 +291,8 @@ export function update<Columns extends ColumnsBase>(
   columns: Columns,
   data: Partial<ColumnsToInput<Columns>>,
   where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
-): IUpdateOperation {
-  const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns)
+): TUpdateOperation {
+  const columnsEntries: Array<[string, TColumnAny]> = Object.entries(columns)
     .filter(([name]) => {
       const input = (data as any)[name];
       return input !== undefined;
@@ -301,7 +326,7 @@ export function updateEqual<Columns extends ColumnsBase>(
   columns: Columns,
   data: Partial<ColumnsToInput<Columns>>,
   where: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
-): IUpdateOperation {
+): TUpdateOperation {
   return update(
     table,
     columns,
@@ -313,7 +338,7 @@ export function updateEqual<Columns extends ColumnsBase>(
 export function query<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
-): ITableQuery<ColumnsToExprRecord<Columns>, ColumnsToExprRecord<Columns>> {
+): TTableQuery<ColumnsToExprRecord<Columns>, ColumnsToExprRecord<Columns>> {
   const { table: tableIdentifier, columnsRefs } = getTableInfos(
     table,
     columns,
@@ -326,7 +351,7 @@ function prepareInsert<Columns extends ColumnsBase>(
   columns: Columns,
   data: ColumnsToInput<Columns>[],
 ) {
-  const columnsEntries: Array<[string, IColumnAny]> = Object.entries(columns);
+  const columnsEntries: Array<[string, TColumnAny]> = Object.entries(columns);
   const resolvedData: Record<string, any>[] = [];
   const parsedData: Record<string, any>[] = [];
   const values: TExprUnknow[][] = [];

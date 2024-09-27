@@ -1,5 +1,5 @@
-import type { ITableQueryState } from "../Query.types.ts";
+import type { TTableQueryState } from "../Query.types.ts";
 
-export function isStateEmpty(state: ITableQueryState): boolean {
+export function isStateEmpty(state: TTableQueryState): boolean {
   return Object.values(state).every((v) => v === undefined);
 }

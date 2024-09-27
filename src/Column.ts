@@ -4,7 +4,7 @@ import type { ColumnInputValue, ColumnOutputValue } from "./utils/types.ts";
 
 export type DefaultValueBase = (() => any) | null;
 
-interface IColumnInternal<
+interface TColumnInternal<
   DtExt,
   Nullable extends boolean,
   DefaultValue extends DefaultValueBase,
@@ -16,25 +16,25 @@ interface IColumnInternal<
   unique: Array<{ constraintName: string | null }>;
 }
 
-export type IColumnAny = IColumn<any, boolean, DefaultValueBase>;
+export type TColumnAny = TColumn<any, boolean, DefaultValueBase>;
 
-export interface IColumn<
+export interface TColumn<
   DtExt,
   Nullable extends boolean,
   DefaultValue extends DefaultValueBase,
 > {
-  readonly [PRIV]: IColumnInternal<DtExt, Nullable, DefaultValue>;
-  nullable(): IColumn<DtExt, true, DefaultValue>;
+  readonly [PRIV]: TColumnInternal<DtExt, Nullable, DefaultValue>;
+  nullable(): TColumn<DtExt, true, DefaultValue>;
   defaultValue<DefaultValue extends DtExt>(
     defaultValue: () => DefaultValue,
-  ): IColumn<DtExt, Nullable, () => DefaultValue>;
-  primary(): IColumn<DtExt, Nullable, DefaultValue>;
+  ): TColumn<DtExt, Nullable, () => DefaultValue>;
+  primary(): TColumn<DtExt, Nullable, DefaultValue>;
   unique(
     constraintName?: string | null,
-  ): IColumn<DtExt, Nullable, DefaultValue>;
+  ): TColumn<DtExt, Nullable, DefaultValue>;
 }
 
-export function parse<Col extends IColumnAny>(
+export function parse<Col extends TColumnAny>(
   column: Col,
   output: any,
 ): ColumnOutputValue<Col> {
@@ -45,7 +45,7 @@ export function parse<Col extends IColumnAny>(
   return datatype.parse(output);
 }
 
-export function serialize<Col extends IColumnAny>(
+export function serialize<Col extends TColumnAny>(
   column: Col,
   input: ColumnInputValue<Col>,
 ): any {
@@ -61,7 +61,7 @@ export function serialize<Col extends IColumnAny>(
 
 export function declare<DtExt>(
   datatype: Datatype.TDatatype<DtExt, any>,
-): IColumn<DtExt, false, null> {
+): TColumn<DtExt, false, null> {
   return createInternal({
     datatype,
     nullable: false,
@@ -76,8 +76,8 @@ function createInternal<
   Nullable extends boolean,
   DefaultValue extends DefaultValueBase,
 >(
-  internal: IColumnInternal<DtExt, Nullable, DefaultValue>,
-): IColumn<DtExt, Nullable, DefaultValue> {
+  internal: TColumnInternal<DtExt, Nullable, DefaultValue>,
+): TColumn<DtExt, Nullable, DefaultValue> {
   return {
     [PRIV]: internal,
     nullable: () => createInternal({ ...internal, nullable: true }),
@@ -92,32 +92,32 @@ function createInternal<
   };
 }
 
-export function json<Obj>(): IColumn<Obj, false, null> {
+export function json<Obj>(): TColumn<Obj, false, null> {
   return declare(Datatype.json);
 }
 
-export function text(): IColumn<string, false, null>;
-export function text<T extends string = string>(): IColumn<T, false, null>;
-export function text<T extends string = string>(): IColumn<T, false, null> {
+export function text(): TColumn<string, false, null>;
+export function text<T extends string = string>(): TColumn<T, false, null>;
+export function text<T extends string = string>(): TColumn<T, false, null> {
   return declare(Datatype.text as any);
 }
 
-export function number(): IColumn<number, false, null>;
-export function number<T extends number = number>(): IColumn<T, false, null>;
-export function number<T extends number = number>(): IColumn<T, false, null> {
+export function number(): TColumn<number, false, null>;
+export function number<T extends number = number>(): TColumn<T, false, null>;
+export function number<T extends number = number>(): TColumn<T, false, null> {
   return declare(Datatype.number as any);
 }
 
-export function integer(): IColumn<number, false, null>;
-export function integer<T extends number = number>(): IColumn<T, false, null>;
-export function integer<T extends number = number>(): IColumn<T, false, null> {
+export function integer(): TColumn<number, false, null>;
+export function integer<T extends number = number>(): TColumn<T, false, null>;
+export function integer<T extends number = number>(): TColumn<T, false, null> {
   return declare(Datatype.integer as any);
 }
 
-export function boolean(): IColumn<boolean, false, null> {
+export function boolean(): TColumn<boolean, false, null> {
   return declare(Datatype.boolean);
 }
 
-export function date(): IColumn<Date, false, null> {
+export function date(): TColumn<Date, false, null> {
   return declare(Datatype.date);
 }

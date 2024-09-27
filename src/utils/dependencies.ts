@@ -1,13 +1,13 @@
 import type {
-  ITableQueryDependency,
-  ITableQueryInternal,
+  TTableQueryDependency,
+  TTableQueryInternal,
 } from "../Query.types.ts";
 import { isStateEmpty } from "./isStateEmpty.ts";
 
 export function appendDependencies(
-  prevDeps: Array<ITableQueryDependency>,
-  table: ITableQueryInternal<any, any>,
-): Array<ITableQueryDependency> {
+  prevDeps: Array<TTableQueryDependency>,
+  table: TTableQueryInternal<any, any>,
+): Array<TTableQueryDependency> {
   if (isStateEmpty(table.state)) {
     if (table.dependencies.length === 0) {
       // No state and no dependencies, this is a base table, we can skip it
@@ -21,8 +21,8 @@ export function appendDependencies(
 }
 
 export function asTableDependency(
-  table: ITableQueryInternal<any, any>,
-): Array<ITableQueryDependency> {
+  table: TTableQueryInternal<any, any>,
+): Array<TTableQueryDependency> {
   if (isStateEmpty(table.state)) {
     if (table.dependencies.length === 0) {
       // No state and no dependencies, this is a base table, we can skip it
@@ -35,9 +35,9 @@ export function asTableDependency(
 }
 
 export function mergeDependencies(
-  left: Array<ITableQueryDependency> | undefined,
-  right: Array<ITableQueryDependency> | undefined,
-): Array<ITableQueryDependency> {
+  left: Array<TTableQueryDependency> | undefined,
+  right: Array<TTableQueryDependency> | undefined,
+): Array<TTableQueryDependency> {
   if (!left && !right) {
     return [];
   }

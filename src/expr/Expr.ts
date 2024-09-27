@@ -1,7 +1,7 @@
 import type { Ast } from "@dldc/sqlite";
 import { builder, Utils } from "@dldc/sqlite";
 import * as Datatype from "../Datatype.ts";
-import type { ITableQuery, ITableQueryDependency } from "../Query.types.ts";
+import type { TTableQuery, TTableQueryDependency } from "../Query.types.ts";
 import * as Random from "../Random.ts";
 import { PRIV, TYPES } from "../utils/constants.ts";
 import { appendDependencies } from "../utils/dependencies.ts";
@@ -39,7 +39,7 @@ export interface TExprInternal {
   // JsonRef is wrapped in a json() function when unsed in other json functions
   readonly jsonMode?: TJsonMode;
   // Used for X in (select X from ...) where the target is a CTE that needs to be defined
-  readonly dependencies?: Array<ITableQueryDependency>;
+  readonly dependencies?: Array<TTableQueryDependency>;
 }
 
 export function create<Val, Nullable extends boolean>(
@@ -268,7 +268,7 @@ export function notInList(
   );
 }
 
-export function inSubquery<RTable extends ITableQuery<any, any>>(
+export function inSubquery<RTable extends TTableQuery<any, any>>(
   expr: TExprUnknow,
   subquery: RTable,
 ): TExpr<boolean, false> {
@@ -285,7 +285,7 @@ export function inSubquery<RTable extends ITableQuery<any, any>>(
   );
 }
 
-export function notInSubquery<RTable extends ITableQuery<any, any>>(
+export function notInSubquery<RTable extends TTableQuery<any, any>>(
   expr: TExprUnknow,
   subquery: RTable,
 ): TExpr<boolean, false> {

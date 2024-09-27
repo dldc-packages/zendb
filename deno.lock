@@ -5,7 +5,7 @@
       "jsr:@db/sqlite@^0.11.1": "jsr:@db/sqlite@0.11.1",
       "jsr:@denosaurs/plug@1": "jsr:@denosaurs/plug@1.0.6",
       "jsr:@dldc/erreur@^7.1.1": "jsr:@dldc/erreur@7.1.1",
-      "jsr:@dldc/sqlite@^3.0.0": "jsr:@dldc/sqlite@3.0.0",
+      "jsr:@dldc/sqlite@^3.1.0": "jsr:@dldc/sqlite@3.1.0",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
       "jsr:@std/assert@^0.221.0": "jsr:@std/assert@0.221.0",
       "jsr:@std/assert@^0.225.3": "jsr:@std/assert@0.225.3",
@@ -40,8 +40,8 @@
       "@dldc/erreur@7.1.1": {
         "integrity": "9ba954ae0654e4ed003959c77aaa009fdf6c64f60bf4cfec33b134556ab0d6da"
       },
-      "@dldc/sqlite@3.0.0": {
-        "integrity": "d3f02779612ceea31ccd231a7494efd724df11b42693ac38146cc7f8fc305542"
+      "@dldc/sqlite@3.1.0": {
+        "integrity": "f4413ec8ef25ba95bb80769246c2c2e9512346508830e586fc86723c093ec85e"
       },
       "@std/assert@0.217.0": {
         "integrity": "c98e279362ca6982d5285c3b89517b757c1e3477ee9f14eb2fdf80a45aaa9642"
@@ -423,7 +423,7 @@
     "dependencies": [
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@dldc/erreur@^7.1.1",
-      "jsr:@dldc/sqlite@^3.0.0",
+      "jsr:@dldc/sqlite@^3.1.0",
       "jsr:@std/expect@^0.224.2",
       "npm:dedent@^1.5.3",
       "npm:sql-formatter@^15.3.1"

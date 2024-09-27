@@ -1,4 +1,4 @@
-import type { IColumnAny } from "../Column.ts";
+import type { TColumnAny } from "../Column.ts";
 import type { TExpr, TExprUnknow } from "../expr/Expr.ts";
 import type { PRIV, TYPES } from "./constants.ts";
 
@@ -10,7 +10,7 @@ export type MarkUndefinedOptional<Data extends Record<string, any>> =
   & Pick<Data, ExtractDefinedKeys<Data>>
   & Partial<Pick<Data, ExtractUndefinedKeys<Data>>>;
 
-export type ColumnsBase = Record<string, IColumnAny>;
+export type ColumnsBase = Record<string, TColumnAny>;
 
 export type QueryColumnValuePrimitive = null | string | number | boolean | Date;
 
@@ -27,17 +27,17 @@ export type ExtractDefinedKeys<Data extends Record<string, any>> = {
 }[keyof Data];
 
 // Can be null if nullable and undefined if defaultValue is set
-export type ColumnInputValue<Column extends IColumnAny> =
+export type ColumnInputValue<Column extends TColumnAny> =
   | Column[PRIV]["datatype"][TYPES]
   | (Column[PRIV]["nullable"] extends true ? null : never)
   | (Column[PRIV]["defaultValue"] extends null ? never : undefined);
 
 // Can be null only if nullable
-export type ColumnOutputValue<Column extends IColumnAny> =
+export type ColumnOutputValue<Column extends TColumnAny> =
   | Column[PRIV]["datatype"][TYPES]
   | (Column[PRIV]["nullable"] extends true ? null : never);
 
-export type ColumnToExpr<Column extends IColumnAny> = TExpr<
+export type ColumnToExpr<Column extends TColumnAny> = TExpr<
   Column[PRIV]["datatype"][TYPES],
   Column[PRIV]["nullable"]
 >;

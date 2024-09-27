@@ -2,7 +2,7 @@ import { Ast, builder, printNode, Utils } from "@dldc/sqlite";
 import { ExprUtils } from "../mod.ts";
 import type { TExprUnknow, TJsonMode } from "./expr/Expr.ts";
 import * as Expr from "./expr/Expr.ts";
-import type { IQueryOperation } from "./Operation.ts";
+import type { TQueryOperation } from "./Operation.ts";
 import type {
   AllColsFn,
   AllColsFnOrRes,
@@ -10,12 +10,12 @@ import type {
   ColsFnOrRes,
   ColsRefInnerJoined,
   ColsRefLeftJoined,
-  ICreateTableQueryParams,
-  ITableQuery,
-  ITableQueryDependency,
-  ITableQueryInternal,
   OrderingTerms,
   SelectFn,
+  TCreateTableQueryParams,
+  TTableQuery,
+  TTableQueryDependency,
+  TTableQueryInternal,
 } from "./Query.types.ts";
 import * as Random from "./Random.ts";
 import { PRIV, TYPES } from "./utils/constants.ts";
@@ -38,7 +38,7 @@ import { createNoRows, createTooManyRows } from "./ZendbErreur.ts";
 export function queryFromTable<Cols extends ExprRecord>(
   table: Ast.Identifier,
   columnsRef: Cols,
-): ITableQuery<Cols, Cols> {
+): TTableQuery<Cols, Cols> {
   return createQuery({
     dependencies: [],
     from: table,
@@ -50,8 +50,8 @@ export function queryFromTable<Cols extends ExprRecord>(
 }
 
 export function queryFrom<
-  Query extends ITableQuery<ExprRecordNested, ExprRecord>,
->(query: Query): ITableQuery<Query[TYPES], Query[TYPES]> {
+  Query extends TTableQuery<ExprRecordNested, ExprRecord>,
+>(query: Query): TTableQuery<Query[TYPES], Query[TYPES]> {
   const internal = query[PRIV];
   if (isStateEmpty(internal.state)) {
     // if there are no state, there is no need to create a CTE
@@ -82,17 +82,17 @@ function createQuery<
   InCols extends ExprRecordNested,
   OutCols extends ExprRecord,
 >(
-  params: ICreateTableQueryParams<InCols, OutCols>,
-): ITableQuery<InCols, OutCols> {
+  params: TCreateTableQueryParams<InCols, OutCols>,
+): TTableQuery<InCols, OutCols> {
   const isEmptyState = isStateEmpty(params.state);
-  const internal: ITableQueryInternal<InCols, OutCols> = {
+  const internal: TTableQueryInternal<InCols, OutCols> = {
     ...params,
     name: isEmptyState
       ? params.from
       : builder.Expr.identifier(`cte_${Random.createId()}`),
   };
 
-  const self: ITableQuery<InCols, OutCols> = {
+  const self: TTableQuery<InCols, OutCols> = {
     [PRIV]: internal,
     [TYPES]: {} as any,
 
@@ -137,7 +137,7 @@ function createQuery<
 
   function where(
     whereFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const result = resolveColFn(whereFn)(internal.inputColsRefs);
     const nextDependencies = mergeDependencies(
       internal.dependencies,
@@ -152,7 +152,7 @@ function createQuery<
 
   function andWhere(
     whereFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const result = resolveColFn(whereFn)(internal.inputColsRefs);
     const nextDependencies = mergeDependencies(
       internal.dependencies,
@@ -175,20 +175,20 @@ function createQuery<
 
   function andFilterEqual(
     filters: Partial<FilterEqualCols<InCols>>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     return andWhere((cols) => whereEqual(cols, filters));
   }
 
   function groupBy(
     groupFn: ColsFn<InCols, Array<TExprUnknow>>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
     return createQuery({ ...internal, state: { ...internal.state, groupBy } });
   }
 
   function andGroupBy(
     groupFn: ColsFn<InCols, Array<TExprUnknow>>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const groupBy = resolveColFn(groupFn)(internal.inputColsRefs);
     const nextGroupBy = [...(internal.state.groupBy ?? []), ...groupBy];
     return createQuery({
@@ -199,7 +199,7 @@ function createQuery<
 
   function having(
     havingFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const having = resolveColFn(havingFn)(internal.inputColsRefs);
     if (having === internal.state.having) {
       return self;
@@ -216,7 +216,7 @@ function createQuery<
 
   function andHaving(
     havingFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const having = resolveColFn(havingFn)(internal.inputColsRefs);
     if (internal.state.having) {
       const havingAnd = Expr.and(internal.state.having, having);
@@ -241,7 +241,7 @@ function createQuery<
 
   function select<NewOutCols extends ExprRecord>(
     selectFn: SelectFn<InCols, OutCols, NewOutCols>,
-  ): ITableQuery<InCols, NewOutCols> {
+  ): TTableQuery<InCols, NewOutCols> {
     const nextOutputColsExprs = selectFn(
       internal.inputColsRefs,
       internal.outputColsExprs,
@@ -265,7 +265,7 @@ function createQuery<
 
   function orderBy(
     orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const result = resolveAllColFn(orderByFn)(
       internal.inputColsRefs,
       resolveLocalColumns(internal.outputColsRefs),
@@ -281,21 +281,21 @@ function createQuery<
 
   function andSortAsc(
     exprFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const expr = resolveColFn(exprFn)(internal.inputColsRefs);
     return appendOrderingExpr(expr, "Asc");
   }
 
   function andSortDesc(
     exprFn: ColsFn<InCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const expr = resolveColFn(exprFn)(internal.inputColsRefs);
     return appendOrderingExpr(expr, "Desc");
   }
 
   function limit(
     limitFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const result = resolveAllColFn(limitFn)(
       internal.inputColsRefs,
       resolveLocalColumns(internal.outputColsRefs),
@@ -311,7 +311,7 @@ function createQuery<
 
   function offset(
     offsetFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const result = resolveAllColFn(offsetFn)(
       internal.inputColsRefs,
       resolveLocalColumns(internal.outputColsRefs),
@@ -326,13 +326,13 @@ function createQuery<
   }
 
   function innerJoin<
-    RTable extends ITableQuery<any, any>,
+    RTable extends TTableQuery<any, any>,
     Alias extends string,
   >(
     table: RTable,
     alias: Alias,
     joinOn: (cols: ColsRefInnerJoined<InCols, RTable, Alias>) => TExprUnknow,
-  ): ITableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols> {
+  ): TTableQuery<ColsRefInnerJoined<InCols, RTable, Alias>, OutCols> {
     const tableCte = queryFrom(table);
     const tableAlias = builder.Expr.identifier(`t_${Random.createId()}`);
 
@@ -361,11 +361,11 @@ function createQuery<
     });
   }
 
-  function leftJoin<RTable extends ITableQuery<any, any>, Alias extends string>(
+  function leftJoin<RTable extends TTableQuery<any, any>, Alias extends string>(
     table: RTable,
     alias: Alias,
     joinOn: (cols: ColsRefLeftJoined<InCols, RTable, Alias>) => TExprUnknow,
-  ): ITableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols> {
+  ): TTableQuery<ColsRefLeftJoined<InCols, RTable, Alias>, OutCols> {
     const tableCte = queryFrom(table);
     const tableAlias = builder.Expr.identifier(`t_${Random.createId()}`);
 
@@ -396,7 +396,7 @@ function createQuery<
     });
   }
 
-  function all(): IQueryOperation<Array<ExprRecordOutput<OutCols>>> {
+  function all(): TQueryOperation<Array<ExprRecordOutput<OutCols>>> {
     const node = buildFinalNode(internal);
     const params = extractParams(node);
     const sql = printNode(node);
@@ -415,7 +415,7 @@ function createQuery<
     };
   }
 
-  function maybeOne(): IQueryOperation<ExprRecordOutput<OutCols> | null> {
+  function maybeOne(): TQueryOperation<ExprRecordOutput<OutCols> | null> {
     // Note: here we could limit to 2 rows to detect if there are too many rows
     // But we don't because we want to know how many rows there are in the error
     const allOp = all();
@@ -431,7 +431,7 @@ function createQuery<
     };
   }
 
-  function one(): IQueryOperation<ExprRecordOutput<OutCols>> {
+  function one(): TQueryOperation<ExprRecordOutput<OutCols>> {
     const maybeOneOp = maybeOne();
     return {
       ...maybeOneOp,
@@ -445,7 +445,7 @@ function createQuery<
     };
   }
 
-  function maybeFirst(): IQueryOperation<ExprRecordOutput<OutCols> | null> {
+  function maybeFirst(): TQueryOperation<ExprRecordOutput<OutCols> | null> {
     const allOp = limit(Expr.literal(1)).all();
     return {
       ...allOp,
@@ -456,7 +456,7 @@ function createQuery<
     };
   }
 
-  function first(): IQueryOperation<ExprRecordOutput<OutCols>> {
+  function first(): TQueryOperation<ExprRecordOutput<OutCols>> {
     const maybeFirstOp = maybeFirst();
     return {
       ...maybeFirstOp,
@@ -475,7 +475,7 @@ function createQuery<
   function appendOrderingExpr(
     expr: TExprUnknow,
     dir: "Asc" | "Desc",
-  ): ITableQuery<InCols, OutCols> {
+  ): TTableQuery<InCols, OutCols> {
     const orderingTerm = Ast.createNode("OrderingTerm", {
       expr: expr.ast,
       direction: dir,
@@ -518,7 +518,7 @@ function resolveAllColFn<
 }
 
 function buildFinalNode(
-  internal: ITableQueryInternal<any, any>,
+  internal: TTableQueryInternal<any, any>,
 ): Ast.Node<"SelectStmt"> {
   const ctes = buildCtes(internal.dependencies);
   const select = buildSelectNode(internal);
@@ -531,7 +531,7 @@ function buildFinalNode(
 }
 
 function buildCtes(
-  dependencies: ITableQueryDependency[],
+  dependencies: TTableQueryDependency[],
 ): Array<Ast.Node<"CommonTableExpression">> {
   const alreadyIncluded = new Set<string>();
   const ctes: Array<Ast.Node<"CommonTableExpression">> = [];
@@ -551,7 +551,7 @@ function buildCtes(
 }
 
 function buildSelectNode(
-  internal: ITableQueryDependency,
+  internal: TTableQueryDependency,
 ): Ast.Node<"SelectStmt"> {
   const { state } = internal;
   const [firstJoin, ...restJoins] = state.joins || [];
@@ -603,9 +603,9 @@ function resolvedColumns(
 ): {
   select: Array<Ast.Node<"ResultColumn">>;
   columnsRef: ExprRecord;
-  dependencies: ITableQueryDependency[];
+  dependencies: TTableQueryDependency[];
 } {
-  let dependencies: ITableQueryDependency[] = [];
+  let dependencies: TTableQueryDependency[] = [];
   const select = Object.entries(selected).map(
     ([key, expr]): Ast.Node<"ResultColumn"> => {
       dependencies = mergeDependencies(dependencies, expr[PRIV].dependencies);

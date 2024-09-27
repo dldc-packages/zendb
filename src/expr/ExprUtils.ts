@@ -1,4 +1,4 @@
-import type { ITableQueryDependency } from "../Query.types.ts";
+import type { TTableQueryDependency } from "../Query.types.ts";
 import { PRIV } from "../utils/constants.ts";
 import type { TExpr, TExprUnknow } from "./Expr.ts";
 
@@ -20,6 +20,6 @@ export function someNullable(...exprs: TExprUnknow[]): boolean {
 
 export function mergeExprDependencies(
   ...exprs: TExprUnknow[]
-): ITableQueryDependency[] {
+): TTableQueryDependency[] {
   return exprs.flatMap((expr) => expr[PRIV].dependencies ?? []);
 }
