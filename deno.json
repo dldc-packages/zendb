@@ -3,12 +3,12 @@
   "version": "10.0.0",
   "exports": "./mod.ts",
   "imports": {
-    "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
+    "@db/sqlite": "jsr:@db/sqlite@^0.12.0",
     "@dldc/erreur": "jsr:@dldc/erreur@^7.1.1",
     "@dldc/sqlite": "jsr:@dldc/sqlite@^3.1.0",
-    "@std/expect": "jsr:@std/expect@^0.224.2",
+    "@std/expect": "jsr:@std/expect@^1.0.13",
     "dedent": "npm:dedent@^1.5.3",
-    "sql-formatter": "npm:sql-formatter@^15.3.1"
+    "sql-formatter": "npm:sql-formatter@^15.4.11"
   },
   "unstable": [
     "ffi"
@@ -18,8 +18,8 @@
     "test:watch": "deno test -A --watch",
     "test:coverage": "deno test -A --coverage && deno coverage coverage --html",
     "bump": "deno run -A jsr:@mys/bump@1",
-    "update": "deno run -A jsr:@molt/cli deno.json",
-    "update:commit": "deno task -q update --commit deno.json",
+    "deps:outdated": "deno outdated",
+    "deps:update": "deno outdated --update --latest --interactive",
     "check": "deno fmt --check . && deno lint . && deno task test:run"
   },
   "lint": {
