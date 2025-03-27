@@ -55,6 +55,26 @@ Deno.test("Drop table if exist", () => {
   );
 });
 
+Deno.test("Boolean column", () => {
+  const schema = Table.declareMany({
+    settings: ({
+      id: Column.text().primary(),
+      isActive: Column.boolean(),
+    }),
+  });
+
+  const res = Database.schema(schema);
+
+  expect(res).toMatchObject([
+    {
+      kind: "CreateTable",
+      params: null,
+      sql:
+        "CREATE TABLE settings (id TEXT NOT NULL PRIMARY KEY, isActive INT NOT NULL) STRICT",
+    },
+  ]);
+});
+
 // test('Disable strict mode', () => {
 //   const v1 = Schema.define({
 //     strict: false,
