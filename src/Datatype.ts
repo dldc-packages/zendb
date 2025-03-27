@@ -2,7 +2,7 @@ import { createInvalidLiteral } from "./ZendbErreur.ts";
 import type { TYPES } from "./utils/constants.ts";
 import { maybeParseJson } from "./utils/functions.ts";
 
-export type TSqliteDatatype = "INTEGER" | "TEXT" | "REAL" | "BLOB";
+export type TSqliteDatatype = "INT" | "TEXT" | "REAL" | "BLOB";
 
 export type TDatatypeAny = TDatatype<any, any>;
 
@@ -20,14 +20,14 @@ export const boolean: TDatatype<boolean, number> = create<boolean, number>({
   name: "boolean",
   parse: (value: number) => value === 1,
   serialize: (value: boolean) => (value ? 1 : 0),
-  type: "INTEGER",
+  type: "INT",
 });
 
 export const integer: TDatatype<number, number> = create<number, number>({
   name: "integer",
   parse: (value: number) => value,
   serialize: (value: number) => value,
-  type: "INTEGER",
+  type: "INT",
 });
 
 export const number: TDatatype<number, number> = create<number, number>({
