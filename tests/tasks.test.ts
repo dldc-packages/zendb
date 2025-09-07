@@ -17,7 +17,7 @@ const db = TestDatabase.create();
 Deno.test("create database", () => {
   setup();
 
-  const res = db.execMany(Database.schema(tasksDb));
+  const res = db.execMany(Database.schema(tasksDb.tables));
   expect(res).toEqual([null, null, null, null]);
   const tables = db.exec(Database.tables());
   expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
@@ -27,7 +27,7 @@ Deno.test("insert tasks", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.tasks.insert({
+    tasksDb.tables.tasks.insert({
       id: "1",
       title: "Task 1",
       completed: false,
@@ -46,7 +46,7 @@ Deno.test("find tasks", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.tasks
+    tasksDb.tables.tasks
       .query()
       .select(({ id, title }) => ({ id, title }))
       .all(),
@@ -58,7 +58,7 @@ Deno.test("create user", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users.insert({
+    tasksDb.tables.users.insert({
       id: "1",
       name: "John",
       email: "john@example.com",
@@ -81,7 +81,7 @@ Deno.test("link task and user", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
+    tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
   );
   expect(res).toEqual({ user_id: "1", task_id: "1" });
 });
@@ -90,7 +90,7 @@ Deno.test("Query tasks as object", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.tasks
+    tasksDb.tables.tasks
       .query()
       .select((c) => ({
         id: c.id,
@@ -116,7 +116,7 @@ Deno.test("Query users as object", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users
+    tasksDb.tables.users
       .query()
       .select((c) => ({
         id: c.id,
@@ -143,7 +143,7 @@ Deno.test("Concatenate nullable should return nullable", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users
+    tasksDb.tables.users
       .query()
       .select((c) => ({
         id: c.id,
@@ -158,7 +158,7 @@ Deno.test("Find user by email", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users
+    tasksDb.tables.users
       .query()
       .where((c) => Expr.equal(c.email, Expr.external("john@example.com")))
       .first(),
@@ -178,7 +178,7 @@ Deno.test("Find user by email using compare", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users
+    tasksDb.tables.users
       .query()
       .where((c) => Expr.compare(c.email, "=", "john@example.com"))
       .first(),
@@ -198,7 +198,8 @@ Deno.test("Find user by email using filterEqual", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.users.query().andFilterEqual({ email: "john@example.com" }).first(),
+    tasksDb.tables.users.query().andFilterEqual({ email: "john@example.com" })
+      .first(),
   );
   expect(res).toEqual({
     id: "1",
@@ -213,15 +214,15 @@ Deno.test("Find user by email using filterEqual", () => {
 Deno.test("Find tasks with user", () => {
   setup();
 
-  const tasksWithUser = tasksDb.joinUsersTasks
+  const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
     .leftJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "task",
       (cols) => Expr.equal(cols.task_id, cols.task.id),
     )
     .leftJoin(
-      tasksDb.users.query(),
+      tasksDb.tables.users.query(),
       "user",
       (cols) => Expr.equal(cols.user_id, cols.user.id),
     )
@@ -254,15 +255,15 @@ Deno.test("Find tasks with user", () => {
 Deno.test("Find task by user email", () => {
   setup();
 
-  const tasksWithUser = tasksDb.joinUsersTasks
+  const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
     .leftJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "task",
       (cols) => Expr.equal(cols.task_id, cols.task.id),
     )
     .leftJoin(
-      tasksDb.users.query(),
+      tasksDb.tables.users.query(),
       "user",
       (cols) => Expr.equal(cols.user_id, cols.user.id),
     )
@@ -330,13 +331,13 @@ Deno.test("Update task", () => {
   setup();
 
   const res = db.exec(
-    tasksDb.tasks.update(
+    tasksDb.tables.tasks.update(
       { completed: true },
       (c) => Expr.equal(c.id, Expr.literal("1")),
     ),
   );
   expect(res).toEqual({ updated: 1 });
-  const task = db.exec(tasksDb.tasks.query().first());
+  const task = db.exec(tasksDb.tables.tasks.query().first());
   expect(task).toEqual({
     completed: true,
     description: "First task",
@@ -348,11 +349,11 @@ Deno.test("Update task", () => {
 // Deno.test('tasks grouped by userId', () => {
 setup();
 
-//   const op = tasksDb.joinUsersTasks
+//   const op = tasksDb.tables.joinUsersTasks
 //     .query()
 //     .groupBy((c) => [c.user_id])
 //     .join(
-//       tasksDb.tasks.query(),
+//       tasksDb.tables.tasks.query(),
 //       (l, r) => Expr.equal(l.task_id, r.id),
 //       (l, r) => ({ user_id: l.user_id, tasks: Expr.AggregateFunctions.json_group_array(Expr.ScalarFunctions.json_object(r)) })
 //     )
@@ -366,16 +367,16 @@ setup();
 // Deno.test('find tasks for user email', () => {
 setup();
 
-//   const tasksByUserId = tasksDb.joinUsersTasks
+//   const tasksByUserId = tasksDb.tables.joinUsersTasks
 //     .query()
 //     .groupBy((c) => [c.user_id])
 //     .join(
-//       tasksDb.tasks.query(),
+//       tasksDb.tables.tasks.query(),
 //       (l, r) => Expr.equal(l.task_id, r.id),
 //       (l, r) => ({ user_id: l.user_id, tasks: Expr.AggregateFunctions.json_group_array(Expr.ScalarFunctions.json_object(r)) })
 //     );
 
-//   const op = tasksDb.users
+//   const op = tasksDb.tables.users
 //     .query()
 //     .where((c) => Expr.equal(c.email, Expr.literal('john@example.com')))
 //     .join(

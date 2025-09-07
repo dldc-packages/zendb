@@ -1,17 +1,17 @@
 import { expect } from "@std/expect";
-import { Column, Database, Table } from "../mod.ts";
+import { Column, Database, Schema } from "../mod.ts";
 
 Deno.test("Init empty schema", () => {
-  const db = Table.declareMany({});
-  expect(Database.schema(db)).toEqual([]);
+  const db = Schema.declare({});
+  expect(Database.schema(db.tables)).toEqual([]);
 });
 
 Deno.test("Init simple schema", () => {
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     users: ({ email: Column.text().primary(), username: Column.text() }),
   });
 
-  const res = Database.schema(schema);
+  const res = Database.schema(schema.tables);
 
   expect(res).toMatchObject([
     {
@@ -24,11 +24,11 @@ Deno.test("Init simple schema", () => {
 });
 
 Deno.test("Drop table", () => {
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     users: ({ email: Column.text().primary(), username: Column.text() }),
   });
 
-  const res = schema.users.schema.drop();
+  const res = schema.tables.users.schema.drop();
 
   expect(res).toMatchObject(
     {
@@ -40,11 +40,11 @@ Deno.test("Drop table", () => {
 });
 
 Deno.test("Drop table if exist", () => {
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     users: ({ email: Column.text().primary(), username: Column.text() }),
   });
 
-  const res = schema.users.schema.drop({ ifExists: true });
+  const res = schema.tables.users.schema.drop({ ifExists: true });
 
   expect(res).toMatchObject(
     {
@@ -56,14 +56,14 @@ Deno.test("Drop table if exist", () => {
 });
 
 Deno.test("Boolean column", () => {
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     settings: ({
       id: Column.text().primary(),
       isActive: Column.boolean(),
     }),
   });
 
-  const res = Database.schema(schema);
+  const res = Database.schema(schema.tables);
 
   expect(res).toMatchObject([
     {

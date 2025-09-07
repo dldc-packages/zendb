@@ -2,12 +2,19 @@ import { Ast, builder as b, printNode } from "@dldc/sqlite";
 import type {
   TCreateTableOperation,
   TListTablesOperation,
+  TOperation,
+  TOperationResult,
   TPragmaOperation,
   TPragmaSetOperation,
 } from "./Operation.ts";
 import type { TCreateTableOptions, TTable } from "./Table.ts";
 
-export function schema<Tables extends Record<string, TTable<any, any>>>(
+export interface TZenDatabaseBase {
+  exec<Op extends TOperation>(op: Op): TOperationResult<Op>;
+  execMany<Op extends TOperation>(ops: Op[]): TOperationResult<Op>[];
+}
+
+export function schema<Tables extends Record<string, TTable<any, any, any>>>(
   tables: Tables,
   options?: TCreateTableOptions,
 ): Array<TCreateTableOperation> {

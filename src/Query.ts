@@ -131,6 +131,7 @@ function createQuery<
     maybeOne,
     first,
     maybeFirst,
+    count,
   };
 
   return self;
@@ -466,6 +467,17 @@ function createQuery<
           throw createNoRows();
         }
         return res;
+      },
+    };
+  }
+
+  function count(): TQueryOperation<number> {
+    const allOp = select(() => ({ count: Expr.Aggregate.countStar() })).one();
+    return {
+      ...allOp,
+      parse: (rows) => {
+        const res = allOp.parse(rows);
+        return res.count;
       },
     };
   }

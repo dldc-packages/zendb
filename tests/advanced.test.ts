@@ -1,5 +1,6 @@
 import { expect } from "@std/expect";
-import { Database, Expr, Random, type Table } from "../mod.ts";
+import { Database, Expr, Random } from "../mod.ts";
+import type { TTableTypes } from "../src/Table.ts";
 import { TestDatabase, type TTestDatabase } from "./utils/TestDatabase.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
@@ -14,7 +15,7 @@ function setupDatabase() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
 
-  db.execMany(Database.schema(tasksDb));
+  db.execMany(Database.schema(tasksDb.tables));
 
   const users: UserInput[] = [
     {
@@ -51,9 +52,9 @@ function setupDatabase() {
     },
   ];
 
-  db.exec(tasksDb.users.insertMany(users));
+  db.exec(tasksDb.tables.users.insertMany(users));
 
-  const tasks: TaksInput[] = [
+  const tasks: TasksInput[] = [
     {
       id: "1",
       title: "First Task",
@@ -86,31 +87,27 @@ function setupDatabase() {
     },
   ];
 
-  tasks.forEach((task) => db.exec(tasksDb.tasks.insert(task)));
+  tasks.forEach((task) => db.exec(tasksDb.tables.tasks.insert(task)));
 
-  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "1" }));
-  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "1", task_id: "2" }));
-  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "2", task_id: "3" }));
-  db.exec(tasksDb.joinUsersTasks.insert({ user_id: "3", task_id: "1" }));
+  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }));
+  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "2" }));
+  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "2", task_id: "3" }));
+  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "3", task_id: "1" }));
 
   nextRandomId = 0;
 }
 
-type UserInput = (typeof tasksDb)["users"] extends Table.TTable<infer Val, any>
-  ? Val
-  : never;
+type UserInput = TTableTypes<(typeof tasksDb.tables)["users"]>["input"];
 
-type TaksInput = (typeof tasksDb)["tasks"] extends Table.TTable<infer Val, any>
-  ? Val
-  : never;
+type TasksInput = TTableTypes<(typeof tasksDb.tables)["tasks"]>["input"];
 
 Deno.test("Find all user with their linked tasks", () => {
   setupDatabase();
-  const allUsers = tasksDb.users.query();
-  const tasksByUserId = tasksDb.joinUsersTasks
+  const allUsers = tasksDb.tables.users.query();
+  const tasksByUserId = tasksDb.tables.joinUsersTasks
     .query()
     .innerJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "task",
       (c) => Expr.equal(c.task_id, c.task.id),
     )
@@ -289,7 +286,7 @@ Deno.test("Find all user with their linked tasks", () => {
 Deno.test("Find all users with only task 1 & 2 using subquery in expression", () => {
   setupDatabase();
 
-  const subQuery = tasksDb.joinUsersTasks
+  const subQuery = tasksDb.tables.joinUsersTasks
     .query()
     .where((c) =>
       Expr.inList(c.task_id, [Expr.literal("1"), Expr.literal("2")])
@@ -318,7 +315,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
   const subQueryRes = db.exec(subQueryOp);
   expect(subQueryRes).toEqual([{ id: "1" }]);
 
-  const filteredUsers = tasksDb.users
+  const filteredUsers = tasksDb.tables.users
     .query()
     .where((c) => Expr.inSubquery(c.id, subQuery))
     .all();
@@ -361,12 +358,12 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
 Deno.test("Find all users with no tasks", () => {
   setupDatabase();
 
-  const usersWithTasks = tasksDb.joinUsersTasks
+  const usersWithTasks = tasksDb.tables.joinUsersTasks
     .query()
     .groupBy((c) => [c.user_id])
     .select((c) => ({ id: c.user_id }));
 
-  const usersWithNoTasks = tasksDb.users
+  const usersWithNoTasks = tasksDb.tables.users
     .query()
     .where((c) => Expr.notInSubquery(c.id, usersWithTasks))
     .all();

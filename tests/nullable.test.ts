@@ -1,5 +1,5 @@
 import { expect } from "@std/expect";
-import { Column, Database, Datatype, Random, Table } from "../mod.ts";
+import { Column, Database, Datatype, Random, Schema } from "../mod.ts";
 import { TestDatabase } from "./utils/TestDatabase.ts";
 
 let nextRandomId = 0;
@@ -23,7 +23,7 @@ Deno.test("create database", () => {
     isJson: false,
   });
 
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     demo: {
       id: Column.text().primary(),
       date: Column.date().nullable(),
@@ -36,13 +36,13 @@ Deno.test("create database", () => {
     },
   });
 
-  const res = db.execMany(Database.schema(schema));
+  const res = db.execMany(Database.schema(schema.tables));
   expect(res).toEqual([null]);
   const tables = db.exec(Database.tables());
   expect(tables).toEqual(["demo"]);
 
   const insertedNull = db.exec(
-    schema.demo.insert({
+    schema.tables.demo.insert({
       id: "1",
       boolean: null,
       custom: null,
@@ -68,7 +68,7 @@ Deno.test("create database", () => {
 
   const date = new Date();
   const insertedNotNull = db.exec(
-    schema.demo.insert({
+    schema.tables.demo.insert({
       id: "2",
       boolean: true,
       custom: ["a", "b"],
@@ -123,7 +123,7 @@ Deno.test("create database", () => {
     ],
   );
 
-  const all = db.exec(schema.demo.query().all());
+  const all = db.exec(schema.tables.demo.query().all());
   expect(all).toEqual(
     [
       {

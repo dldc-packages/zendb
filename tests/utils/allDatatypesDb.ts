@@ -1,6 +1,6 @@
-import { Column, Table } from "../../mod.ts";
+import { Column, Schema } from "../../mod.ts";
 
-export const allDatatypesDb = Table.declareMany({
+export const allDatatypesDb = Schema.declare({
   datatype: {
     id: Column.text().primary(),
     text: Column.text(),

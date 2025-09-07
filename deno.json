@@ -19,7 +19,7 @@
     "bump": "deno run -A jsr:@mys/bump@1",
     "deps:outdated": "deno outdated",
     "deps:update": "deno outdated --update --latest --interactive",
-    "check": "deno fmt --check . && deno lint . && deno check **/*.ts && deno task test",
+    "check": "deno fmt --check . && deno lint . && deno check **/*.ts && deno task test:run",
     "test:coverage": "deno test -A --coverage=coverage && deno coverage coverage --html"
   },
   "lint": {

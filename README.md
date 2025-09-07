@@ -26,7 +26,7 @@ SQLite. There are 3 currently available:
   [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3) available on
   [NPM](https://www.npmjs.com/package/@dldc/zendb-better-sqlite3)
 
-Those librairiers are quite simple, if your driver is not listed here, you can
+Those libraries are quite simple; if your driver is not listed here, you can
 easily create your own driver by looking at the source code of the existing
 ones.
 
@@ -34,12 +34,14 @@ ones.
 
 Here is an overview of how to use this library:
 
-### 1. Create a schema
+### 1. Declare a schema
+
+Use `Schema.declare`
 
 ```ts
-import { Column, Table } from "@dldc/zendb";
+import { Column, Schema } from "@dldc/zendb";
 
-export const schema = Table.declareMany({
+export const schema = Schema.declare({
   tasks: {
     id: Column.text().primary(),
     title: Column.text(),
@@ -65,114 +67,101 @@ export const schema = Table.declareMany({
 });
 ```
 
+You will access tables via `schema.tables.<tableName>`.
+
 ### 2. Initialize the database
 
 ```ts
 import { Database } from "@db/sqlite";
 import { DbDatabase } from "@dldc/zendb-db-sqlite";
+import { Database as ZenDatabase } from "@dldc/zendb";
+import { schema } from "./schema.ts";
 
 // create @db/sqlite database
 const sqlDb = new Database(dbPath);
 // pass it to the adapter
 const db = DbDatabase(sqlDb);
 
-// the you probably want to create the tables if they don't exist
-// this library does not provide a proper migration system
-// this is a simple way to create the tables if they don't exist
-import { Database as ZenDatabase } from "@dldc/zendb";
-
-// get the list of tables
+// then you probably want to create the tables if they don't exist
 const tables = db.exec(ZenDatabase.tables());
 if (tables.length === 0) {
-  // create the tables
   db.execMany(
-    ZenDatabase.schema(schema, { ifNotExists: true, strict: true }),
+    ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
   );
 }
 ```
 
 ### 3. Run queries
 
-Your `db` variable (created from the driver library) will expose at least 2
-methods:
+Your driver instance (`db`) exposes:
 
 - `exec(DatabaseOperation)`
 - `execMany(DatabaseOperation[])`
 
-You will then use your schema to create `DatabaseOperation` objects:
+Use your schema to build operations:
 
 ```ts
 import { schema } from "./schema.ts";
 
-const userQueryOp = schema.users.query().andFilterEqual({ id: "my-id" })
+const userQueryOp = schema.tables.users.query()
+  .andFilterEqual({ id: "my-id" })
   .maybeOne();
+
 const result = db.exec(userQueryOp);
-//    ^^^^^^ this is type safe 🎉
+// result is type safe 🎉
 ```
 
 ## `insert`, `update`, `delete`
 
-They are 6 methods available on the `Table` object:
+There are a few methods available on each `Table` object:
 
 - `.insert(item)`
 - `.insertMany(item[])`
-- `.delete(condtion)` (`condition` is an expression function, detailed below)
-- `.deleteEqual(filters)` this is a shortcut for `.delete()` with simple
-  equality filters
-- `.update(item, condition)` (`condition` is an expression function, detailed
-  below)
-- `.updateEqual(item, filters)` this is a shortcut for `.update()` with simple
-  equality filters
+- `.delete(condition)` (`condition` is an expression function, detailed below)
+- `.deleteEqual(filters)` shortcut for simple equality filters
+- `.update(item, condition)` (`condition` is an expression function)
+- `.updateEqual(item, filters)` shortcut version for simple equality filters
+
+(Use them from `schema.tables.<table>`.)
 
 ## Queries
 
-To create a query, you need to call the `.query()` method on a table. This will
-return a `Query` object. You can then chain methods to build your query.
-
-There are 2 kind of methods on the `Query` object:
-
-- Methods that return an database operation (`.all()`, `.one()`, `.maybeOne()`,
-  `.first()`, `.maybeFirst()`). You must always end your query with one of those
-  methods.
-- Methods that return a new query object with updated properties (all the other
-  methods).
-
-Here is an example:
+Create a query with `.query()` on a table:
 
 ```ts
-const query = schema.tasks.query()
+const query = schema.tables.tasks.query()
   .andFilterEqual({ completed: false })
   .all();
 
 const tasks = db.exec(query);
 ```
 
+Two kinds of methods on a `Query`:
+
+- Terminal: `.all()`, `.one()`, `.maybeOne()`, `.first()`, `.maybeFirst()`
+- Transforming: all others (return a new Query)
+
+Always end with a terminal method.
+
 ## Query end methods
 
-- `.all()`: return all the rows that match the query
-- `.maybeFirst()`: add a `LIMIT 1` to the query and return the first row or
-  `null`
-- `.first()`: similar to `.maybeFirst()` but will throw an error if no row is
-  found
-- `.maybeOne()`: return the first row or `null` if no row is found, will throw
-  an error if more than one row is found
-- `.one()`: similar to `.maybeOne()` but will throw an error if no row is found
+- `.all()`: all rows
+- `.maybeFirst()`: first row or `null` (adds / overrides `LIMIT 1`)
+- `.first()`: first row or error if none
+- `.maybeOne()`: one row or `null`; error if more than one
+- `.one()`: exactly one row or error if 0 or >1
 
-_Note: `.first()` and `.maybeFirst()` will override any `LIMIT` that was set on
-the query._
+`.first()` / `.maybeFirst()` override any existing `LIMIT`.
 
 ## Expressions
 
-One key concept in this library is its ability to create and manipulate type
-safe [expressions](https://www.sqlite.org/lang_expr.html). If you don't already
-know what an expression is, you can think of it as any piece of SQL that can be
-evaluated to a value. This includes:
+Expressions are type-safe SQL fragments:
 
-- A column name (`id`, `task.name`)
-- A literal value (`"hello"`, `42`)
-- A function (`COUNT(*)`, `SUM(task.duration)`)
-- A binary operation (`1 + 2`, `task.duration * 60`)
-- A variable (`:myVar`)
+- Column: `users.id`
+- Literal: `42`, `"hello"`
+- Function: `COUNT(*)`
+- Binary op: `a + b`
+- External variable (parameter): `:_var`
 
 ### `Expr.external`
 
@@ -181,7 +170,7 @@ The `Expr.external` function is used to create an expression from a variable.
 ```ts
 import { Expr } from "@dldc/zendb";
 
-const query2 = schema.tasks.query()
+const query2 = schema.tables.tasks.query()
   .limit(Expr.external(10))
   .all();
 
@@ -203,7 +192,7 @@ expression.
 Here is an example with the `.where` method:
 
 ```ts
-const meOrYou = schema.users.query()
+const meOrYou = schema.tables.users.query()
   .where((c) =>
     Expr.or(
       Expr.equal(c.id, Expr.external("me")),
@@ -223,26 +212,29 @@ _Note: if you don't provide a select(), all columns from the source tables are
 selected_
 
 ```ts
-// select only some properties of the user
-const userQuery = schema.users.query()
+// Select only some properties
+const userQuery = schema.tables.users.query()
   .select((c) => ({ id: c.id, name: c.name }))
   .all();
 // SELECT users.id AS id, users.name AS name FROM users
 
 // Using destructuring
-const userQuery = schema.users.query()
+const userQuery = schema.tables.users.query()
   .select(({ id, name }) => ({ id, name }))
   .all();
 // SELECT users.id AS id, users.name AS name FROM users
 
 // Using expressions
-const userQueryConcat = schema.users.query()
-  .select((c) => ({ id: c.id, name: Expr.concatenate(c.name, c.email) }))
+const userQueryConcat = schema.tables.users.query()
+  .select((c) => ({
+    id: c.id,
+    name: Expr.concatenate(c.name, c.email),
+  }))
   .all();
 // SELECT users.id AS id, users.name || users.email AS name FROM users
 
-// Without select, all columns are selected
-const userQueryAll = schema.users.query().all();
+// All columns
+const userQueryAll = schema.tables.users.query().all();
 // SELECT users.* FROM users
 ```
 
@@ -263,9 +255,9 @@ have the same signature and take the following arguments:
 Here is an example:
 
 ```ts
-const usersWithGroups = schema.users.query()
+const usersWithGroups = schema.tables.users.query()
   .innerJoin(
-    schema.groups.query(),
+    schema.tables.groups.query(),
     "groupAlias",
     (c) => Expr.equal(c.groupId, c.groupAlias.id),
   )
@@ -287,8 +279,8 @@ FROM users
   INNER JOIN groups AS t_8vUvrgUNne ON users.groupId == t_8vUvrgUNne.id
 ```
 
-_Note: the join alias you define is not used in the query itself, instead a
-random name is used !_
+Note: The provided alias (`groupAlias`) is only for build-time typing; the SQL
+uses an auto-generated internal alias.
 
 ## Using [CTEs](https://en.wikipedia.org/wiki/Hierarchical_and_recursive_queries_in_SQL)
 
@@ -299,7 +291,7 @@ the `queryFrom()` function:
 ```ts
 import { queryFrom } from "@dldc/zendb";
 
-const query1 = schema.users
+const query1 = schema.tables.users
   .query()
   .select((cols) => ({ demo: cols.id, id: cols.id }))
   .groupBy((cols) => [cols.name]);

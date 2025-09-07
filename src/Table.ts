@@ -44,10 +44,22 @@ export interface TDropTableOptions {
   ifExists?: boolean;
 }
 
+export type TAnyTables = Record<string, TTable<any, any, any>>;
+
+export type TTableTypes<Table extends TTable<any, any, any>> = Table extends
+  TTable<
+    any,
+    infer Input,
+    infer OutputCols
+  > ? { input: Input; output: Prettify<ExprRecordOutput<OutputCols>> }
+  : { input: never; output: never };
+
 export interface TTable<
+  Definition extends ColumnsBase,
   InputData extends AnyRecord,
   OutputCols extends ExprRecord,
 > {
+  definition: Definition;
   schema: {
     create(options?: TCreateTableOptions): TCreateTableOperation;
     drop(options?: TDropTableOptions): TDropTableOperation;
@@ -79,8 +91,9 @@ interface TableInfos<Cols extends ExprRecord> {
 export function declare<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
-): TTable<ColumnsToInput<Columns>, ColumnsToExprRecord<Columns>> {
+): TTable<Columns, ColumnsToInput<Columns>, ColumnsToExprRecord<Columns>> {
   return {
+    definition: columns,
     schema: {
       create: (options) => createTable(table, columns, options),
       drop: (options) => dropTable(table, options),
@@ -93,21 +106,6 @@ export function declare<Columns extends ColumnsBase>(
     update: (data, where) => update(table, columns, data, where),
     updateEqual: (data, options) => updateEqual(table, columns, data, options),
   };
-}
-
-export function declareMany<Tables extends Record<string, ColumnsBase>>(
-  tables: Tables,
-): {
-  [TableName in keyof Tables]: TTable<
-    ColumnsToInput<Tables[TableName]>,
-    ColumnsToExprRecord<Tables[TableName]>
-  >;
-} {
-  return Object.fromEntries(
-    Object.entries(tables).map((
-      [tableName, columns],
-    ) => [tableName, declare(tableName, columns)]),
-  ) as any;
 }
 
 function getTableInfos<Columns extends ColumnsBase>(

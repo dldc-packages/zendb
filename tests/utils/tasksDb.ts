@@ -1,6 +1,6 @@
-import { Column, Table } from "../../mod.ts";
+import { Column, Schema } from "../../mod.ts";
 
-export const tasksDb = Table.declareMany({
+export const tasksDb = Schema.declare({
   tasks: {
     id: Column.text().primary(),
     title: Column.text(),

@@ -17,6 +17,17 @@ export const count = <Expr extends TExprUnknow>(
   );
 };
 
+export const countStar = (): TExpr<number, false> => {
+  // count always returns a number
+  return create(
+    builder.Aggregate.aggregateFunctionInvocation("count", "*"),
+    {
+      parse: Datatype.number.parse,
+      nullable: false,
+    },
+  );
+};
+
 // Note: for the following functions, the result is always nullable because the result is null when the input is empty
 export const avg = <Expr extends TExpr<number, boolean>>(
   expr: Expr,

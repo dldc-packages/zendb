@@ -14,10 +14,10 @@ function setup() {
 Deno.test("Query innerJoin", () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .innerJoin(
-      tasksDb.joinUsersTasks.query(),
+      tasksDb.tables.joinUsersTasks.query(),
       "usersTasks",
       (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
     )
@@ -41,15 +41,15 @@ Deno.test("Query innerJoin", () => {
 Deno.test("Query joins", () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .innerJoin(
-      tasksDb.joinUsersTasks.query(),
+      tasksDb.tables.joinUsersTasks.query(),
       "usersTasks",
       (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
     )
     .innerJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "tasks",
       (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id),
     )
@@ -74,14 +74,14 @@ Deno.test("Query joins", () => {
 Deno.test("Join on aggregate should use CTE", () => {
   setup();
 
-  const countUsersByGroup = tasksDb.users.query()
+  const countUsersByGroup = tasksDb.tables.users.query()
     .select(({ id, groupId }) => ({
       groupId,
       usersCount: Expr.Aggregate.count(id),
     }))
     .groupBy((c) => [c.groupId]);
 
-  const groupsWithUsersCount = tasksDb.groups.query().innerJoin(
+  const groupsWithUsersCount = tasksDb.tables.groups.query().innerJoin(
     countUsersByGroup,
     "users",
     (c) => Expr.equal(c.id, c.users.groupId),
@@ -111,10 +111,10 @@ Deno.test("Join on aggregate should use CTE", () => {
 Deno.test("Join on table with select should use CTE", () => {
   setup();
 
-  const usersWithSelect = tasksDb.users.query()
+  const usersWithSelect = tasksDb.tables.users.query()
     .select(({ id, email }) => ({ id, userEmail: email }));
 
-  const groupsWithUsersCount = tasksDb.groups.query().innerJoin(
+  const groupsWithUsersCount = tasksDb.tables.groups.query().innerJoin(
     usersWithSelect,
     "users",
     (c) => Expr.equal(c.id, c.users.userEmail),
@@ -143,14 +143,14 @@ Deno.test("Join on table with select should use CTE", () => {
 Deno.test("Joining the same table twice should work", () => {
   setup();
 
-  const result = tasksDb.users.query()
+  const result = tasksDb.tables.users.query()
     .innerJoin(
-      tasksDb.joinUsersTasks.query(),
+      tasksDb.tables.joinUsersTasks.query(),
       "usersTasks",
       (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
     )
     .innerJoin(
-      tasksDb.joinUsersTasks.query(),
+      tasksDb.tables.joinUsersTasks.query(),
       "usersTasks2",
       (cols) => Expr.equal(cols.usersTasks2.user_id, cols.id),
     )

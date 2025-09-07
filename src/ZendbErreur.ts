@@ -8,7 +8,12 @@ export type TZendbErreurData =
   | { kind: "TooManyRows"; rowsCount: number }
   | { kind: "ColumnNotFound"; columnKey: string }
   | { kind: "ColumnDoesNotExist"; column: string }
-  | { kind: "CannotInsertEmptyArray"; table: string };
+  | { kind: "CannotInsertEmptyArray"; table: string }
+  | {
+    kind: "InvalidUserVersion";
+    userVersion: number;
+    maxExpectedVersion: number;
+  };
 
 const ZendbErreurInternal: TErreurStore<TZendbErreurData> = createErreurStore<
   TZendbErreurData
@@ -89,5 +94,17 @@ export function createCannotInsertEmptyArray(table: string): Error {
       kind: "CannotInsertEmptyArray",
       table,
     },
+  );
+}
+
+export function createInvalidUserVersion(
+  userVersion: number,
+  maxExpectedVersion: number,
+): Error {
+  return ZendbErreurInternal.setAndReturn(
+    new Error(
+      `Invalid user version in migration: ${userVersion}, max expected: ${maxExpectedVersion}`,
+    ),
+    { kind: "InvalidUserVersion", userVersion, maxExpectedVersion },
   );
 }

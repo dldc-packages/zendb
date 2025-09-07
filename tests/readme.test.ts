@@ -4,7 +4,7 @@ import {
   Expr,
   queryFrom,
   Random,
-  Table,
+  Schema,
 } from "@dldc/zendb";
 import { expect } from "@std/expect";
 import { TestDatabase } from "./utils/TestDatabase.ts";
@@ -15,7 +15,7 @@ Deno.test("Run code from README example", () => {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
 
-  const schema = Table.declareMany({
+  const schema = Schema.declare({
     tasks: {
       id: Column.text().primary(),
       title: Column.text(),
@@ -46,16 +46,18 @@ Deno.test("Run code from README example", () => {
   if (tables.length === 0) {
     // create the tables
     db.execMany(
-      ZenDatabase.schema(schema, { ifNotExists: true, strict: true }),
+      ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
     );
   }
 
-  const userQueryOp = schema.users.query().andFilterEqual({ id: "my-id" })
+  const userQueryOp = schema.tables.users.query().andFilterEqual({
+    id: "my-id",
+  })
     .maybeOne();
   const result = db.exec(userQueryOp);
   expect(result).toEqual(null);
 
-  const query = schema.tasks.query()
+  const query = schema.tables.tasks.query()
     .andFilterEqual({ completed: false })
     .all();
   const tasks = db.exec(query);
@@ -63,7 +65,7 @@ Deno.test("Run code from README example", () => {
 
   // External
 
-  const query2 = schema.tasks.query()
+  const query2 = schema.tables.tasks.query()
     .limit(Expr.external(10))
     .all();
 
@@ -75,7 +77,7 @@ Deno.test("Run code from README example", () => {
 
   // Expression functions
 
-  const meOrYou = schema.users.query()
+  const meOrYou = schema.tables.users.query()
     .where((c) =>
       Expr.or(
         Expr.equal(c.id, Expr.external("me")),
@@ -89,7 +91,7 @@ Deno.test("Run code from README example", () => {
 
   // .select()
 
-  const userQuery = schema.users.query()
+  const userQuery = schema.tables.users.query()
     .select((c) => ({
       id: c.id,
       name: c.name,
@@ -99,21 +101,21 @@ Deno.test("Run code from README example", () => {
     `SELECT users.id AS id, users.name AS name FROM users`,
   );
 
-  const userQueryConcat = schema.users.query()
+  const userQueryConcat = schema.tables.users.query()
     .select((c) => ({ id: c.id, name: Expr.concatenate(c.name, c.email) }))
     .all();
   expect(userQueryConcat.sql).toEqual(
     `SELECT users.id AS id, users.name || users.email AS name FROM users`,
   );
 
-  const userQueryAll = schema.users.query().all();
+  const userQueryAll = schema.tables.users.query().all();
   expect(userQueryAll.sql).toEqual(`SELECT users.* FROM users`);
 
   // Join
 
-  const usersWithGroups = schema.users.query()
+  const usersWithGroups = schema.tables.users.query()
     .innerJoin(
-      schema.groups.query(),
+      schema.tables.groups.query(),
       "groupAlias",
       (c) => Expr.equal(c.groupId, c.groupAlias.id),
     )
@@ -134,7 +136,7 @@ Deno.test("Run code from README example", () => {
 
   // CTEs
 
-  const query1 = schema.users
+  const query1 = schema.tables.users
     .query()
     .select((cols) => ({ demo: cols.id, id: cols.id }))
     .groupBy((cols) => [cols.name]);

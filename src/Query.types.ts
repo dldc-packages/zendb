@@ -279,4 +279,9 @@ export interface TTableQuery<
    * If no result is found, will throw
    */
   first(): TQueryOperation<Prettify<ExprRecordOutput<OutCols>>>;
+
+  /**
+   * This is a shorthand for select(() => ({ count: Aggregate.count() })).one().count
+   */
+  count(): TQueryOperation<number>;
 }

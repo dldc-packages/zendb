@@ -15,7 +15,7 @@ function setup() {
 Deno.test("Insert", () => {
   setup();
 
-  const result = tasksDb.users.insert({
+  const result = tasksDb.tables.users.insert({
     id: "1",
     name: "John Doe",
     email: "john@exemple.com",
@@ -49,7 +49,7 @@ Deno.test("Insert", () => {
 Deno.test("Delete", () => {
   setup();
 
-  const result = tasksDb.users.delete((cols) =>
+  const result = tasksDb.tables.users.delete((cols) =>
     Expr.equal(cols.id, Expr.literal("1"))
   );
   expect(result).toMatchObject({ kind: "Delete", params: null });
@@ -61,7 +61,7 @@ Deno.test("Delete", () => {
 Deno.test("Delete with external value", () => {
   setup();
 
-  const result = tasksDb.users.delete((cols) =>
+  const result = tasksDb.tables.users.delete((cols) =>
     Expr.equal(cols.id, Expr.external("1", "delete_id"))
   );
   expect(result).toMatchObject({
@@ -76,7 +76,7 @@ Deno.test("Delete with external value", () => {
 Deno.test("Update", () => {
   setup();
 
-  const result = tasksDb.users.update(
+  const result = tasksDb.tables.users.update(
     { name: "Paul" },
     (cols) => Expr.equal(cols.id, Expr.literal("1234")),
   );
@@ -92,7 +92,7 @@ Deno.test("Update", () => {
 Deno.test("Update with external", () => {
   setup();
 
-  const result = tasksDb.users.update(
+  const result = tasksDb.tables.users.update(
     { name: "Paul" },
     (cols) => Expr.equal(cols.id, Expr.external("1234", "filter_id")),
   );
@@ -108,7 +108,7 @@ Deno.test("Update with external", () => {
 Deno.test("Update date", () => {
   setup();
 
-  const result = tasksDb.users.update({
+  const result = tasksDb.tables.users.update({
     updatedAt: new Date("2023-12-25T22:30:12.250Z"),
   }, (cols) => Expr.equal(cols.id, Expr.literal("1234")));
   expect(result).toMatchObject({
@@ -123,7 +123,7 @@ Deno.test("Update date", () => {
 Deno.test("Query", () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
     .all();
@@ -136,7 +136,7 @@ Deno.test("Query", () => {
 Deno.test("Query select twice (override)", () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
     .select((cols) => {
@@ -153,7 +153,7 @@ Deno.test("Query select twice (override)", () => {
 Deno.test(`Query groupBy`, () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .groupBy((cols) => [cols.email])
     .select((cols) => ({ count: Expr.Aggregate.count(cols.id) }))
@@ -167,7 +167,7 @@ Deno.test(`Query groupBy`, () => {
 Deno.test(`Query groupBy reverse order (same result)`, () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .select((cols) => ({ count: Expr.Aggregate.count(cols.id) }))
     .groupBy((cols) => [cols.email])
@@ -181,7 +181,7 @@ Deno.test(`Query groupBy reverse order (same result)`, () => {
 Deno.test("read and write datatypes", () => {
   setup();
 
-  const result = allDatatypesDb.datatype.insert({
+  const result = allDatatypesDb.tables.datatype.insert({
     id: "1",
     text: "test",
     boolean: true,
@@ -212,7 +212,7 @@ Deno.test("read and write datatypes", () => {
     number: 3.14,
     text: "test",
   });
-  const update = allDatatypesDb.datatype.update({
+  const update = allDatatypesDb.tables.datatype.update({
     id: "1",
     text: "test",
     boolean: true,
@@ -239,7 +239,7 @@ Deno.test("read and write datatypes", () => {
 Deno.test("Query simple CTE", () => {
   setup();
 
-  const query1 = tasksDb.users
+  const query1 = tasksDb.tables.users
     .query()
     .select((cols) => ({ demo: cols.id, id: cols.id }))
     .groupBy((cols) => [cols.name])
@@ -263,7 +263,7 @@ Deno.test("Query simple CTE", () => {
 Deno.test("Query CTE", () => {
   setup();
 
-  const query1 = tasksDb.users
+  const query1 = tasksDb.tables.users
     .query()
     .select((cols) => ({ demo: cols.id, id: cols.id }))
     .groupBy((cols) => [cols.name])
@@ -292,7 +292,7 @@ Deno.test("Query CTE", () => {
 Deno.test("Query add select column", () => {
   setup();
 
-  const result = tasksDb.users
+  const result = tasksDb.tables.users
     .query()
     .select((cols) => ({ id: cols.id }))
     .select((cols, current) => ({ ...current, email: cols.email }))
@@ -307,10 +307,10 @@ Deno.test("Query add select column", () => {
 Deno.test("Query with json", () => {
   setup();
 
-  const result = tasksDb.joinUsersTasks
+  const result = tasksDb.tables.joinUsersTasks
     .query()
     .innerJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "tasks",
       (c) => Expr.equal(c.task_id, c.tasks.id),
     )
@@ -332,13 +332,13 @@ Deno.test("Query with json", () => {
 });
 
 // test('Query populate tasksIds', () => {
-//   const result = tasksDb.users
+//   const result = tasksDb.tables.users
 //     .query()
 //     .select((cols) => ({ id: cols.id }))
 //     .populate(
 //       'taskIds',
 //       (c) => c.id,
-//       tasksDb.joinUsersTasks.query(),
+//       tasksDb.tables.joinUsersTasks.query(),
 //       (c) => c.user_id,
 //       (c) => c.task_id
 //     )
@@ -362,12 +362,12 @@ Deno.test("Query with json", () => {
 // });
 
 // test('Query populate', () => {
-//   const tasksWithUserId = tasksDb.joinUsersTasks
+//   const tasksWithUserId = tasksDb.tables.joinUsersTasks
 //     .query()
 //     .join(tasksDb.tasks.query(), 'tasks', (c) => Expr.equal(c.task_id, c.tasks.id))
 //     .select((c) => ({ userId: c.user_id, task: Expr.ScalarFunctions.json_object(c.tasks) }));
 
-//   const result = tasksDb.users
+//   const result = tasksDb.tables.users
 //     .query()
 //     .select((cols) => ({ id: cols.id }))
 //     .populate(

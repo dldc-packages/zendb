@@ -14,7 +14,7 @@ function setup() {
 Deno.test("Basic json function", () => {
   setup();
 
-  const res = tasksDb.tasks
+  const res = tasksDb.tables.tasks
     .query()
     .select((c) => ({
       id: c.id,
@@ -39,7 +39,7 @@ Deno.test("Basic json function", () => {
 Deno.test("Nested json object", () => {
   setup();
 
-  const res = tasksDb.tasks
+  const res = tasksDb.tables.tasks
     .query()
     .select(({ id, title, description }) => ({
       id,
@@ -69,7 +69,7 @@ Deno.test("Nested json object", () => {
 Deno.test("Json in json", () => {
   setup();
 
-  const base = tasksDb.tasks.query().select((c) => ({
+  const base = tasksDb.tables.tasks.query().select((c) => ({
     id: c.id,
     data: Expr.jsonObj(c),
   }));

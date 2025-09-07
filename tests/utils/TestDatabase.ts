@@ -1,9 +1,8 @@
 import { Database } from "@db/sqlite";
 import type * as zen from "../../mod.ts";
+import type { TZenDatabaseBase } from "../../src/Database.ts";
 
-export interface TTestDatabase {
-  exec<Op extends zen.TOperation>(op: Op): zen.TOperationResult<Op>;
-  execMany<Op extends zen.TOperation>(ops: Op[]): zen.TOperationResult<Op>[];
+export interface TTestDatabase extends TZenDatabaseBase {
   readonly sqlDb: Database;
 }
 

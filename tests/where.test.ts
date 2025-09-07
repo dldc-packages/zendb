@@ -14,7 +14,7 @@ function setup() {
 Deno.test("Simple filter", () => {
   setup();
 
-  const query = tasksDb.tasks.query().andFilterEqual({ id: "1" }).one();
+  const query = tasksDb.tables.tasks.query().andFilterEqual({ id: "1" }).one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT tasks.*
@@ -27,7 +27,7 @@ Deno.test("Simple filter", () => {
 Deno.test("Filter twice", () => {
   setup();
 
-  const query = tasksDb.tasks.query().andFilterEqual({ id: "1" })
+  const query = tasksDb.tables.tasks.query().andFilterEqual({ id: "1" })
     .andFilterEqual({
       id: "2",
     }).one();
@@ -43,15 +43,15 @@ Deno.test("Filter twice", () => {
 Deno.test("Find task by user email", () => {
   setup();
 
-  const tasksWithUser = tasksDb.joinUsersTasks
+  const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
     .leftJoin(
-      tasksDb.tasks.query(),
+      tasksDb.tables.tasks.query(),
       "task",
       (cols) => Expr.equal(cols.task_id, cols.task.id),
     )
     .leftJoin(
-      tasksDb.users.query(),
+      tasksDb.tables.users.query(),
       "user",
       (cols) => Expr.equal(cols.user_id, cols.user.id),
     )
@@ -92,7 +92,9 @@ Deno.test("Find task by user email", () => {
 Deno.test("Filter null value", () => {
   setup();
 
-  const query = tasksDb.users.query().andFilterEqual({ displayName: null })
+  const query = tasksDb.tables.users.query().andFilterEqual({
+    displayName: null,
+  })
     .one();
 
   expect(format(query.sql)).toEqual(sql`
@@ -105,7 +107,7 @@ Deno.test("Filter null value", () => {
 Deno.test("Filter multiple values", () => {
   setup();
 
-  const query = tasksDb.users.query().andFilterEqual({
+  const query = tasksDb.tables.users.query().andFilterEqual({
     displayName: null,
     email: "john@example.com",
   }).one();
