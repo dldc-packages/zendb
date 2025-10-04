@@ -214,6 +214,7 @@
       "jsr:@db/sqlite@0.12",
       "jsr:@dldc/erreur@^7.1.1",
       "jsr:@dldc/sqlite@^3.1.1",
+      "jsr:@std/assert@^1.0.14",
       "jsr:@std/expect@^1.0.17",
       "npm:dedent@^1.7.0",
       "npm:sql-formatter@^15.6.8"

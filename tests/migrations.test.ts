@@ -1,5 +1,5 @@
+import { assertEquals } from "@std/assert";
 import { expect } from "@std/expect";
-import { assertEquals } from "https://deno.land/std/assert/mod.ts";
 import { Column, Database, Migration, Schema } from "../mod.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 import { TestDatabase } from "./utils/TestDatabase.ts";
