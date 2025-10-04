@@ -48,14 +48,14 @@ export type TMigrationExecFn<
   Schema extends TAnySchema,
 > = (
   params: TMigrationExecParams<PrevSchema, Schema>,
-) => Promise<void | TZenDatabaseBase>;
+) => void | TZenDatabaseBase | Promise<void | TZenDatabaseBase>;
 
 export type TMigrationInitExecFn<Schema extends TAnySchema> = (
   params: Omit<
     TMigrationExecParams<never, Schema>,
     "previousSchema" | "previousDatabase"
   >,
-) => Promise<void | TZenDatabaseBase>;
+) => void | TZenDatabaseBase | Promise<void | TZenDatabaseBase>;
 
 export interface TMigration<
   Schema extends TAnySchema,
