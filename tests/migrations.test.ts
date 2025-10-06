@@ -1,67 +1,78 @@
+import { Database } from "@db/sqlite";
 import { assertEquals } from "@std/assert";
 import { expect } from "@std/expect";
 import { Column, Migration, Schema, Utils } from "../mod.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
-import { TestDatabase } from "./utils/TestDatabase.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 
-const migration = Migration.initMigration(
+const migration = Migration.init(
+  TestDriver,
   tasksDb,
   ({ database, schema }) => {
     // Insert some groups
-    database.exec(schema.tables.groups.insertMany([
-      { id: "group1", name: "Group 1" },
-      { id: "group2", name: "Group 2" },
-    ]));
+    TestDriver.exec(
+      database,
+      schema.tables.groups.insertMany([
+        { id: "group1", name: "Group 1" },
+        { id: "group2", name: "Group 2" },
+      ]),
+    );
 
     // Insert some users
-    database.exec(schema.tables.users.insertMany([
-      {
-        id: "user1",
-        name: "User 1",
-        email: "user1@example.com",
-        displayName: null,
-        groupId: "group1",
-        updatedAt: null,
-      },
-      {
-        id: "user2",
-        name: "User 2",
-        email: "user2@example.com",
-        displayName: null,
-        groupId: "group1",
-        updatedAt: null,
-      },
-      {
-        id: "user3",
-        name: "User 3",
-        email: "user3@example.com",
-        displayName: null,
-        groupId: "group2",
-        updatedAt: null,
-      },
-    ]));
+    TestDriver.exec(
+      database,
+      schema.tables.users.insertMany([
+        {
+          id: "user1",
+          name: "User 1",
+          email: "user1@example.com",
+          displayName: null,
+          groupId: "group1",
+          updatedAt: null,
+        },
+        {
+          id: "user2",
+          name: "User 2",
+          email: "user2@example.com",
+          displayName: null,
+          groupId: "group1",
+          updatedAt: null,
+        },
+        {
+          id: "user3",
+          name: "User 3",
+          email: "user3@example.com",
+          displayName: null,
+          groupId: "group2",
+          updatedAt: null,
+        },
+      ]),
+    );
 
     // Insert some tasks
-    database.exec(schema.tables.tasks.insertMany([
-      {
-        id: "task1",
-        title: "Task 1",
-        description: "Description 1",
-        completed: false,
-      },
-      {
-        id: "task2",
-        title: "Task 2",
-        description: "Description 2",
-        completed: false,
-      },
-      {
-        id: "task3",
-        title: "Task 3",
-        description: "Description 3",
-        completed: false,
-      },
-    ]));
+    TestDriver.exec(
+      database,
+      schema.tables.tasks.insertMany([
+        {
+          id: "task1",
+          title: "Task 1",
+          description: "Description 1",
+          completed: false,
+        },
+        {
+          id: "task2",
+          title: "Task 2",
+          description: "Description 2",
+          completed: false,
+        },
+        {
+          id: "task3",
+          title: "Task 3",
+          description: "Description 3",
+          completed: false,
+        },
+      ]),
+    );
 
     return Promise.resolve();
   },
@@ -87,14 +98,13 @@ const migration = Migration.initMigration(
 Deno.test("migration adds archived column and sets default value", async () => {
   // Run migration
 
-  const resultDb = await migration.apply({
-    currentDatabase: TestDatabase.create(),
-    createTempDatabase: () => Promise.resolve(TestDatabase.create()),
-    saveDatabase: (db) => Promise.resolve(db),
-  });
+  const resultDb = await migration.apply(new Database(":memory:"));
 
   // Query users table
-  const users = resultDb.exec(migration.schema.tables.users.query().all());
+  const users = TestDriver.exec(
+    resultDb,
+    migration.schema.tables.users.query().all(),
+  );
   assertEquals(users.length, 3);
 
   // Check that archived column exists and is false for all users
@@ -106,12 +116,10 @@ Deno.test("migration adds archived column and sets default value", async () => {
 Deno.test("throw if userVersion is higher than max expected version", async () => {
   // Run migration
 
-  const currentDatabase = TestDatabase.create();
-  currentDatabase.exec(Utils.setUserVersion(10));
+  const currentDatabase = new Database(":memory:");
+  TestDriver.exec(currentDatabase, Utils.setUserVersion(10));
 
-  await expect(migration.apply({
-    currentDatabase,
-    createTempDatabase: () => Promise.resolve(TestDatabase.create()),
-    saveDatabase: (db) => Promise.resolve(db),
-  })).rejects.toThrow(/Invalid user version in migration: 10, max expected: 2/);
+  await expect(migration.apply(currentDatabase)).rejects.toThrow(
+    /Invalid user version in migration: 10, max expected: 2/,
+  );
 });

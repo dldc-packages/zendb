@@ -1,5 +1,6 @@
 export * as Column from "./src/Column.ts";
 export * as Datatype from "./src/Datatype.ts";
+export * as Driver from "./src/Driver.ts";
 export * as Expr from "./src/expr/Expr.ts";
 export * as ExprUtils from "./src/expr/ExprUtils.ts";
 export * as Migration from "./src/Migration.ts";

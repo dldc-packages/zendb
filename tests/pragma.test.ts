@@ -1,17 +1,18 @@
+import { Database } from "@db/sqlite";
 import { expect } from "@std/expect";
 import { Utils } from "../mod.ts";
-import { TestDatabase } from "./utils/TestDatabase.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 
-const db = TestDatabase.create();
+const db = new Database(":memory:");
 
 Deno.test("read pragma", () => {
-  const res = db.exec(Utils.userVersion());
+  const res = TestDriver.exec(db, Utils.userVersion());
   expect(res).toEqual(0);
 });
 
 Deno.test("write pragma", () => {
-  const res = db.exec(Utils.setUserVersion(42));
+  const res = TestDriver.exec(db, Utils.setUserVersion(42));
   expect(res).toEqual(null);
-  const version = db.exec(Utils.userVersion());
+  const version = TestDriver.exec(db, Utils.userVersion());
   expect(version).toEqual(42);
 });

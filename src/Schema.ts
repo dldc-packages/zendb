@@ -1,8 +1,4 @@
-import type {
-  TCreateTableOperation,
-  TOperation,
-  TOperationResult,
-} from "./Operation.ts";
+import type { TCreateTableOperation } from "./Operation.ts";
 import {
   declare as declareTable,
   type TCreateTableOptions,
@@ -26,11 +22,6 @@ export interface TSchema<Tables extends Record<string, ColumnsBase>> {
 }
 
 export type TAnySchema = TSchema<any>;
-
-export interface TZenDatabaseBase {
-  exec<Op extends TOperation>(op: Op): TOperationResult<Op>;
-  execMany<Op extends TOperation>(ops: Op[]): TOperationResult<Op>[];
-}
 
 export function declare<Tables extends Record<string, ColumnsBase>>(
   tables: Tables,

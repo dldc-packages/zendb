@@ -30,7 +30,5 @@
       ]
     }
   },
-  "exclude": [
-    "tests/data"
-  ]
+  "exclude": []
 }

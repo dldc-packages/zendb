@@ -1,6 +1,7 @@
+import { Database } from "@db/sqlite";
 import { expect } from "@std/expect";
 import { Expr, Random, Schema, Utils } from "../mod.ts";
-import { TestDatabase } from "./utils/TestDatabase.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 
@@ -12,21 +13,22 @@ function setup() {
   nextRandomId = 0;
 }
 
-const db = TestDatabase.create();
+const db = new Database(":memory:");
 
 Deno.test("create database", () => {
   setup();
 
-  const res = db.execMany(Schema.createTables(tasksDb.tables));
+  const res = TestDriver.execMany(db, Schema.createTables(tasksDb.tables));
   expect(res).toEqual([null, null, null, null]);
-  const tables = db.exec(Utils.listTables());
+  const tables = TestDriver.exec(db, Utils.listTables());
   expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
 });
 
 Deno.test("insert tasks", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.tasks.insert({
       id: "1",
       title: "Task 1",
@@ -45,7 +47,8 @@ Deno.test("insert tasks", () => {
 Deno.test("find tasks", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.tasks
       .query()
       .select(({ id, title }) => ({ id, title }))
@@ -57,7 +60,8 @@ Deno.test("find tasks", () => {
 Deno.test("create user", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users.insert({
       id: "1",
       name: "John",
@@ -80,7 +84,8 @@ Deno.test("create user", () => {
 Deno.test("link task and user", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
   );
   expect(res).toEqual({ user_id: "1", task_id: "1" });
@@ -89,7 +94,8 @@ Deno.test("link task and user", () => {
 Deno.test("Query tasks as object", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.tasks
       .query()
       .select((c) => ({
@@ -115,7 +121,8 @@ Deno.test("Query tasks as object", () => {
 Deno.test("Query users as object", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users
       .query()
       .select((c) => ({
@@ -142,7 +149,8 @@ Deno.test("Query users as object", () => {
 Deno.test("Concatenate nullable should return nullable", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users
       .query()
       .select((c) => ({
@@ -157,7 +165,8 @@ Deno.test("Concatenate nullable should return nullable", () => {
 Deno.test("Find user by email", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users
       .query()
       .where((c) => Expr.equal(c.email, Expr.external("john@example.com")))
@@ -177,7 +186,8 @@ Deno.test("Find user by email", () => {
 Deno.test("Find user by email using compare", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users
       .query()
       .where((c) => Expr.compare(c.email, "=", "john@example.com"))
@@ -197,7 +207,8 @@ Deno.test("Find user by email using compare", () => {
 Deno.test("Find user by email using filterEqual", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.users.query().andFilterEqual({ email: "john@example.com" })
       .first(),
   );
@@ -231,7 +242,7 @@ Deno.test("Find tasks with user", () => {
       task: Expr.jsonObj(cols.task),
     }));
 
-  const res = db.exec(tasksWithUser.all());
+  const res = TestDriver.exec(db, tasksWithUser.all());
   expect(res).toEqual([
     {
       task: {
@@ -308,7 +319,7 @@ Deno.test("Find task by user email", () => {
     WHERE t_id2.email == :_id5
   `);
 
-  const res = db.exec(query);
+  const res = TestDriver.exec(db, query);
   expect(res).toEqual({
     task: {
       completed: false,
@@ -330,14 +341,18 @@ Deno.test("Find task by user email", () => {
 Deno.test("Update task", () => {
   setup();
 
-  const res = db.exec(
+  const res = TestDriver.exec(
+    db,
     tasksDb.tables.tasks.update(
       { completed: true },
       (c) => Expr.equal(c.id, Expr.literal("1")),
     ),
   );
   expect(res).toEqual({ updated: 1 });
-  const task = db.exec(tasksDb.tables.tasks.query().first());
+  const task = TestDriver.exec(
+    db,
+    tasksDb.tables.tasks.query().first(),
+  );
   expect(task).toEqual({
     completed: true,
     description: "First task",

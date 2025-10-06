@@ -1,21 +1,22 @@
+import { Database } from "@db/sqlite";
 import { expect } from "@std/expect";
 import { Expr, Random, Schema } from "../mod.ts";
 import type { TTableTypes } from "../src/Table.ts";
-import { TestDatabase, type TTestDatabase } from "./utils/TestDatabase.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 
 let nextRandomId = 0;
 
-let db: TTestDatabase;
+let db: Database;
 
 function setupDatabase() {
-  db = TestDatabase.create();
+  db = new Database(":memory:");
 
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
 
-  db.execMany(Schema.createTables(tasksDb.tables));
+  TestDriver.execMany(db, Schema.createTables(tasksDb.tables));
 
   const users: UserInput[] = [
     {
@@ -52,7 +53,7 @@ function setupDatabase() {
     },
   ];
 
-  db.exec(tasksDb.tables.users.insertMany(users));
+  TestDriver.exec(db, tasksDb.tables.users.insertMany(users));
 
   const tasks: TasksInput[] = [
     {
@@ -87,12 +88,26 @@ function setupDatabase() {
     },
   ];
 
-  tasks.forEach((task) => db.exec(tasksDb.tables.tasks.insert(task)));
+  tasks.forEach((task) =>
+    TestDriver.exec(db, tasksDb.tables.tasks.insert(task))
+  );
 
-  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }));
-  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "2" }));
-  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "2", task_id: "3" }));
-  db.exec(tasksDb.tables.joinUsersTasks.insert({ user_id: "3", task_id: "1" }));
+  TestDriver.exec(
+    db,
+    tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
+  );
+  TestDriver.exec(
+    db,
+    tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "2" }),
+  );
+  TestDriver.exec(
+    db,
+    tasksDb.tables.joinUsersTasks.insert({ user_id: "2", task_id: "3" }),
+  );
+  TestDriver.exec(
+    db,
+    tasksDb.tables.joinUsersTasks.insert({ user_id: "3", task_id: "1" }),
+  );
 
   nextRandomId = 0;
 }
@@ -141,7 +156,7 @@ Deno.test("Find all user with their linked tasks", () => {
       joinUsersTasks.user_id
   `);
 
-  const tasksByUserIdResult = db.exec(tasksByUserIdOp);
+  const tasksByUserIdResult = TestDriver.exec(db, tasksByUserIdOp);
 
   expect(tasksByUserIdResult).toEqual([
     {
@@ -218,7 +233,7 @@ Deno.test("Find all user with their linked tasks", () => {
       LEFT JOIN cte_id3 AS t_id4 ON users.id == t_id4.userId
   `);
 
-  const result = db.exec(query);
+  const result = TestDriver.exec(db, query);
 
   expect(result).toEqual([
     {
@@ -312,7 +327,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
       count(joinUsersTasks.task_id) == 2
   `);
 
-  const subQueryRes = db.exec(subQueryOp);
+  const subQueryRes = TestDriver.exec(db, subQueryOp);
   expect(subQueryRes).toEqual([{ id: "1" }]);
 
   const filteredUsers = tasksDb.tables.users
@@ -342,7 +357,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
       users.id IN cte_id3
   `);
 
-  const result = db.exec(filteredUsers);
+  const result = TestDriver.exec(db, filteredUsers);
   expect(result).toEqual([
     {
       id: "1",
@@ -386,7 +401,7 @@ Deno.test("Find all users with no tasks", () => {
       users.id NOT IN cte_id1
   `);
 
-  const result = db.exec(usersWithNoTasks);
+  const result = TestDriver.exec(db, usersWithNoTasks);
 
   expect(result).toEqual([
     {

@@ -1,6 +1,7 @@
+import { Database } from "@db/sqlite";
 import { Column, Expr, queryFrom, Random, Schema, Utils } from "@dldc/zendb";
 import { expect } from "@std/expect";
-import { TestDatabase } from "./utils/TestDatabase.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 import { format, sql } from "./utils/sql.ts";
 
 Deno.test("Run code from README example", () => {
@@ -33,12 +34,13 @@ Deno.test("Run code from README example", () => {
     },
   });
 
-  const db = TestDatabase.create();
+  const db = new Database(":memory:");
 
-  const tables = db.exec(Utils.listTables());
+  const tables = TestDriver.exec(db, Utils.listTables());
   if (tables.length === 0) {
     // create the tables
-    db.execMany(
+    TestDriver.execMany(
+      db,
       Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
     );
   }
@@ -47,13 +49,13 @@ Deno.test("Run code from README example", () => {
     id: "my-id",
   })
     .maybeOne();
-  const result = db.exec(userQueryOp);
+  const result = TestDriver.exec(db, userQueryOp);
   expect(result).toEqual(null);
 
   const query = schema.tables.tasks.query()
     .andFilterEqual({ completed: false })
     .all();
-  const tasks = db.exec(query);
+  const tasks = TestDriver.exec(db, query);
   expect(tasks).toEqual([]);
 
   // External
@@ -79,7 +81,7 @@ Deno.test("Run code from README example", () => {
     )
     .maybeOne();
 
-  const res = db.exec(meOrYou);
+  const res = TestDriver.exec(db, meOrYou);
   expect(res).toEqual(null);
 
   // .select()

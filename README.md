@@ -7,11 +7,15 @@
 - [ZendDB](#zenddb)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
-  - [Driver library](#driver-library)
+  - [Drivers](#drivers)
+    - [Why Drivers?](#why-drivers)
+    - [Available Drivers](#available-drivers)
+    - [Creating a Custom Driver](#creating-a-custom-driver)
+    - [Advanced: Custom Operation Handling](#advanced-custom-operation-handling)
   - [Overview](#overview)
     - [1. Declare a schema](#1-declare-a-schema)
       - [Column Types](#column-types)
-    - [2. Initialize the database](#2-initialize-the-database)
+    - [2. Setup the driver and database](#2-setup-the-driver-and-database)
     - [3. Run queries](#3-run-queries)
     - [Type Safety](#type-safety)
   - [`insert`, `update`, `delete`](#insert-update-delete)
@@ -64,22 +68,125 @@ npx jsr add @dldc/zendb
 deno add @dldc/zendb
 ```
 
-## Driver library
+## Drivers
 
-In addition to this package, you will need to install a driver library for
-SQLite. There are 3 currently available:
+ZenDB uses a **Driver** pattern to support multiple SQLite libraries across
+different environments. A driver is a simple object that knows how to execute
+operations on your database instance.
 
-- `@dldc/zendb-db-sqlite` for [`@db/sqlite`](https://jsr.io/@db/sqlite)
-  available on [JSR](https://jsr.io/@dldc/zendb-db-sqlite)
-- `@dldc/zendb-sqljs` for [`sql.js`](https://www.npmjs.com/package/sql.js)
-  available on [NPM](https://www.npmjs.com/package/@dldc/zendb-sqljs)
-- `@dldc/zendb-better-sqlite3` for
-  [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3) available on
-  [NPM](https://www.npmjs.com/package/@dldc/zendb-better-sqlite3)
+### Why Drivers?
 
-Those libraries are quite simple; if your driver is not listed here, you can
-easily create your own driver by looking at the source code of the existing
-ones.
+The Driver pattern provides several benefits:
+
+- ✅ **Performance** - Uses prepared statements and supports cursors efficiently
+- ✅ **Flexibility** - Works with Node.js, Deno, and Browser SQLite libraries
+- ✅ **Direct Access** - You keep full control of your database instance
+- ✅ **Type Safety** - Fully typed operations and results
+
+### Available Drivers
+
+| Environment | Driver Package               | SQLite Library                                                   |
+| ----------- | ---------------------------- | ---------------------------------------------------------------- |
+| **Deno**    | `@dldc/zendb-db-sqlite`      | [`@db/sqlite`](https://jsr.io/@db/sqlite)                        |
+| **Node.js** | `@dldc/zendb-better-sqlite3` | [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3) |
+| **Browser** | `@dldc/zendb-sqljs`          | [`sql.js`](https://www.npmjs.com/package/sql.js)                 |
+
+### Creating a Custom Driver
+
+If you need to use a different SQLite library, you can easily create your own
+driver using the `Driver.createDriverFromPrepare` helper:
+
+```ts
+import { Driver } from "@dldc/zendb";
+import type { Database } from "your-sqlite-library";
+
+export const MyDriver = Driver.createDriverFromPrepare<Database>({
+  exec: (db, sql) => db.exec(sql),
+  prepare: (db, sql) => db.prepare(sql),
+  createDatabase: () => new Database(":memory:"),
+});
+```
+
+The driver expects `prepare()` to return an object with:
+
+- `run(params?)` - Execute a statement, returns number of affected rows
+- `all(params?)` - Execute a query, returns array of result rows
+
+### Advanced: Custom Operation Handling
+
+For advanced use cases, you can implement a driver manually to have full control
+over operation execution. This is useful when you need to:
+
+- Optimize specific operation types (e.g., batch inserts)
+- Add custom caching or connection pooling
+- Support unique database features (e.g., cursors, streaming)
+- Implement driver-specific performance optimizations
+
+```ts
+import type { TDriver, TOperation, TOperationResult } from "@dldc/zendb";
+import type { Database } from "your-sqlite-library";
+
+export const CustomDriver: TDriver<Database> = {
+  exec<Op extends TOperation>(db: Database, op: Op): TOperationResult<Op> {
+    // Handle each operation type explicitly
+    if (op.kind === "Query") {
+      // Example: Use cursor for large result sets
+      const stmt = db.prepare(op.sql);
+      const rows = op.params ? stmt.all(op.params) : stmt.all();
+      return op.parse(rows) as TOperationResult<Op>;
+    }
+
+    if (op.kind === "Insert") {
+      // Example: Use RETURNING clause if supported
+      db.prepare(op.sql).run(op.params);
+      return op.parse() as TOperationResult<Op>;
+    }
+
+    if (op.kind === "Update" || op.kind === "Delete") {
+      const stmt = db.prepare(op.sql);
+      const result = op.params ? stmt.run(op.params) : stmt.run();
+      return op.parse({
+        [op.kind === "Update" ? "updated" : "deleted"]: result.changes,
+      }) as TOperationResult<Op>;
+    }
+
+    // Handle other operation types...
+    throw new Error(`Unsupported operation: ${op.kind}`);
+  },
+
+  execMany<Op extends TOperation>(
+    db: Database,
+    ops: Op[],
+  ): TOperationResult<Op>[] {
+    // Example: Use transaction for multiple operations
+    db.exec("BEGIN");
+    try {
+      const results = ops.map((op) => this.exec(db, op));
+      db.exec("COMMIT");
+      return results;
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  },
+
+  createDatabase: () => new Database(":memory:"),
+};
+```
+
+**Benefits of custom implementation:**
+
+- **Performance**: Optimize hot paths with custom logic
+- **Features**: Leverage database-specific capabilities
+- **Control**: Full visibility into operation execution
+- **Monitoring**: Add logging, metrics, or tracing
+
+**When to use:**
+
+- ✅ You need database-specific optimizations
+- ✅ You're implementing a new driver for a different SQLite library
+- ✅ You need transaction control or connection pooling
+- ❌ Standard driver is usually sufficient for most use cases
 
 ## Overview
 
@@ -142,23 +249,22 @@ with `.primary()`:
 }
 ```
 
-### 2. Initialize the database
+### 2. Setup the driver and database
 
 ```ts
 import { Database } from "@db/sqlite";
-import { DbDatabase } from "@dldc/zendb-db-sqlite";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 import { Schema, Utils } from "@dldc/zendb";
 import { schema } from "./schema.ts";
 
-// create @db/sqlite database
-const sqlDb = new Database(dbPath);
-// pass it to the adapter
-const db = DbDatabase(sqlDb);
+// Create your SQLite database instance
+const db = new Database(dbPath);
 
-// then you probably want to create the tables if they don't exist
-const tables = db.exec(Utils.listTables());
+// Create tables if they don't exist
+const tables = DbSqliteDriver.exec(db, Utils.listTables());
 if (tables.length === 0) {
-  db.execMany(
+  DbSqliteDriver.execMany(
+    db,
     Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
   );
 }
@@ -166,23 +272,38 @@ if (tables.length === 0) {
 
 ### 3. Run queries
 
-Your driver instance (`db`) exposes:
-
-- `exec(DatabaseOperation)`
-- `execMany(DatabaseOperation[])`
-
-Use your schema to build operations:
+Use the driver to execute operations on your database:
 
 ```ts
 import { schema } from "./schema.ts";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
+// Build an operation
 const userQueryOp = schema.tables.users.query()
   .andFilterEqual({ id: "my-id" })
   .maybeOne();
 
-const result = db.exec(userQueryOp);
+// Execute it with the driver
+const result = DbSqliteDriver.exec(db, userQueryOp);
 // result is type safe 🎉
 // result type: { id: string; name: string; email: string; ... } | null
+```
+
+**Note:** The driver and database are separate - you always have direct access
+to your database instance (`db`) for low-level operations when needed.
+
+**Tip:** For convenience, you can create helper functions to avoid repeating the
+driver and database:
+
+```ts
+// Create helper functions for your specific database
+const exec = <Op extends TOperation>(op: Op) => DbSqliteDriver.exec(db, op);
+const execMany = <Op extends TOperation>(ops: Op[]) =>
+  DbSqliteDriver.execMany(db, ops);
+
+// Now you can use them more concisely
+const result = exec(userQueryOp);
+const results = execMany([op1, op2, op3]);
 ```
 
 ### Type Safety
@@ -238,14 +359,14 @@ const insertOp = schema.tables.users.insert({
   groupId: "1",
   updatedAt: new Date("2023-12-24T22:30:12.250Z"),
 });
-db.exec(insertOp);
+driver.exec(db, insertOp);
 
 // Insert multiple items
 const users = [
   { id: "1", name: "John", email: "john@example.com", groupId: "1" },
   { id: "2", name: "Jane", email: "jane@example.com", groupId: "1" },
 ];
-db.exec(schema.tables.users.insertMany(users));
+driver.exec(db, schema.tables.users.insertMany(users));
 ```
 
 ### Update examples
@@ -256,14 +377,14 @@ const updateOp = schema.tables.users.update(
   { name: "Paul" },
   (cols) => Expr.equal(cols.id, Expr.external("1234")),
 );
-db.exec(updateOp);
+driver.exec(db, updateOp);
 
 // Update with simple equality filter
 const updateEqualOp = schema.tables.users.updateEqual(
   { name: "Paul" },
   { id: "1234" },
 );
-db.exec(updateEqualOp);
+driver.exec(db, updateEqualOp);
 ```
 
 ### Delete examples
@@ -273,11 +394,11 @@ db.exec(updateEqualOp);
 const deleteOp = schema.tables.users.delete((cols) =>
   Expr.equal(cols.id, Expr.external("1"))
 );
-db.exec(deleteOp);
+driver.exec(db, deleteOp);
 
 // Delete with simple equality filter
 const deleteEqualOp = schema.tables.users.deleteEqual({ id: "1" });
-db.exec(deleteEqualOp);
+driver.exec(db, deleteEqualOp);
 ```
 
 ## Queries
@@ -289,7 +410,7 @@ const query = schema.tables.tasks.query()
   .andFilterEqual({ completed: false })
   .all();
 
-const tasks = db.exec(query);
+const tasks = driver.exec(db, query);
 ```
 
 Two kinds of methods on a `Query`:
@@ -734,12 +855,13 @@ The `Utils` namespace provides utility functions for database management:
 import { Schema, Utils } from "@dldc/zendb";
 
 // Create all tables from schema
-db.execMany(
+driver.execMany(
+  db,
   Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
 );
 
 // List all tables in database
-const tableNames = db.exec(Utils.listTables());
+const tableNames = driver.exec(db, Utils.listTables());
 console.log(tableNames); // ["users", "tasks", "groups"]
 ```
 
@@ -749,11 +871,11 @@ SQLite's `user_version` pragma is used to track migration state:
 
 ```ts
 // Get current version
-const version = db.exec(Utils.userVersion());
+const version = driver.exec(db, Utils.userVersion());
 console.log(version); // 0 for new database
 
 // Set version (typically used by migration system)
-db.exec(Utils.setUserVersion(3));
+driver.exec(db, Utils.setUserVersion(3));
 ```
 
 ## Migrations
@@ -764,12 +886,14 @@ pragma to track which migrations have been applied.
 
 ### Creating Migrations
 
-Start by initializing a migration with your initial schema:
+Start by initializing a migration with your initial schema and a driver:
 
 ```ts
 import { Column, Migration, Schema } from "@dldc/zendb";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
-const migration = Migration.initMigration(
+const migration = Migration.init(
+  DbSqliteDriver, // Pass your driver
   Schema.declare({
     users: {
       id: Column.text().primary(),
@@ -784,7 +908,8 @@ const migration = Migration.initMigration(
   }),
   ({ database, schema }) => {
     // Optional: Seed initial data
-    database.exec(
+    DbSqliteDriver.exec(
+      database,
       schema.tables.groups.insertMany([
         { id: "group1", name: "Engineering" },
         { id: "group2", name: "Sales" },
@@ -802,7 +927,7 @@ Add migration steps using `.step()`. Each step takes a schema updater function
 and an execution function:
 
 ```ts
-const migration = Migration.initMigration(initialSchema, initExec)
+const migration = Migration.init(driver, initialSchema, initExec)
   // Step 1: Add 'archived' column to users table
   .step((schema) =>
     Schema.declare({
@@ -848,22 +973,20 @@ export const schema = migration.schema;
 
 ### Applying Migrations
 
-Apply migrations using the `.apply()` method:
+Apply migrations using the `.apply()` method. The driver handles database
+creation and operations:
 
 ```ts
-const resultDb = await migration.apply({
-  // Current database instance
-  currentDatabase: db,
+import { Database } from "@db/sqlite";
 
-  // Function to create a temporary database for migration
-  createTempDatabase: () => Promise.resolve(createDatabase()),
+// Open your database
+const db = new Database("my-database.db");
 
-  // Function to save the migrated database
-  saveDatabase: (db) => {
-    // Save to file, copy data, etc.
-    return Promise.resolve(db);
-  },
-});
+// Apply all pending migrations
+const resultDb = await migration.apply(db);
+
+// resultDb is your updated database instance
+// The driver's createDatabase() method is called internally for temporary databases
 ```
 
 ### Version Management
@@ -887,7 +1010,7 @@ The migration system:
 ```ts
 import { Utils } from "@dldc/zendb";
 
-const version = db.exec(Utils.userVersion());
+const version = driver.exec(db, Utils.userVersion());
 console.log(`Current database version: ${version}`);
 ```
 
@@ -895,7 +1018,7 @@ console.log(`Current database version: ${version}`);
 
 ```ts
 // Manually set version (use with caution!)
-db.exec(Utils.setUserVersion(3));
+driver.exec(db, Utils.setUserVersion(3));
 ```
 
 ### Migration Best Practices
@@ -971,14 +1094,8 @@ const migration = Migration.initMigration(
 export const schema = migration.schema;
 
 // Apply migrations
-const migratedDb = await migration.apply({
-  currentDatabase: db,
-  createTempDatabase: () => Promise.resolve(createTempDb()),
-  saveDatabase: async (tempDb) => {
-    // Copy data from temp to current, or replace file, etc.
-    return tempDb;
-  },
-});
+const db = new Database("my-database.db");
+const migratedDb = await migration.apply(db);
 ```
 
 ## Complete Example
@@ -988,7 +1105,7 @@ Here's a complete example showing common operations:
 ```ts
 import { Column, Expr, Schema } from "@dldc/zendb";
 import { Database } from "@db/sqlite";
-import { DbDatabase } from "@dldc/zendb-db-sqlite";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
 // 1. Define schema
 const schema = Schema.declare({
@@ -1011,27 +1128,30 @@ const schema = Schema.declare({
 });
 
 // 2. Initialize database
-const sqlDb = new Database(":memory:");
-const db = DbDatabase(sqlDb);
+const db = new Database(":memory:");
 
 // Create tables
-db.execMany(
+DbSqliteDriver.execMany(
+  db,
   Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
 );
 
 // 3. Insert data
-db.exec(
+DbSqliteDriver.exec(
+  db,
   schema.tables.groups.insert({ id: "1", name: "Engineering" }),
 );
 
-db.exec(
+DbSqliteDriver.exec(
+  db,
   schema.tables.users.insertMany([
     { id: "1", name: "Alice", email: "alice@example.com", groupId: "1" },
     { id: "2", name: "Bob", email: "bob@example.com", groupId: "1" },
   ]),
 );
 
-db.exec(
+DbSqliteDriver.exec(
+  db,
   schema.tables.tasks.insertMany([
     { id: "1", title: "Write docs", completed: false, userId: "1" },
     { id: "2", title: "Review PR", completed: true, userId: "1" },
@@ -1061,7 +1181,7 @@ const usersWithTaskCounts = schema.tables.users.query()
   }))
   .all();
 
-const result = db.exec(usersWithTaskCounts);
+const result = DbSqliteDriver.exec(db, usersWithTaskCounts);
 console.log(result);
 // [
 //   { id: '1', name: 'Alice', email: 'alice@example.com',
@@ -1071,7 +1191,8 @@ console.log(result);
 // ]
 
 // 5. Update
-db.exec(
+DbSqliteDriver.exec(
+  db,
   schema.tables.tasks.updateEqual(
     { completed: true },
     { id: "1" },
@@ -1079,7 +1200,8 @@ db.exec(
 );
 
 // 6. Delete
-db.exec(
+DbSqliteDriver.exec(
+  db,
   schema.tables.tasks.deleteEqual({ completed: true }),
 );
 ```

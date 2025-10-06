@@ -1,6 +1,7 @@
+import { Database } from "@db/sqlite";
 import { expect } from "@std/expect";
 import { Column, Datatype, Random, Schema, Utils } from "../mod.ts";
-import { TestDatabase } from "./utils/TestDatabase.ts";
+import { TestDriver } from "./utils/TestDriver.ts";
 
 let nextRandomId = 0;
 
@@ -10,7 +11,7 @@ function setup() {
   nextRandomId = 0;
 }
 
-const db = TestDatabase.create();
+const db = new Database(":memory:");
 
 Deno.test("create database", () => {
   setup();
@@ -36,12 +37,13 @@ Deno.test("create database", () => {
     },
   });
 
-  const res = db.execMany(Schema.createTables(schema.tables));
+  const res = TestDriver.execMany(db, Schema.createTables(schema.tables));
   expect(res).toEqual([null]);
-  const tables = db.exec(Utils.listTables());
+  const tables = TestDriver.exec(db, Utils.listTables());
   expect(tables).toEqual(["demo"]);
 
-  const insertedNull = db.exec(
+  const insertedNull = TestDriver.exec(
+    db,
     schema.tables.demo.insert({
       id: "1",
       boolean: null,
@@ -67,7 +69,8 @@ Deno.test("create database", () => {
   );
 
   const date = new Date();
-  const insertedNotNull = db.exec(
+  const insertedNotNull = TestDriver.exec(
+    db,
     schema.tables.demo.insert({
       id: "2",
       boolean: true,
@@ -97,7 +100,7 @@ Deno.test("create database", () => {
     },
   );
 
-  const rawData = db.sqlDb.prepare("SELECT * FROM demo").values();
+  const rawData = db.prepare("SELECT * FROM demo").values();
   expect(rawData).toEqual(
     [
       [
@@ -123,7 +126,7 @@ Deno.test("create database", () => {
     ],
   );
 
-  const all = db.exec(schema.tables.demo.query().all());
+  const all = TestDriver.exec(db, schema.tables.demo.query().all());
   expect(all).toEqual(
     [
       {

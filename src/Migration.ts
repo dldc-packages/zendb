@@ -1,8 +1,5 @@
-import {
-  createTables,
-  type TAnySchema,
-  type TZenDatabaseBase,
-} from "./Schema.ts";
+import type { TDriver } from "./Driver.ts";
+import { createTables, type TAnySchema } from "./Schema.ts";
 import type { TTable, TTableTypes } from "./Table.ts";
 import { setUserVersion, userVersion } from "./Utils.ts";
 import { createInvalidUserVersion } from "./ZendbErreur.ts";
@@ -16,22 +13,15 @@ export type TUpdateSchema<
   prev: PrevSchema,
 ) => NewSchema;
 
-export interface TApplyParams {
-  currentDatabase: TZenDatabaseBase;
-  createTempDatabase: () => Promise<TZenDatabaseBase> | TZenDatabaseBase;
-  saveDatabase: (
-    db: TZenDatabaseBase,
-  ) => Promise<TZenDatabaseBase> | TZenDatabaseBase;
-}
-
 export interface TMigrationExecParams<
+  Db,
   PrevSchema extends TAnySchema,
   Schema extends TAnySchema,
 > {
   schema: Schema;
   previousSchema: PrevSchema;
-  database: TZenDatabaseBase;
-  previousDatabase: TZenDatabaseBase;
+  database: Db;
+  previousDatabase: Db;
   copyTable: <
     FromName extends keyof PrevSchema["tables"],
     ToName extends keyof Schema["tables"],
@@ -45,20 +35,22 @@ export interface TMigrationExecParams<
 }
 
 export type TMigrationExecFn<
+  Db,
   PrevSchema extends TAnySchema,
   Schema extends TAnySchema,
 > = (
-  params: TMigrationExecParams<PrevSchema, Schema>,
-) => void | TZenDatabaseBase | Promise<void | TZenDatabaseBase>;
+  params: TMigrationExecParams<Db, PrevSchema, Schema>,
+) => void | Db | Promise<void | Db>;
 
-export type TMigrationInitExecFn<Schema extends TAnySchema> = (
+export type TMigrationInitExecFn<Db, Schema extends TAnySchema> = (
   params: Omit<
-    TMigrationExecParams<never, Schema>,
+    TMigrationExecParams<Db, never, Schema>,
     "previousSchema" | "previousDatabase"
   >,
-) => void | TZenDatabaseBase | Promise<void | TZenDatabaseBase>;
+) => void | Db | Promise<void | Db>;
 
 export interface TMigration<
+  Db,
   Schema extends TAnySchema,
 > {
   /**
@@ -72,20 +64,24 @@ export interface TMigration<
    */
   step<NewSchema extends TAnySchema>(
     updater: TUpdateSchema<Schema, NewSchema>,
-  ): (execFn: TMigrationExecFn<Schema, NewSchema>) => TMigration<NewSchema>;
+  ): (
+    execFn: TMigrationExecFn<Db, Schema, NewSchema>,
+  ) => TMigration<Db, NewSchema>;
 
   /**
    * Apply all migrations and return the updated database
    * @param params
    */
-  apply(params: TApplyParams): Promise<TZenDatabaseBase>;
+  apply(currentDatabase: Db): Promise<Db>;
 }
 
-export function initMigration<Schema extends TAnySchema>(
+export function init<Db, Schema extends TAnySchema>(
+  driver: TDriver<Db>,
   initSchema: Schema,
-  initExec: TMigrationInitExecFn<Schema>,
-): TMigration<Schema> {
+  initExec: TMigrationInitExecFn<Db, Schema>,
+): TMigration<Db, Schema> {
   return createMigration({
+    driver,
     steps: [{
       schema: initSchema,
       exec: initExec as any,
@@ -94,25 +90,28 @@ export function initMigration<Schema extends TAnySchema>(
 }
 
 interface TMigrationInternals {
+  driver: TDriver<any>;
   steps: Array<{
     schema: TAnySchema;
-    exec: TMigrationExecFn<TAnySchema, TAnySchema>;
+    exec: TMigrationExecFn<any, TAnySchema, TAnySchema>;
   }>;
 }
 
-function createMigration<Schema extends TAnySchema>(
+function createMigration<Db, Schema extends TAnySchema>(
   internals: TMigrationInternals,
-): TMigration<Schema> {
+): TMigration<Db, Schema> {
   const schema = internals.steps[internals.steps.length - 1].schema;
 
   return {
     schema: schema as Schema,
     step<NewSchema extends TAnySchema>(
       updater: TUpdateSchema<Schema, NewSchema>,
-    ): (execFn: TMigrationExecFn<Schema, NewSchema>) => TMigration<NewSchema> {
+    ): (
+      execFn: TMigrationExecFn<Db, Schema, NewSchema>,
+    ) => TMigration<Db, NewSchema> {
       return (execFn) => {
         const newSchema = updater(schema as any);
-        return createMigration<NewSchema>({
+        return createMigration<Db, NewSchema>({
           ...internals,
           steps: [...internals.steps, {
             schema: newSchema,
@@ -123,9 +122,12 @@ function createMigration<Schema extends TAnySchema>(
     },
 
     async apply(
-      { currentDatabase, createTempDatabase, saveDatabase }: TApplyParams,
-    ): Promise<TZenDatabaseBase> {
-      const currentUserVersion = currentDatabase.exec(userVersion());
+      currentDatabase: Db,
+    ): Promise<Db> {
+      const currentUserVersion = internals.driver.exec(
+        currentDatabase,
+        userVersion(),
+      );
       // If user version is higher than the number of steps, we cannot migrate
       if (currentUserVersion > internals.steps.length) {
         throw createInvalidUserVersion(
@@ -136,7 +138,10 @@ function createMigration<Schema extends TAnySchema>(
       if (currentUserVersion === 0) {
         // Init schema
         const initSchema = internals.steps[0].schema;
-        currentDatabase.execMany(createTables(initSchema.tables));
+        internals.driver.execMany(
+          currentDatabase,
+          createTables(initSchema.tables),
+        );
       }
 
       // Check if no steps to run
@@ -156,9 +161,9 @@ function createMigration<Schema extends TAnySchema>(
       for (const step of stepsToRun) {
         const { exec, schema } = step;
         // Create new database
-        const nextDatabase = await createTempDatabase();
+        const nextDatabase = await internals.driver.createDatabase();
         // Init schema in database
-        nextDatabase.execMany(createTables(schema.tables));
+        internals.driver.execMany(nextDatabase, createTables(schema.tables));
         const resultDb = await exec({
           schema: schema as any,
           previousSchema,
@@ -166,6 +171,7 @@ function createMigration<Schema extends TAnySchema>(
           previousDatabase,
           copyTable: (fromName, toName, transform) =>
             copyTable({
+              driver: internals.driver,
               fromDb: previousDatabase,
               toDb: nextDatabase,
               fromTable: previousSchema.tables[fromName],
@@ -176,23 +182,26 @@ function createMigration<Schema extends TAnySchema>(
         previousDatabase = resultDb ?? nextDatabase;
         // Save new user version
         previousUserVersion++;
-        previousDatabase.exec(setUserVersion(previousUserVersion));
+        internals.driver.exec(
+          previousDatabase,
+          setUserVersion(previousUserVersion),
+        );
         previousSchema = schema;
       }
 
-      const savedDatabase = await saveDatabase(previousDatabase);
-
-      return savedDatabase;
+      return previousDatabase;
     },
   };
 }
 
 export interface TCopyTableOptions<
+  Db,
   FromTable extends TTable<any, any, any>,
   ToTable extends TTable<any, any, any>,
 > {
-  fromDb: TZenDatabaseBase;
-  toDb: TZenDatabaseBase;
+  driver: TDriver<Db>;
+  fromDb: Db;
+  toDb: Db;
   fromTable: FromTable;
   toTable: ToTable;
   transform: (
@@ -202,33 +211,36 @@ export interface TCopyTableOptions<
 }
 
 export function copyTable<
+  Db,
   FromTable extends TTable<any, any, any>,
   ToTable extends TTable<any, any, any>,
 >(
   {
+    driver,
     fromDb,
     toDb,
     fromTable,
     toTable,
-    transform: tranform,
+    transform,
     pageSize = 100,
-  }: TCopyTableOptions<FromTable, ToTable>,
+  }: TCopyTableOptions<Db, FromTable, ToTable>,
 ) {
-  const count = fromDb.exec(fromTable.query().count());
+  const count = driver.exec(fromDb, fromTable.query().count());
   if (count === 0) {
     return;
   }
   let done = 0;
   while (done < count) {
-    const rows = fromDb.exec(
+    const rows = driver.exec(
+      fromDb,
       fromTable.query().limit(Expr.literal(pageSize)).offset(Expr.literal(done))
         .all(),
     );
     if (rows.length === 0) {
       break;
     }
-    const transformed = rows.map(tranform);
-    toDb.exec(toTable.insertMany(transformed));
+    const transformed = rows.map(transform);
+    driver.exec(toDb, toTable.insertMany(transformed));
     done += rows.length;
   }
 }
