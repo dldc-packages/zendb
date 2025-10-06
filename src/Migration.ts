@@ -1,11 +1,10 @@
 import {
-  schema as schemaOps,
-  setUserVersion,
+  createTables,
+  type TAnySchema,
   type TZenDatabaseBase,
-  userVersion,
-} from "./Database.ts";
-import type { TAnySchema } from "./Schema.ts";
+} from "./Schema.ts";
 import type { TTable, TTableTypes } from "./Table.ts";
+import { setUserVersion, userVersion } from "./Utils.ts";
 import { createInvalidUserVersion } from "./ZendbErreur.ts";
 
 import * as Expr from "./expr/Expr.ts";
@@ -19,8 +18,10 @@ export type TUpdateSchema<
 
 export interface TApplyParams {
   currentDatabase: TZenDatabaseBase;
-  createTempDatabase: () => Promise<TZenDatabaseBase>;
-  saveDatabase: (db: TZenDatabaseBase) => Promise<TZenDatabaseBase>;
+  createTempDatabase: () => Promise<TZenDatabaseBase> | TZenDatabaseBase;
+  saveDatabase: (
+    db: TZenDatabaseBase,
+  ) => Promise<TZenDatabaseBase> | TZenDatabaseBase;
 }
 
 export interface TMigrationExecParams<
@@ -135,7 +136,7 @@ function createMigration<Schema extends TAnySchema>(
       if (currentUserVersion === 0) {
         // Init schema
         const initSchema = internals.steps[0].schema;
-        currentDatabase.execMany(schemaOps(initSchema.tables));
+        currentDatabase.execMany(createTables(initSchema.tables));
       }
 
       // Check if no steps to run
@@ -157,7 +158,7 @@ function createMigration<Schema extends TAnySchema>(
         // Create new database
         const nextDatabase = await createTempDatabase();
         // Init schema in database
-        nextDatabase.execMany(schemaOps(schema.tables));
+        nextDatabase.execMany(createTables(schema.tables));
         const resultDb = await exec({
           schema: schema as any,
           previousSchema,

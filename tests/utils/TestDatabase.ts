@@ -1,15 +1,13 @@
 import { Database } from "@db/sqlite";
 import type * as zen from "../../mod.ts";
-import type { TZenDatabaseBase } from "../../src/Database.ts";
+import type { TZenDatabaseBase } from "../../src/Schema.ts";
 
 export interface TTestDatabase extends TZenDatabaseBase {
   readonly sqlDb: Database;
 }
 
-export const TestDatabase = (() => {
-  return { create };
-
-  function create(): TTestDatabase {
+export const TestDatabase = {
+  create(): TTestDatabase {
     const sqlDb = new Database(":memory:");
 
     return {
@@ -72,7 +70,7 @@ export const TestDatabase = (() => {
         sqlDb.prepare(op.sql).run();
         return opResult<zen.TPragmaSetOperation>(null);
       }
-      return expectNever(op);
+      throw new Error(`Unexpected value: ${op as any}`);
     }
 
     function opResult<Op extends zen.TOperation>(
@@ -86,9 +84,5 @@ export const TestDatabase = (() => {
     ): zen.TOperationResult<Op>[] {
       return ops.map((op) => exec(op));
     }
-  }
-
-  function expectNever(val: never): never {
-    throw new Error(`Unexpected value: ${val as any}`);
-  }
-})();
+  },
+};

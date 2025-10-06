@@ -147,7 +147,7 @@ with `.primary()`:
 ```ts
 import { Database } from "@db/sqlite";
 import { DbDatabase } from "@dldc/zendb-db-sqlite";
-import { Database as ZenDatabase } from "@dldc/zendb";
+import { Schema, Utils } from "@dldc/zendb";
 import { schema } from "./schema.ts";
 
 // create @db/sqlite database
@@ -156,10 +156,10 @@ const sqlDb = new Database(dbPath);
 const db = DbDatabase(sqlDb);
 
 // then you probably want to create the tables if they don't exist
-const tables = db.exec(ZenDatabase.tables());
+const tables = db.exec(Utils.listTables());
 if (tables.length === 0) {
   db.execMany(
-    ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
+    Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
   );
 }
 ```
@@ -726,20 +726,20 @@ FROM cte_id15
 
 ## Database Utilities
 
-The `Database` namespace provides utility functions for database management:
+The `Utils` namespace provides utility functions for database management:
 
 ### Schema Operations
 
 ```ts
-import { Database as ZenDatabase } from "@dldc/zendb";
+import { Schema, Utils } from "@dldc/zendb";
 
 // Create all tables from schema
 db.execMany(
-  ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
+  Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
 );
 
 // List all tables in database
-const tableNames = db.exec(ZenDatabase.tables());
+const tableNames = db.exec(Utils.listTables());
 console.log(tableNames); // ["users", "tasks", "groups"]
 ```
 
@@ -749,11 +749,11 @@ SQLite's `user_version` pragma is used to track migration state:
 
 ```ts
 // Get current version
-const version = db.exec(ZenDatabase.userVersion());
+const version = db.exec(Utils.userVersion());
 console.log(version); // 0 for new database
 
 // Set version (typically used by migration system)
-db.exec(ZenDatabase.setUserVersion(3));
+db.exec(Utils.setUserVersion(3));
 ```
 
 ## Migrations
@@ -885,9 +885,9 @@ The migration system:
 #### Checking Current Version
 
 ```ts
-import { Database } from "@dldc/zendb";
+import { Utils } from "@dldc/zendb";
 
-const version = db.exec(Database.userVersion());
+const version = db.exec(Utils.userVersion());
 console.log(`Current database version: ${version}`);
 ```
 
@@ -895,7 +895,7 @@ console.log(`Current database version: ${version}`);
 
 ```ts
 // Manually set version (use with caution!)
-db.exec(Database.setUserVersion(3));
+db.exec(Utils.setUserVersion(3));
 ```
 
 ### Migration Best Practices
@@ -986,7 +986,7 @@ const migratedDb = await migration.apply({
 Here's a complete example showing common operations:
 
 ```ts
-import { Column, Database as ZenDatabase, Expr, Schema } from "@dldc/zendb";
+import { Column, Expr, Schema } from "@dldc/zendb";
 import { Database } from "@db/sqlite";
 import { DbDatabase } from "@dldc/zendb-db-sqlite";
 
@@ -1016,7 +1016,7 @@ const db = DbDatabase(sqlDb);
 
 // Create tables
 db.execMany(
-  ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
+  Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
 );
 
 // 3. Insert data

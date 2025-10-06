@@ -1,9 +1,9 @@
 import { expect } from "@std/expect";
-import { Column, Database, Schema } from "../mod.ts";
+import { Column, Schema } from "../mod.ts";
 
 Deno.test("Init empty schema", () => {
   const db = Schema.declare({});
-  expect(Database.schema(db.tables)).toEqual([]);
+  expect(Schema.createTables(db.tables)).toEqual([]);
 });
 
 Deno.test("Init simple schema", () => {
@@ -11,7 +11,7 @@ Deno.test("Init simple schema", () => {
     users: ({ email: Column.text().primary(), username: Column.text() }),
   });
 
-  const res = Database.schema(schema.tables);
+  const res = Schema.createTables(schema.tables);
 
   expect(res).toMatchObject([
     {
@@ -63,7 +63,7 @@ Deno.test("Boolean column", () => {
     }),
   });
 
-  const res = Database.schema(schema.tables);
+  const res = Schema.createTables(schema.tables);
 
   expect(res).toMatchObject([
     {

@@ -1,5 +1,5 @@
 import { expect } from "@std/expect";
-import { Database, Expr, Random } from "../mod.ts";
+import { Expr, Random, Schema, Utils } from "../mod.ts";
 import { TestDatabase } from "./utils/TestDatabase.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
@@ -17,9 +17,9 @@ const db = TestDatabase.create();
 Deno.test("create database", () => {
   setup();
 
-  const res = db.execMany(Database.schema(tasksDb.tables));
+  const res = db.execMany(Schema.createTables(tasksDb.tables));
   expect(res).toEqual([null, null, null, null]);
-  const tables = db.exec(Database.tables());
+  const tables = db.exec(Utils.listTables());
   expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
 });
 

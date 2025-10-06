@@ -1,27 +1,11 @@
 import { Ast, builder as b, printNode } from "@dldc/sqlite";
 import type {
-  TCreateTableOperation,
   TListTablesOperation,
-  TOperation,
-  TOperationResult,
   TPragmaOperation,
   TPragmaSetOperation,
 } from "./Operation.ts";
-import type { TCreateTableOptions, TTable } from "./Table.ts";
 
-export interface TZenDatabaseBase {
-  exec<Op extends TOperation>(op: Op): TOperationResult<Op>;
-  execMany<Op extends TOperation>(ops: Op[]): TOperationResult<Op>[];
-}
-
-export function schema<Tables extends Record<string, TTable<any, any, any>>>(
-  tables: Tables,
-  options?: TCreateTableOptions,
-): Array<TCreateTableOperation> {
-  return Object.values(tables).map((table) => table.schema.create(options));
-}
-
-export function tables(): TListTablesOperation {
+export function listTables(): TListTablesOperation {
   const query = b.SelectStmt.build({
     resultColumns: [b.ResultColumn.column("name")],
     from: b.SelectStmt.FromTable("sqlite_master"),

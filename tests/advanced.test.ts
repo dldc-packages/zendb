@@ -1,5 +1,5 @@
 import { expect } from "@std/expect";
-import { Database, Expr, Random } from "../mod.ts";
+import { Expr, Random, Schema } from "../mod.ts";
 import type { TTableTypes } from "../src/Table.ts";
 import { TestDatabase, type TTestDatabase } from "./utils/TestDatabase.ts";
 import { format, sql } from "./utils/sql.ts";
@@ -15,7 +15,7 @@ function setupDatabase() {
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
 
-  db.execMany(Database.schema(tasksDb.tables));
+  db.execMany(Schema.createTables(tasksDb.tables));
 
   const users: UserInput[] = [
     {

@@ -1,11 +1,4 @@
-import {
-  Column,
-  Database as ZenDatabase,
-  Expr,
-  queryFrom,
-  Random,
-  Schema,
-} from "@dldc/zendb";
+import { Column, Expr, queryFrom, Random, Schema, Utils } from "@dldc/zendb";
 import { expect } from "@std/expect";
 import { TestDatabase } from "./utils/TestDatabase.ts";
 import { format, sql } from "./utils/sql.ts";
@@ -42,11 +35,11 @@ Deno.test("Run code from README example", () => {
 
   const db = TestDatabase.create();
 
-  const tables = db.exec(ZenDatabase.tables());
+  const tables = db.exec(Utils.listTables());
   if (tables.length === 0) {
     // create the tables
     db.execMany(
-      ZenDatabase.schema(schema.tables, { ifNotExists: true, strict: true }),
+      Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
     );
   }
 

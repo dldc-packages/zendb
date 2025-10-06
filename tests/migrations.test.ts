@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { expect } from "@std/expect";
-import { Column, Database, Migration, Schema } from "../mod.ts";
+import { Column, Migration, Schema, Utils } from "../mod.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 import { TestDatabase } from "./utils/TestDatabase.ts";
 
@@ -107,7 +107,7 @@ Deno.test("throw if userVersion is higher than max expected version", async () =
   // Run migration
 
   const currentDatabase = TestDatabase.create();
-  currentDatabase.exec(Database.setUserVersion(10));
+  currentDatabase.exec(Utils.setUserVersion(10));
 
   await expect(migration.apply({
     currentDatabase,

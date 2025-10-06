@@ -1,5 +1,5 @@
 import { expect } from "@std/expect";
-import { Column, Database, Datatype, Random, Schema } from "../mod.ts";
+import { Column, Datatype, Random, Schema, Utils } from "../mod.ts";
 import { TestDatabase } from "./utils/TestDatabase.ts";
 
 let nextRandomId = 0;
@@ -36,9 +36,9 @@ Deno.test("create database", () => {
     },
   });
 
-  const res = db.execMany(Database.schema(schema.tables));
+  const res = db.execMany(Schema.createTables(schema.tables));
   expect(res).toEqual([null]);
-  const tables = db.exec(Database.tables());
+  const tables = db.exec(Utils.listTables());
   expect(tables).toEqual(["demo"]);
 
   const insertedNull = db.exec(

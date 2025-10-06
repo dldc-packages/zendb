@@ -1,9 +1,18 @@
 import type {
+  TCreateTableOperation,
+  TOperation,
+  TOperationResult,
+} from "./Operation.ts";
+import {
+  declare as declareTable,
+  type TCreateTableOptions,
+  type TTable,
+} from "./Table.ts";
+import type {
   ColumnsBase,
   ColumnsToExprRecord,
   ColumnsToInput,
-} from "@dldc/zendb";
-import { declare as declareTable, type TTable } from "./Table.ts";
+} from "./utils/types.ts";
 
 export interface TSchema<Tables extends Record<string, ColumnsBase>> {
   readonly definition: Tables;
@@ -18,6 +27,11 @@ export interface TSchema<Tables extends Record<string, ColumnsBase>> {
 
 export type TAnySchema = TSchema<any>;
 
+export interface TZenDatabaseBase {
+  exec<Op extends TOperation>(op: Op): TOperationResult<Op>;
+  execMany<Op extends TOperation>(ops: Op[]): TOperationResult<Op>[];
+}
+
 export function declare<Tables extends Record<string, ColumnsBase>>(
   tables: Tables,
 ): TSchema<Tables> {
@@ -29,4 +43,13 @@ export function declare<Tables extends Record<string, ColumnsBase>>(
       ) => [tableName, declareTable(tableName, columns)]),
     ) as any,
   };
+}
+
+export function createTables<
+  Tables extends Record<string, TTable<any, any, any>>,
+>(
+  tables: Tables,
+  options?: TCreateTableOptions,
+): Array<TCreateTableOperation> {
+  return Object.values(tables).map((table) => table.schema.create(options));
 }
