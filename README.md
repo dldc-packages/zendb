@@ -29,7 +29,10 @@
       - [Grouping and Aggregation](#grouping-and-aggregation)
   - [Query end methods](#query-end-methods)
   - [Expressions](#expressions)
-    - [`Expr.external`](#exprexternal)
+    - [`Expr.external` - Safe Dynamic Values](#exprexternal---safe-dynamic-values)
+      - [What does it do?](#what-does-it-do)
+      - [Why not just use the value directly?](#why-not-just-use-the-value-directly)
+      - [When to use `Expr.external()` vs `Expr.literal()`](#when-to-use-exprexternal-vs-exprliteral)
     - [Inspecting Generated SQL](#inspecting-generated-sql)
     - [Expression functions](#expression-functions)
     - [Common Expression Operations](#common-expression-operations)
@@ -328,6 +331,7 @@ const query = schema.tables.users.query()
 // Result type: Array<{ id: string; name: string }>
 
 // Columns are typed in expression functions
+// Use Expr.external() to pass dynamic values safely
 const filtered = schema.tables.users.query()
   .where((c) => Expr.equal(c.id, Expr.external("123")))
   // c.id is known to be a string column
@@ -426,6 +430,7 @@ Always end with a terminal method.
 
 ```ts
 // Simple equality filter
+// Note: .andFilterEqual() automatically handles values safely (like Expr.external)
 const query = schema.tables.tasks.query()
   .andFilterEqual({ id: "1" })
   .one();
@@ -437,6 +442,7 @@ const query = schema.tables.tasks.query()
   .maybeOne();
 
 // Custom filter with where
+// When using Expr functions directly, always use Expr.external() for dynamic values
 const query = schema.tables.users.query()
   .where((c) =>
     Expr.or(
@@ -499,24 +505,83 @@ Expressions are type-safe SQL fragments:
 - Binary op: `a + b`
 - External variable (parameter): `:_var`
 
-### `Expr.external`
+### `Expr.external` - Safe Dynamic Values
 
-The `Expr.external` function is used to create an expression from a variable.
+The `Expr.external()` function is used to safely pass **dynamic values**
+(variables) into your SQL queries.
+
+#### What does it do?
+
+`Expr.external()` creates a **SQL parameter placeholder** (like `:_id0`,
+`:_var123`) that is sent to the database separately from the SQL string itself.
+This is the standard way to prevent SQL injection attacks.
 
 ```ts
 import { Expr } from "@dldc/zendb";
 
-const query2 = schema.tables.tasks.query()
-  .limit(Expr.external(10))
+const userId = "user-123"; // Dynamic value from user input
+
+const query = schema.tables.users.query()
+  .where((c) => Expr.equal(c.id, Expr.external(userId)))
   .all();
 
-console.log(query2.sql); // SELECT tasks.* FROM tasks LIMIT :_hgJnoKSYKp
-console.log(query2.params); // { _hgJnoKSYKp: 10 }
+console.log(query.sql);
+// SELECT users.* FROM users WHERE users.id == :_hgJnoKSYKp
+
+console.log(query.params);
+// { _hgJnoKSYKp: "user-123" }
 ```
 
-As you can see, the `Expr.external` function creates a variable with a unique
-name (`_hgJnoKSYKp`) that will be sent to the driver. This is important because
-it protects you from SQL injection!
+#### Why not just use the value directly?
+
+**You should ALWAYS use `Expr.external()` for dynamic values!** Here's why:
+
+```ts
+// ❌ WRONG - Vulnerable to SQL injection if userId comes from user input
+const badQuery = db.exec(`SELECT * FROM users WHERE id = '${userId}'`);
+
+// ✅ CORRECT - Safe from SQL injection
+const goodQuery = schema.tables.users.query()
+  .where((c) => Expr.equal(c.id, Expr.external(userId)))
+  .all();
+```
+
+Using `Expr.external()` ensures:
+
+- **Protection from SQL injection** - Values are properly escaped
+- **Type safety** - TypeScript validates the value type
+- **Better performance** - Databases can cache prepared statements
+
+#### When to use `Expr.external()` vs `Expr.literal()`
+
+Use **`Expr.external()`** for:
+
+- ✅ Variables and dynamic values
+- ✅ User input
+- ✅ Runtime values that change between queries
+- ✅ Almost all cases (this is the safe default!)
+
+Use **`Expr.literal()`** for:
+
+- Static, hardcoded values known at compile time
+- Constants that never change
+- Values that must be in the SQL string itself (rare)
+
+```ts
+// Good: Use external for dynamic values
+const limit = 10;
+const query = schema.tables.tasks.query()
+  .limit(Expr.external(limit))
+  .all();
+
+// Also valid: Use literal for truly static values
+// (but external works fine too!)
+const query2 = schema.tables.tasks.query()
+  .limit(Expr.literal(10))
+  .all();
+```
+
+**When in doubt, use `Expr.external()`** - it's always safe!
 
 ### Inspecting Generated SQL
 
