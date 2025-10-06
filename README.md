@@ -1,54 +1,50 @@
-# ZendDB
+# ZenDB
 
 > Type safe query builder for SQLite
 
 ## Table of Contents
 
-- [ZendDB](#zenddb)
+- [ZenDB](#zendb)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
-  - [Drivers](#drivers)
-    - [Why Drivers?](#why-drivers)
-    - [Available Drivers](#available-drivers)
-    - [Creating a Custom Driver](#creating-a-custom-driver)
-    - [Advanced: Custom Operation Handling](#advanced-custom-operation-handling)
-  - [Overview](#overview)
+  - [Quick Start](#quick-start)
+  - [Getting Started](#getting-started)
     - [1. Declare a schema](#1-declare-a-schema)
       - [Column Types](#column-types)
     - [2. Setup the driver and database](#2-setup-the-driver-and-database)
     - [3. Run queries](#3-run-queries)
     - [Type Safety](#type-safety)
-  - [`insert`, `update`, `delete`](#insert-update-delete)
-    - [Insert examples](#insert-examples)
-    - [Update examples](#update-examples)
-    - [Delete examples](#delete-examples)
+  - [Core Operations](#core-operations)
+    - [Insert](#insert)
+    - [Update](#update)
+    - [Delete](#delete)
   - [Queries](#queries)
-    - [Common Query Methods](#common-query-methods)
-      - [Filtering](#filtering)
-      - [Sorting and Limiting](#sorting-and-limiting)
-      - [Grouping and Aggregation](#grouping-and-aggregation)
-  - [Query end methods](#query-end-methods)
+    - [Query End Methods](#query-end-methods)
+    - [Filtering](#filtering)
+    - [Selecting Columns](#selecting-columns)
+    - [Sorting and Limiting](#sorting-and-limiting)
+    - [Grouping and Aggregation](#grouping-and-aggregation)
   - [Expressions](#expressions)
     - [`Expr.external` - Safe Dynamic Values](#exprexternal---safe-dynamic-values)
       - [What does it do?](#what-does-it-do)
       - [Why not just use the value directly?](#why-not-just-use-the-value-directly)
       - [When to use `Expr.external()` vs `Expr.literal()`](#when-to-use-exprexternal-vs-exprliteral)
     - [Inspecting Generated SQL](#inspecting-generated-sql)
-    - [Expression functions](#expression-functions)
+    - [Expression Functions](#expression-functions)
     - [Common Expression Operations](#common-expression-operations)
-    - [Select function](#select-function)
   - [Joins](#joins)
     - [Inner Join Example](#inner-join-example)
     - [Left Join Example](#left-join-example)
     - [Multiple Joins](#multiple-joins)
     - [Joins with Aggregation (Automatic CTE)](#joins-with-aggregation-automatic-cte)
-  - [JSON Operations](#json-operations)
-    - [Creating JSON Objects](#creating-json-objects)
-    - [Aggregating to JSON Arrays](#aggregating-to-json-arrays)
-  - [Using CTEs](#using-ctes)
-  - [Database Utilities](#database-utilities)
-    - [Schema Operations](#schema-operations)
-    - [User Version (for migrations)](#user-version-for-migrations)
+  - [Advanced Features](#advanced-features)
+    - [JSON Operations](#json-operations)
+      - [Creating JSON Objects](#creating-json-objects)
+      - [Aggregating to JSON Arrays](#aggregating-to-json-arrays)
+    - [Using CTEs](#using-ctes)
+    - [Database Utilities](#database-utilities)
+      - [Schema Operations](#schema-operations)
+      - [User Version (for migrations)](#user-version-for-migrations)
   - [Migrations](#migrations)
     - [Creating Migrations](#creating-migrations)
     - [Adding Migration Steps](#adding-migration-steps)
@@ -56,9 +52,14 @@
     - [Version Management](#version-management)
       - [Checking Current Version](#checking-current-version)
       - [Setting Version (Advanced)](#setting-version-advanced)
+    - [Migration FAQ](#migration-faq)
     - [Migration Best Practices](#migration-best-practices)
     - [Complete Migration Example](#complete-migration-example)
-  - [Complete Example](#complete-example)
+  - [Drivers](#drivers)
+    - [Available Drivers](#available-drivers)
+    - [Why Drivers?](#why-drivers)
+    - [Creating a Custom Driver](#creating-a-custom-driver)
+    - [Advanced: Custom Operation Handling](#advanced-custom-operation-handling)
 
 ## Installation
 
@@ -71,129 +72,72 @@ npx jsr add @dldc/zendb
 deno add @dldc/zendb
 ```
 
-## Drivers
+You'll also need a driver for your environment:
 
-ZenDB uses a **Driver** pattern to support multiple SQLite libraries across
-different environments. A driver is a simple object that knows how to execute
-operations on your database instance.
+```bash
+# Deno
+deno add @dldc/zendb-db-sqlite
+# Node.js
+npm install @dldc/zendb-better-sqlite3
+# Browser
+npm install @dldc/zendb-sqljs
+```
 
-### Why Drivers?
+## Quick Start
 
-The Driver pattern provides several benefits:
-
-- ✅ **Performance** - Uses prepared statements and supports cursors efficiently
-- ✅ **Flexibility** - Works with Node.js, Deno, and Browser SQLite libraries
-- ✅ **Direct Access** - You keep full control of your database instance
-- ✅ **Type Safety** - Fully typed operations and results
-
-### Available Drivers
-
-| Environment | Driver Package               | SQLite Library                                                   |
-| ----------- | ---------------------------- | ---------------------------------------------------------------- |
-| **Deno**    | `@dldc/zendb-db-sqlite`      | [`@db/sqlite`](https://jsr.io/@db/sqlite)                        |
-| **Node.js** | `@dldc/zendb-better-sqlite3` | [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3) |
-| **Browser** | `@dldc/zendb-sqljs`          | [`sql.js`](https://www.npmjs.com/package/sql.js)                 |
-
-### Creating a Custom Driver
-
-If you need to use a different SQLite library, you can easily create your own
-driver using the `Driver.createDriverFromPrepare` helper:
+Here's a complete example to get you started:
 
 ```ts
-import { Driver } from "@dldc/zendb";
-import type { Database } from "your-sqlite-library";
+import { Column, Expr, Schema } from "@dldc/zendb";
+import { Database } from "@db/sqlite";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
-export const MyDriver = Driver.createDriverFromPrepare<Database>({
-  exec: (db, sql) => db.exec(sql),
-  prepare: (db, sql) => db.prepare(sql),
-  createDatabase: () => new Database(":memory:"),
+// 1. Define schema
+const schema = Schema.declare({
+  users: {
+    id: Column.text().primary(),
+    name: Column.text(),
+    email: Column.text(),
+  },
+  tasks: {
+    id: Column.text().primary(),
+    title: Column.text(),
+    completed: Column.boolean(),
+    userId: Column.text(),
+  },
 });
+
+// 2. Initialize database
+const db = new Database(":memory:");
+DbSqliteDriver.execMany(
+  db,
+  Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
+);
+
+// 3. Insert data
+DbSqliteDriver.exec(
+  db,
+  schema.tables.users.insert({
+    id: "1",
+    name: "Alice",
+    email: "alice@example.com",
+  }),
+);
+
+// 4. Query with type safety
+const users = DbSqliteDriver.exec(
+  db,
+  schema.tables.users.query()
+    .where((c) => Expr.equal(c.name, Expr.external("Alice")))
+    .all(),
+);
+
+console.log(users); // [{ id: "1", name: "Alice", email: "alice@example.com" }]
 ```
 
-The driver expects `prepare()` to return an object with:
+## Getting Started
 
-- `run(params?)` - Execute a statement, returns number of affected rows
-- `all(params?)` - Execute a query, returns array of result rows
-
-### Advanced: Custom Operation Handling
-
-For advanced use cases, you can implement a driver manually to have full control
-over operation execution. This is useful when you need to:
-
-- Optimize specific operation types (e.g., batch inserts)
-- Add custom caching or connection pooling
-- Support unique database features (e.g., cursors, streaming)
-- Implement driver-specific performance optimizations
-
-```ts
-import type { TDriver, TOperation, TOperationResult } from "@dldc/zendb";
-import type { Database } from "your-sqlite-library";
-
-export const CustomDriver: TDriver<Database> = {
-  exec<Op extends TOperation>(db: Database, op: Op): TOperationResult<Op> {
-    // Handle each operation type explicitly
-    if (op.kind === "Query") {
-      // Example: Use cursor for large result sets
-      const stmt = db.prepare(op.sql);
-      const rows = op.params ? stmt.all(op.params) : stmt.all();
-      return op.parse(rows) as TOperationResult<Op>;
-    }
-
-    if (op.kind === "Insert") {
-      // Example: Use RETURNING clause if supported
-      db.prepare(op.sql).run(op.params);
-      return op.parse() as TOperationResult<Op>;
-    }
-
-    if (op.kind === "Update" || op.kind === "Delete") {
-      const stmt = db.prepare(op.sql);
-      const result = op.params ? stmt.run(op.params) : stmt.run();
-      return op.parse({
-        [op.kind === "Update" ? "updated" : "deleted"]: result.changes,
-      }) as TOperationResult<Op>;
-    }
-
-    // Handle other operation types...
-    throw new Error(`Unsupported operation: ${op.kind}`);
-  },
-
-  execMany<Op extends TOperation>(
-    db: Database,
-    ops: Op[],
-  ): TOperationResult<Op>[] {
-    // Example: Use transaction for multiple operations
-    db.exec("BEGIN");
-    try {
-      const results = ops.map((op) => this.exec(db, op));
-      db.exec("COMMIT");
-      return results;
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  },
-
-  createDatabase: () => new Database(":memory:"),
-};
-```
-
-**Benefits of custom implementation:**
-
-- **Performance**: Optimize hot paths with custom logic
-- **Features**: Leverage database-specific capabilities
-- **Control**: Full visibility into operation execution
-- **Monitoring**: Add logging, metrics, or tracing
-
-**When to use:**
-
-- ✅ You need database-specific optimizations
-- ✅ You're implementing a new driver for a different SQLite library
-- ✅ You need transaction control or connection pooling
-- ❌ Standard driver is usually sufficient for most use cases
-
-## Overview
-
-Here is an overview of how to use this library:
+Here's how to use ZenDB in your project:
 
 ### 1. Declare a schema
 
@@ -338,20 +282,12 @@ const filtered = schema.tables.users.query()
   .maybeOne();
 ```
 
-## `insert`, `update`, `delete`
+## Core Operations
 
-There are a few methods available on each `Table` object:
+ZenDB provides type-safe methods for all basic database operations on each
+`Table` object (accessed via `schema.tables.<table>`).
 
-- `.insert(item)`
-- `.insertMany(item[])`
-- `.delete(condition)` (`condition` is an expression function, detailed below)
-- `.deleteEqual(filters)` shortcut for simple equality filters
-- `.update(item, condition)` (`condition` is an expression function)
-- `.updateEqual(item, filters)` shortcut version for simple equality filters
-
-(Use them from `schema.tables.<table>`.)
-
-### Insert examples
+### Insert
 
 ```ts
 // Insert a single item
@@ -365,7 +301,7 @@ const insertOp = schema.tables.users.insert({
 });
 driver.exec(db, insertOp);
 
-// Insert multiple items
+// Insert multiple items at once
 const users = [
   { id: "1", name: "John", email: "john@example.com", groupId: "1" },
   { id: "2", name: "Jane", email: "jane@example.com", groupId: "1" },
@@ -373,17 +309,17 @@ const users = [
 driver.exec(db, schema.tables.users.insertMany(users));
 ```
 
-### Update examples
+### Update
 
 ```ts
-// Update with condition
+// Update with custom condition
 const updateOp = schema.tables.users.update(
   { name: "Paul" },
   (cols) => Expr.equal(cols.id, Expr.external("1234")),
 );
 driver.exec(db, updateOp);
 
-// Update with simple equality filter
+// Update with simple equality filter (shortcut)
 const updateEqualOp = schema.tables.users.updateEqual(
   { name: "Paul" },
   { id: "1234" },
@@ -391,23 +327,23 @@ const updateEqualOp = schema.tables.users.updateEqual(
 driver.exec(db, updateEqualOp);
 ```
 
-### Delete examples
+### Delete
 
 ```ts
-// Delete with condition
+// Delete with custom condition
 const deleteOp = schema.tables.users.delete((cols) =>
   Expr.equal(cols.id, Expr.external("1"))
 );
 driver.exec(db, deleteOp);
 
-// Delete with simple equality filter
+// Delete with simple equality filter (shortcut)
 const deleteEqualOp = schema.tables.users.deleteEqual({ id: "1" });
 driver.exec(db, deleteEqualOp);
 ```
 
 ## Queries
 
-Create a query with `.query()` on a table:
+Build type-safe queries with the `.query()` method on any table:
 
 ```ts
 const query = schema.tables.tasks.query()
@@ -417,33 +353,49 @@ const query = schema.tables.tasks.query()
 const tasks = driver.exec(db, query);
 ```
 
-Two kinds of methods on a `Query`:
+### Query End Methods
 
-- Terminal: `.all()`, `.one()`, `.maybeOne()`, `.first()`, `.maybeFirst()`
-- Transforming: all others (return a new Query)
+Every query must end with a **terminal method** that defines how to retrieve
+results:
 
-Always end with a terminal method.
-
-### Common Query Methods
-
-#### Filtering
+- `.all()` - Returns all matching rows as an array
+- `.maybeFirst()` - Returns first row or `null` (adds `LIMIT 1`)
+- `.first()` - Returns first row or throws error if none
+- `.maybeOne()` - Returns one row or `null`; throws error if more than one
+- `.one()` - Returns exactly one row; throws error if 0 or >1 results
+- `.count()` - Returns the count of matching rows as a number
 
 ```ts
-// Simple equality filter
-// Note: .andFilterEqual() automatically handles values safely (like Expr.external)
+// Get all users
+const allUsers = schema.tables.users.query().all();
+
+// Get one specific user (error if multiple found)
+const user = schema.tables.users.query()
+  .andFilterEqual({ id: "123" })
+  .one();
+
+// Get first result or null
+const firstTask = schema.tables.tasks.query()
+  .orderBy((c) => [c.title])
+  .maybeFirst();
+```
+
+### Filtering
+
+```ts
+// Simple equality filter (automatically safe, like Expr.external)
 const query = schema.tables.tasks.query()
   .andFilterEqual({ id: "1" })
   .one();
 
 // Multiple filters (AND)
-const query = schema.tables.tasks.query()
+const query2 = schema.tables.tasks.query()
   .andFilterEqual({ completed: false })
   .andFilterEqual({ id: "1" })
   .maybeOne();
 
-// Custom filter with where
-// When using Expr functions directly, always use Expr.external() for dynamic values
-const query = schema.tables.users.query()
+// Custom filter with where (use Expr.external for dynamic values)
+const query3 = schema.tables.users.query()
   .where((c) =>
     Expr.or(
       Expr.equal(c.id, Expr.external("me")),
@@ -453,49 +405,87 @@ const query = schema.tables.users.query()
   .all();
 ```
 
-#### Sorting and Limiting
+### Selecting Columns
+
+The `.select()` method lets you choose which columns to return and transform
+them with expressions:
 
 ```ts
-// Order by
-const query = schema.tables.tasks.query()
+// Select specific columns
+const userQuery = schema.tables.users.query()
+  .select((c) => ({ id: c.id, name: c.name }))
+  .all();
+// SELECT users.id AS id, users.name AS name FROM users
+
+// Using destructuring
+const userQuery2 = schema.tables.users.query()
+  .select(({ id, name }) => ({ id, name }))
+  .all();
+
+// Using expressions to transform data
+const userQueryConcat = schema.tables.users.query()
+  .select((c) => ({
+    id: c.id,
+    fullInfo: Expr.concatenate(c.name, c.email),
+  }))
+  .all();
+
+// Without select(), all columns are returned
+const allColumns = schema.tables.users.query().all();
+// SELECT users.* FROM users
+```
+
+### Sorting and Limiting
+
+```ts
+// Order by column(s)
+const orderedTasks = schema.tables.tasks.query()
   .orderBy((cols) => [cols.title])
   .all();
 
-// Limit
-const query = schema.tables.tasks.query()
+// Order ascending/descending
+const sortedUsers = schema.tables.users.query()
+  .andSortAsc((c) => c.name)
+  .all();
+
+// Limit results
+const limitedTasks = schema.tables.tasks.query()
   .limit(Expr.external(10))
   .all();
 
-// Offset
-const query = schema.tables.tasks.query()
-  .offset(Expr.external(5))
+// Pagination with offset
+const paginatedTasks = schema.tables.tasks.query()
+  .limit(Expr.external(10))
+  .offset(Expr.external(20))
   .all();
 ```
 
-#### Grouping and Aggregation
+### Grouping and Aggregation
 
 ```ts
-// Group by with count
-const query = schema.tables.users.query()
+// Group by with aggregation
+const userCounts = schema.tables.users.query()
   .select((cols) => ({
     email: cols.email,
     count: Expr.Aggregate.count(cols.id),
   }))
   .groupBy((cols) => [cols.email])
   .all();
+
+// Multiple aggregate functions
+const taskStats = schema.tables.tasks.query()
+  .select((c) => ({
+    total: Expr.Aggregate.count(c.id),
+    completed: Expr.Aggregate.sum(c.completed),
+  }))
+  .one();
 ```
 
-## Query end methods
-
-- `.all()`: all rows
-- `.maybeFirst()`: first row or `null` (adds / overrides `LIMIT 1`)
-- `.first()`: first row or error if none
-- `.maybeOne()`: one row or `null`; error if more than one
-- `.one()`: exactly one row or error if 0 or >1
-
-`.first()` / `.maybeFirst()` override any existing `LIMIT`.
-
 ## Expressions
+
+> ⚠️ **Security Warning**: Always use `Expr.external()` for dynamic values to
+> prevent SQL injection attacks. Never concatenate user input directly into SQL
+> strings or use `Expr.literal()` with untrusted data.
 
 Expressions are type-safe SQL fragments:
 
@@ -617,89 +607,68 @@ const deleteOp = schema.tables.users.delete((c) => ...);
 console.log(deleteOp.kind); // "Delete"
 ```
 
-### Expression functions
+### Expression Functions
 
-Many methods on the `Query` object take an expression function as argument. This
-is a function that will be called with an object that contains the columns of
-the table, each column is an expression so you can use them to build your
-expression.
-
-Here is an example with the `.where` method:
+Many query methods accept **expression functions** - callbacks that receive
+column references and return expressions. This provides type-safe access to
+columns:
 
 ```ts
+// where() takes an expression function
 const meOrYou = schema.tables.users.query()
   .where((c) =>
+    // c contains typed column references
     Expr.or(
       Expr.equal(c.id, Expr.external("me")),
       Expr.equal(c.id, Expr.external("you")),
     )
   )
   .all();
+
+// select() uses an expression function to transform columns
+const userEmails = schema.tables.users.query()
+  .select((c) => ({ email: c.email }))
+  .all();
 ```
 
 ### Common Expression Operations
+
+ZenDB provides a rich set of expression operations through the `Expr` namespace:
 
 ```ts
 // Comparison operators
 Expr.equal(a, b); // a == b
 Expr.notEqual(a, b); // a != b
 Expr.lessThan(a, b); // a < b
+Expr.lessThanOrEqual(a, b); // a <= b
 Expr.greaterThan(a, b); // a > b
+Expr.greaterThanOrEqual(a, b); // a >= b
 
 // Logical operators
 Expr.and(a, b); // a AND b
 Expr.or(a, b); // a OR b
 Expr.not(a); // NOT a
 
+// Arithmetic operations
+Expr.add(a, b); // a + b
+Expr.subtract(a, b); // a - b
+Expr.multiply(a, b); // a * b
+Expr.divide(a, b); // a / b
+
 // String operations
-Expr.concatenate(a, b); // a || b
+Expr.concatenate(a, b); // a || b (string concatenation)
 
 // Aggregate functions
-Expr.Aggregate.count(col);
-Expr.Aggregate.sum(col);
-Expr.Aggregate.avg(col);
-Expr.Aggregate.min(col);
-Expr.Aggregate.max(col);
+Expr.Aggregate.count(col); // COUNT(col)
+Expr.Aggregate.countStar(); // COUNT(*)
+Expr.Aggregate.sum(col); // SUM(col)
+Expr.Aggregate.avg(col); // AVG(col)
+Expr.Aggregate.min(col); // MIN(col)
+Expr.Aggregate.max(col); // MAX(col)
 
-// JSON functions
-Expr.jsonObj(cols); // Create JSON object from columns
-Expr.jsonGroupArray(expr); // Aggregate rows into JSON array
-```
-
-### Select function
-
-The `.select()` method is used to select specific columns. It takes an
-expression function as parameters that should return an object with the columns
-you want to select, each columns can be any expression.
-
-_Note: if you don't provide a select(), all columns from the source tables are
-selected_
-
-```ts
-// Select only some properties
-const userQuery = schema.tables.users.query()
-  .select((c) => ({ id: c.id, name: c.name }))
-  .all();
-// SELECT users.id AS id, users.name AS name FROM users
-
-// Using destructuring
-const userQuery = schema.tables.users.query()
-  .select(({ id, name }) => ({ id, name }))
-  .all();
-// SELECT users.id AS id, users.name AS name FROM users
-
-// Using expressions
-const userQueryConcat = schema.tables.users.query()
-  .select((c) => ({
-    id: c.id,
-    name: Expr.concatenate(c.name, c.email),
-  }))
-  .all();
-// SELECT users.id AS id, users.name || users.email AS name FROM users
-
-// All columns
-const userQueryAll = schema.tables.users.query().all();
-// SELECT users.* FROM users
+// JSON functions (see JSON Operations section)
+Expr.jsonObj(cols); // json_object(...)
+Expr.jsonGroupArray(expr); // json_group_array(...)
 ```
 
 ## Joins
@@ -791,8 +760,8 @@ const result = schema.tables.users.query()
 
 ### Joins with Aggregation (Automatic CTE)
 
-When joining a query with aggregation or select, the library automatically uses
-a CTE:
+When joining a query with aggregation or select, ZenDB automatically uses a CTE
+(Common Table Expression):
 
 ```ts
 const countUsersByGroup = schema.tables.users.query()
@@ -832,11 +801,13 @@ FROM groups
   INNER JOIN cte_id1 AS t_id2 ON groups.id == t_id2.groupId
 ```
 
-## JSON Operations
+## Advanced Features
+
+### JSON Operations
 
 ZenDB provides powerful JSON functions for working with structured data:
 
-### Creating JSON Objects
+#### Creating JSON Objects
 
 ```ts
 // Create JSON object from all columns
@@ -848,7 +819,7 @@ const query = schema.tables.users.query()
   .all();
 ```
 
-### Aggregating to JSON Arrays
+#### Aggregating to JSON Arrays
 
 ```ts
 // Group related records into JSON arrays
@@ -880,24 +851,24 @@ This will return results like:
 ]
 ```
 
-## Using [CTEs](https://en.wikipedia.org/wiki/Hierarchical_and_recursive_queries_in_SQL)
+### Using [CTEs](https://en.wikipedia.org/wiki/Hierarchical_and_recursive_queries_in_SQL)
 
-When you join a table, the library will automatically use a CTE to make the join
-if needed. But you might want to use a CTE yourself. You can do this by using
-the `queryFrom()` function:
+While ZenDB automatically creates CTEs when needed for joins, you can manually
+create them using the `queryFrom()` function:
 
 ```ts
 import { queryFrom } from "@dldc/zendb";
 
-const query1 = schema.tables.users
+const aggregatedQuery = schema.tables.users
   .query()
   .select((cols) => ({ demo: cols.id, id: cols.id }))
   .groupBy((cols) => [cols.name]);
 
-const withCte = queryFrom(query1).all();
+// Explicitly create a CTE from the query
+const withCte = queryFrom(aggregatedQuery).all();
 ```
 
-The resulting query will look like this:
+This generates:
 
 ```sql
 WITH cte_id15 AS (
@@ -910,11 +881,11 @@ SELECT cte_id15.*
 FROM cte_id15
 ```
 
-## Database Utilities
+### Database Utilities
 
 The `Utils` namespace provides utility functions for database management:
 
-### Schema Operations
+#### Schema Operations
 
 ```ts
 import { Schema, Utils } from "@dldc/zendb";
@@ -930,7 +901,7 @@ const tableNames = driver.exec(db, Utils.listTables());
 console.log(tableNames); // ["users", "tasks", "groups"]
 ```
 
-### User Version (for migrations)
+#### User Version (for migrations)
 
 SQLite's `user_version` pragma is used to track migration state:
 
@@ -945,9 +916,13 @@ driver.exec(db, Utils.setUserVersion(3));
 
 ## Migrations
 
-ZenDB provides a powerful migration system that helps you evolve your database
+ZenDB provides a **basic migration system** that helps you evolve your database
 schema over time while preserving data. Migrations use SQLite's `user_version`
 pragma to track which migrations have been applied.
+
+> ⚠️ **Note**: This migration system is designed for simple use cases. For
+> complex production scenarios, consider using a more feature-rich migration
+> tool. See the [Migration FAQ](#migration-faq) below for limitations.
 
 ### Creating Migrations
 
@@ -1086,6 +1061,36 @@ console.log(`Current database version: ${version}`);
 driver.exec(db, Utils.setUserVersion(3));
 ```
 
+### Migration FAQ
+
+**Q: What happens if I run `migration.apply()` twice?**\
+A: Migrations are idempotent. The system tracks which migrations have been
+applied using SQLite's `user_version` pragma, so already-applied migrations are
+automatically skipped.
+
+**Q: Can I run migrations in parallel?**\
+A: No. Migrations should always be run sequentially. The migration system is not
+designed for concurrent execution.
+
+**Q: How do I handle rollbacks?**\
+A: ZenDB doesn't support automatic rollbacks. If you need to revert changes,
+create a new migration step that reverses the previous changes.
+
+**Q: Is this migration system production-ready?**\
+A: The migration system is **basic and suitable for simple use cases**. For
+complex production scenarios with multiple environments, consider:
+
+- Backing up your database before migrations
+- Testing migrations thoroughly on copies of production data
+- Using a more feature-rich migration tool for critical applications
+- The system does not support: rollbacks, branching, or migration conflict
+  resolution
+
+**Q: What happens if a migration fails?**\
+A: The migration will throw an error and stop. The `user_version` will reflect
+the last successfully completed migration. Fix the issue and run `apply()`
+again.
+
 ### Migration Best Practices
 
 1. **Always use `copyTable`**: Don't manually query and insert data. The
@@ -1103,13 +1108,18 @@ driver.exec(db, Utils.setUserVersion(3));
 5. **Export final schema**: Export `migration.schema` so your application always
    uses the latest schema definition.
 
+6. **Backup first**: Always backup your database before running migrations in
+   production.
+
 ### Complete Migration Example
 
 ```ts
 import { Column, Migration, Schema } from "@dldc/zendb";
+import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
 // Initial schema (version 1)
-const migration = Migration.initMigration(
+const migration = Migration.init(
+  DbSqliteDriver,
   Schema.declare({
     users: {
       id: Column.text().primary(),
@@ -1163,110 +1173,122 @@ const db = new Database("my-database.db");
 const migratedDb = await migration.apply(db);
 ```
 
-## Complete Example
+## Drivers
 
-Here's a complete example showing common operations:
+ZenDB uses a **Driver** pattern to support multiple SQLite libraries across
+different environments. A driver is a simple object that knows how to execute
+operations on your database instance.
+
+### Available Drivers
+
+| Environment | Driver Package               | SQLite Library                                                   |
+| ----------- | ---------------------------- | ---------------------------------------------------------------- |
+| **Deno**    | `@dldc/zendb-db-sqlite`      | [`@db/sqlite`](https://jsr.io/@db/sqlite)                        |
+| **Node.js** | `@dldc/zendb-better-sqlite3` | [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3) |
+| **Browser** | `@dldc/zendb-sqljs`          | [`sql.js`](https://www.npmjs.com/package/sql.js)                 |
+
+### Why Drivers?
+
+The Driver pattern provides several benefits:
+
+- ✅ **Performance** - Uses prepared statements and supports cursors efficiently
+- ✅ **Flexibility** - Works with Node.js, Deno, and Browser SQLite libraries
+- ✅ **Direct Access** - You keep full control of your database instance
+- ✅ **Type Safety** - Fully typed operations and results
+
+### Creating a Custom Driver
+
+If you need to use a different SQLite library, you can easily create your own
+driver using the `Driver.createDriverFromPrepare` helper:
 
 ```ts
-import { Column, Expr, Schema } from "@dldc/zendb";
-import { Database } from "@db/sqlite";
-import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
+import { Driver } from "@dldc/zendb";
+import type { Database } from "your-sqlite-library";
 
-// 1. Define schema
-const schema = Schema.declare({
-  users: {
-    id: Column.text().primary(),
-    name: Column.text(),
-    email: Column.text(),
-    groupId: Column.text(),
-  },
-  tasks: {
-    id: Column.text().primary(),
-    title: Column.text(),
-    completed: Column.boolean(),
-    userId: Column.text(),
-  },
-  groups: {
-    id: Column.text().primary(),
-    name: Column.text(),
-  },
+export const MyDriver = Driver.createDriverFromPrepare<Database>({
+  exec: (db, sql) => db.exec(sql),
+  prepare: (db, sql) => db.prepare(sql),
+  createDatabase: () => new Database(":memory:"),
 });
-
-// 2. Initialize database
-const db = new Database(":memory:");
-
-// Create tables
-DbSqliteDriver.execMany(
-  db,
-  Schema.createTables(schema.tables, { ifNotExists: true, strict: true }),
-);
-
-// 3. Insert data
-DbSqliteDriver.exec(
-  db,
-  schema.tables.groups.insert({ id: "1", name: "Engineering" }),
-);
-
-DbSqliteDriver.exec(
-  db,
-  schema.tables.users.insertMany([
-    { id: "1", name: "Alice", email: "alice@example.com", groupId: "1" },
-    { id: "2", name: "Bob", email: "bob@example.com", groupId: "1" },
-  ]),
-);
-
-DbSqliteDriver.exec(
-  db,
-  schema.tables.tasks.insertMany([
-    { id: "1", title: "Write docs", completed: false, userId: "1" },
-    { id: "2", title: "Review PR", completed: true, userId: "1" },
-    { id: "3", title: "Deploy", completed: false, userId: "2" },
-  ]),
-);
-
-// 4. Query with joins and aggregation
-const usersWithTaskCounts = schema.tables.users.query()
-  .innerJoin(
-    schema.tables.groups.query(),
-    "group",
-    (c) => Expr.equal(c.groupId, c.group.id),
-  )
-  .leftJoin(
-    schema.tables.tasks.query(),
-    "tasks",
-    (c) => Expr.equal(c.id, c.tasks.userId),
-  )
-  .groupBy((c) => [c.id, c.name, c.email, c.group.name])
-  .select((c) => ({
-    id: c.id,
-    name: c.name,
-    email: c.email,
-    groupName: c.group.name,
-    taskCount: Expr.Aggregate.count(c.tasks.id),
-  }))
-  .all();
-
-const result = DbSqliteDriver.exec(db, usersWithTaskCounts);
-console.log(result);
-// [
-//   { id: '1', name: 'Alice', email: 'alice@example.com',
-//     groupName: 'Engineering', taskCount: 2 },
-//   { id: '2', name: 'Bob', email: 'bob@example.com',
-//     groupName: 'Engineering', taskCount: 1 }
-// ]
-
-// 5. Update
-DbSqliteDriver.exec(
-  db,
-  schema.tables.tasks.updateEqual(
-    { completed: true },
-    { id: "1" },
-  ),
-);
-
-// 6. Delete
-DbSqliteDriver.exec(
-  db,
-  schema.tables.tasks.deleteEqual({ completed: true }),
-);
 ```
+
+The driver expects `prepare()` to return an object with:
+
+- `run(params?)` - Execute a statement, returns number of affected rows
+- `all(params?)` - Execute a query, returns array of result rows
+
+### Advanced: Custom Operation Handling
+
+For advanced use cases, you can implement a driver manually to have full control
+over operation execution. This is useful when you need to:
+
+- Optimize specific operation types (e.g., batch inserts)
+- Add custom caching or connection pooling
+- Support unique database features (e.g., cursors, streaming)
+- Implement driver-specific performance optimizations
+
+```ts
+import type { TDriver, TOperation, TOperationResult } from "@dldc/zendb";
+import type { Database } from "your-sqlite-library";
+
+export const CustomDriver: TDriver<Database> = {
+  exec<Op extends TOperation>(db: Database, op: Op): TOperationResult<Op> {
+    // Handle each operation type explicitly
+    if (op.kind === "Query") {
+      // Example: Use cursor for large result sets
+      const stmt = db.prepare(op.sql);
+      const rows = op.params ? stmt.all(op.params) : stmt.all();
+      return op.parse(rows) as TOperationResult<Op>;
+    }
+
+    if (op.kind === "Insert") {
+      // Example: Use RETURNING clause if supported
+      db.prepare(op.sql).run(op.params);
+      return op.parse() as TOperationResult<Op>;
+    }
+
+    if (op.kind === "Update" || op.kind === "Delete") {
+      const stmt = db.prepare(op.sql);
+      const result = op.params ? stmt.run(op.params) : stmt.run();
+      return op.parse({
+        [op.kind === "Update" ? "updated" : "deleted"]: result.changes,
+      }) as TOperationResult<Op>;
+    }
+
+    // Handle other operation types...
+    throw new Error(`Unsupported operation: ${op.kind}`);
+  },
+
+  execMany<Op extends TOperation>(
+    db: Database,
+    ops: Op[],
+  ): TOperationResult<Op>[] {
+    // Example: Use transaction for multiple operations
+    db.exec("BEGIN");
+    try {
+      const results = ops.map((op) => this.exec(db, op));
+      db.exec("COMMIT");
+      return results;
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  },
+
+  createDatabase: () => new Database(":memory:"),
+};
+```
+
+**Benefits of custom implementation:**
+
+- **Performance**: Optimize hot paths with custom logic
+- **Features**: Leverage database-specific capabilities
+- **Control**: Full visibility into operation execution
+- **Monitoring**: Add logging, metrics, or tracing
+
+**When to use:**
+
+- ✅ You need database-specific optimizations
+- ✅ You're implementing a new driver for a different SQLite library
+- ✅ You need transaction control or connection pooling
+- ❌ Standard driver is usually sufficient for most use cases

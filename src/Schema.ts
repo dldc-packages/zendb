@@ -23,6 +23,27 @@ export interface TSchema<Tables extends Record<string, ColumnsBase>> {
 
 export type TAnySchema = TSchema<any>;
 
+/**
+ * Declares a database schema with typed tables.
+ *
+ * @param tables - Object mapping table names to column definitions
+ * @returns A typed schema object with table accessors
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   users: {
+ *     id: Column.text().primary(),
+ *     name: Column.text(),
+ *     email: Column.text()
+ *   },
+ *   tasks: {
+ *     id: Column.text().primary(),
+ *     title: Column.text()
+ *   }
+ * });
+ * ```
+ */
 export function declare<Tables extends Record<string, ColumnsBase>>(
   tables: Tables,
 ): TSchema<Tables> {
@@ -36,6 +57,22 @@ export function declare<Tables extends Record<string, ColumnsBase>>(
   };
 }
 
+/**
+ * Creates SQL CREATE TABLE operations for all tables in a schema.
+ *
+ * @param tables - The tables from a schema definition
+ * @param options - Optional table creation options (ifNotExists, strict)
+ * @returns Array of CREATE TABLE operations to execute with the driver
+ *
+ * @example
+ * ```ts
+ * const operations = Schema.createTables(schema.tables, {
+ *   ifNotExists: true,
+ *   strict: true
+ * });
+ * driver.execMany(db, operations);
+ * ```
+ */
 export function createTables<
   Tables extends Record<string, TTable<any, any, any>>,
 >(

@@ -49,6 +49,23 @@ export function create<Val, Nullable extends boolean>(
   return { ast: expr, [PRIV]: internal, [TYPES]: {} as any };
 }
 
+/**
+ * Creates a literal expression with a hardcoded value.
+ *
+ * ⚠️ **Warning**: Only use for compile-time constants. For dynamic values,
+ * always use `Expr.external()` to prevent SQL injection.
+ *
+ * @param val - The literal value (string, number, boolean, or null)
+ * @returns A typed expression with the literal value
+ *
+ * @example
+ * ```ts
+ * // Use for static values
+ * const query = schema.tables.tasks.query()
+ *   .limit(Expr.literal(10))
+ *   .all();
+ * ```
+ */
 export function literal<Val extends string | number | boolean | null>(
   val: Val,
 ): TExpr<Val, [null] extends [Val] ? true : false> {
@@ -69,6 +86,20 @@ export function add<
   });
 }
 
+/**
+ * Creates an equality comparison expression (==).
+ *
+ * @param left - The left expression
+ * @param right - The right expression
+ * @returns A boolean expression representing left == right
+ *
+ * @example
+ * ```ts
+ * const query = schema.tables.users.query()
+ *   .where((c) => Expr.equal(c.id, Expr.external("user-123")))
+ *   .maybeOne();
+ * ```
+ */
 export function equal<L extends TExprUnknow, R extends TExprUnknow>(
   left: L,
   right: R,
@@ -126,6 +157,25 @@ export function like<L extends TExprUnknow, R extends TExprUnknow>(
   });
 }
 
+/**
+ * Creates a logical OR expression.
+ *
+ * @param left - The left expression
+ * @param right - The right expression
+ * @returns A boolean expression representing left OR right
+ *
+ * @example
+ * ```ts
+ * const query = schema.tables.users.query()
+ *   .where((c) =>
+ *     Expr.or(
+ *       Expr.equal(c.id, Expr.external("alice")),
+ *       Expr.equal(c.id, Expr.external("bob"))
+ *     )
+ *   )
+ *   .all();
+ * ```
+ */
 export function or<L extends TExprUnknow, R extends TExprUnknow>(
   left: L,
   right: R,
@@ -137,6 +187,25 @@ export function or<L extends TExprUnknow, R extends TExprUnknow>(
   });
 }
 
+/**
+ * Creates a logical AND expression.
+ *
+ * @param left - The left expression
+ * @param right - The right expression
+ * @returns A boolean expression representing left AND right
+ *
+ * @example
+ * ```ts
+ * const query = schema.tables.tasks.query()
+ *   .where((c) =>
+ *     Expr.and(
+ *       Expr.equal(c.completed, Expr.external(false)),
+ *       Expr.equal(c.userId, Expr.external("user-123"))
+ *     )
+ *   )
+ *   .all();
+ * ```
+ */
 export function and<L extends TExprUnknow, R extends TExprUnknow>(
   left: L,
   right: R,
@@ -302,6 +371,29 @@ export function notInSubquery<RTable extends TTableQuery<any, any>>(
   );
 }
 
+/**
+ * Creates a parameterized expression for dynamic values.
+ *
+ * **This is the safe way to include dynamic values in queries.** It creates a
+ * SQL parameter placeholder that prevents SQL injection attacks by separating
+ * the value from the SQL string.
+ *
+ * @param val - The dynamic value (string, number, boolean, or null)
+ * @param name - Optional name for the parameter (for debugging)
+ * @returns A typed expression with a parameterized value
+ *
+ * @example
+ * ```ts
+ * // ✅ SAFE: Use external for all dynamic values
+ * const userId = getUserId(); // from user input
+ * const query = schema.tables.users.query()
+ *   .where((c) => Expr.equal(c.id, Expr.external(userId)))
+ *   .maybeOne();
+ *
+ * // With optional name for debugging
+ * .where((c) => Expr.equal(c.id, Expr.external(userId, "userId")))
+ * ```
+ */
 export function external<Val extends string | number | boolean | null>(
   val: Val,
   name?: string,

@@ -5,6 +5,17 @@ import type {
   TPragmaSetOperation,
 } from "./Operation.ts";
 
+/**
+ * Creates an operation to list all table names in the database.
+ *
+ * @returns An operation that returns an array of table names
+ *
+ * @example
+ * ```ts
+ * const tableNames = driver.exec(db, Utils.listTables());
+ * console.log(tableNames); // ["users", "tasks", "groups"]
+ * ```
+ */
 export function listTables(): TListTablesOperation {
   const query = b.SelectStmt.build({
     resultColumns: [b.ResultColumn.column("name")],
@@ -22,6 +33,20 @@ export function listTables(): TListTablesOperation {
   };
 }
 
+/**
+ * Creates an operation to get the current database user_version.
+ *
+ * The user_version is used by the migration system to track which migrations
+ * have been applied. Version 0 means no migrations have been applied.
+ *
+ * @returns An operation that returns the current user_version number
+ *
+ * @example
+ * ```ts
+ * const version = driver.exec(db, Utils.userVersion());
+ * console.log(version); // 0 for new database, 1+ for migrated
+ * ```
+ */
 export function userVersion(): TPragmaOperation<number> {
   const query = Ast.createNode("PragmaStmt", {
     pragmaName: b.Expr.identifier("user_version"),
@@ -34,6 +59,20 @@ export function userVersion(): TPragmaOperation<number> {
   };
 }
 
+/**
+ * Creates an operation to set the database user_version.
+ *
+ * This is typically used by the migration system to track applied migrations.
+ * Use with caution - setting the wrong version can cause migration issues.
+ *
+ * @param version - The version number to set (must be non-negative)
+ * @returns An operation that sets the user_version
+ *
+ * @example
+ * ```ts
+ * driver.exec(db, Utils.setUserVersion(3));
+ * ```
+ */
 export function setUserVersion(version: number): TPragmaSetOperation {
   const query = Ast.createNode("PragmaStmt", {
     pragmaName: b.Expr.identifier("user_version"),

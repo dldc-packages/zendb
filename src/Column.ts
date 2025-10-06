@@ -92,32 +92,124 @@ function createInternal<
   };
 }
 
+/**
+ * Creates a JSON column that stores and parses JSON objects.
+ *
+ * @returns A non-nullable JSON column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   users: {
+ *     id: Column.text().primary(),
+ *     metadata: Column.json<{ theme: string; locale: string }>()
+ *   }
+ * });
+ * ```
+ */
 export function json<Obj>(): TColumn<Obj, false, null> {
   return declare(Datatype.json);
 }
 
+/**
+ * Creates a text/string column.
+ *
+ * @returns A non-nullable text column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   users: {
+ *     id: Column.text().primary(),
+ *     name: Column.text(),
+ *     email: Column.text().nullable()
+ *   }
+ * });
+ * ```
+ */
 export function text(): TColumn<string, false, null>;
 export function text<T extends string = string>(): TColumn<T, false, null>;
 export function text<T extends string = string>(): TColumn<T, false, null> {
   return declare(Datatype.text as any);
 }
 
+/**
+ * Creates a floating point number column.
+ *
+ * @returns A non-nullable number column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   products: {
+ *     id: Column.text().primary(),
+ *     price: Column.number()
+ *   }
+ * });
+ * ```
+ */
 export function number(): TColumn<number, false, null>;
 export function number<T extends number = number>(): TColumn<T, false, null>;
 export function number<T extends number = number>(): TColumn<T, false, null> {
   return declare(Datatype.number as any);
 }
 
+/**
+ * Creates an integer column.
+ *
+ * @returns A non-nullable integer column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   products: {
+ *     id: Column.text().primary(),
+ *     quantity: Column.integer()
+ *   }
+ * });
+ * ```
+ */
 export function integer(): TColumn<number, false, null>;
 export function integer<T extends number = number>(): TColumn<T, false, null>;
 export function integer<T extends number = number>(): TColumn<T, false, null> {
   return declare(Datatype.integer as any);
 }
 
+/**
+ * Creates a boolean column (stored as 0/1 in SQLite).
+ *
+ * @returns A non-nullable boolean column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   tasks: {
+ *     id: Column.text().primary(),
+ *     completed: Column.boolean()
+ *   }
+ * });
+ * ```
+ */
 export function boolean(): TColumn<boolean, false, null> {
   return declare(Datatype.boolean);
 }
 
+/**
+ * Creates a Date column (stored as timestamp in SQLite).
+ *
+ * @returns A non-nullable Date column
+ *
+ * @example
+ * ```ts
+ * const schema = Schema.declare({
+ *   users: {
+ *     id: Column.text().primary(),
+ *     createdAt: Column.date(),
+ *     updatedAt: Column.date().nullable()
+ *   }
+ * });
+ * ```
+ */
 export function date(): TColumn<Date, false, null> {
   return declare(Datatype.date);
 }

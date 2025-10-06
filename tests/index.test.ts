@@ -18,7 +18,7 @@ Deno.test("Insert", () => {
   const result = tasksDb.tables.users.insert({
     id: "1",
     name: "John Doe",
-    email: "john@exemple.com",
+    email: "john@example.com",
     displayName: null,
     updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     groupId: "1",
@@ -26,14 +26,14 @@ Deno.test("Insert", () => {
   expect(result).toMatchObject({
     kind: "Insert",
     params: {
-      email_id2: "john@exemple.com",
+      email_id2: "john@example.com",
       id_id0: "1",
       name_id1: "John Doe",
       displayName_id3: null,
     },
   });
   expect(result.parse()).toEqual({
-    email: "john@exemple.com",
+    email: "john@example.com",
     id: "1",
     name: "John Doe",
     displayName: null,

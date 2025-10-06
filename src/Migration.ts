@@ -54,13 +54,31 @@ export interface TMigration<
   Schema extends TAnySchema,
 > {
   /**
-   * Final schema, can be exported
+   * Final schema after all migration steps. Export this for use in your application.
    */
   readonly schema: Schema;
 
   /**
-   * Update the schema
-   * @param updater A function that takes the current schema and returns the new schema
+   * Adds a new migration step to the migration chain.
+   *
+   * @param updater - Function that transforms the current schema into the new schema
+   * @returns A function that takes the migration execution logic
+   *
+   * @example
+   * ```ts
+   * .step((schema) =>
+   *   Schema.declare({
+   *     ...schema.definition,
+   *     users: {
+   *       ...schema.tables.users.definition,
+   *       archived: Column.boolean()
+   *     }
+   *   })
+   * )(({ copyTable }) => {
+   *   copyTable("users", "users", (user) => ({ ...user, archived: false }));
+   *   return Promise.resolve();
+   * })
+   * ```
    */
   step<NewSchema extends TAnySchema>(
     updater: TUpdateSchema<Schema, NewSchema>,
@@ -69,12 +87,57 @@ export interface TMigration<
   ) => TMigration<Db, NewSchema>;
 
   /**
-   * Apply all migrations and return the updated database
-   * @param params
+   * Applies all pending migrations to the database.
+   *
+   * This method is idempotent - it only runs migrations that haven't been applied yet.
+   * The system uses SQLite's user_version pragma to track which migrations have been applied.
+   *
+   * @param currentDatabase - The database instance to migrate
+   * @returns The migrated database instance
+   *
+   * @example
+   * ```ts
+   * const db = new Database("my-app.db");
+   * const migratedDb = await migration.apply(db);
+   * ```
    */
   apply(currentDatabase: Db): Promise<Db>;
 }
 
+/**
+ * Initializes a new migration system with an initial schema.
+ *
+ * This is the starting point for creating a migration chain. The initial schema
+ * represents version 1 of your database.
+ *
+ * @param driver - The database driver to use for executing operations
+ * @param initSchema - The initial database schema
+ * @param initExec - Optional function to seed initial data
+ * @returns A migration object that can be extended with .step()
+ *
+ * @example
+ * ```ts
+ * import { Migration, Schema, Column } from "@dldc/zendb";
+ * import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
+ *
+ * const migration = Migration.init(
+ *   DbSqliteDriver,
+ *   Schema.declare({
+ *     users: {
+ *       id: Column.text().primary(),
+ *       name: Column.text()
+ *     }
+ *   }),
+ *   ({ database, schema }) => {
+ *     // Optional: seed initial data
+ *     return Promise.resolve();
+ *   }
+ * );
+ *
+ * // Export the final schema
+ * export const schema = migration.schema;
+ * ```
+ */
 export function init<Db, Schema extends TAnySchema>(
   driver: TDriver<Db>,
   initSchema: Schema,
