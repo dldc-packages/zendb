@@ -42,6 +42,13 @@ export interface TDriver<Db> {
    * @returns A new database instance
    */
   createDatabase: () => Promise<Db> | Db;
+
+  /**
+   * Closes a database instance and releases associated resources.
+   *
+   * @param db - The database instance to close
+   */
+  closeDatabase: (db: Db) => Promise<void> | void;
 }
 
 /**
@@ -67,7 +74,8 @@ export interface TDriver<Db> {
  *       all: (params) => stmt.all(params)
  *     };
  *   },
- *   createDatabase: () => new Database(":memory:")
+ *   createDatabase: () => new Database(":memory:"),
+ *   closeDatabase: (db) => db.close()
  * });
  * ```
  */
@@ -78,11 +86,13 @@ export function createDriverFromPrepare<Db>(config: {
     all: (params?: any) => any[];
   };
   createDatabase: () => Db | Promise<Db>;
+  closeDatabase: (db: Db) => void;
 }): TDriver<Db> {
   return {
     exec,
     execMany,
     createDatabase: config.createDatabase,
+    closeDatabase: config.closeDatabase,
   };
 
   function exec<Op extends TOperation>(

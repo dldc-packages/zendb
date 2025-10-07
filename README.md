@@ -1023,11 +1023,27 @@ import { Database } from "@db/sqlite";
 const db = new Database("my-database.db");
 
 // Apply all pending migrations
-const resultDb = await migration.apply(db);
+// Returns a tuple: [migratedDb, needsPersist]
+const [migratedDb, needsPersist] = await migration.apply(db);
 
-// resultDb is your updated database instance
-// The driver's createDatabase() method is called internally for temporary databases
+// needsPersist is true if migrations were applied, false if already up-to-date
+if (needsPersist) {
+  // Save the migrated database to disk (this depends on your driver)
+  const diskDb = new Database("my-database.db");
+  migratedDb.backup(diskDb, "main", -1);
+  diskDb.close();
+}
+
+migratedDb.close();
 ```
+
+The migration system returns:
+
+- **First element**: The migrated database instance
+- **Second element**: Boolean indicating if you need to persist the database
+  - `true` - Migrations were applied, the returned database is inMemory and
+    needs to be saved
+  - `false` - Database is already up-to-date, no persistence needed
 
 ### Version Management
 
@@ -1066,7 +1082,8 @@ driver.exec(db, Utils.setUserVersion(3));
 **Q: What happens if I run `migration.apply()` twice?**\
 A: Migrations are idempotent. The system tracks which migrations have been
 applied using SQLite's `user_version` pragma, so already-applied migrations are
-automatically skipped.
+automatically skipped. The second call will return `needsPersist: false`
+indicating no changes were made.
 
 **Q: Can I run migrations in parallel?**\
 A: No. Migrations should always be run sequentially. The migration system is not
@@ -1093,22 +1110,30 @@ again.
 
 ### Migration Best Practices
 
-1. **Always use `copyTable`**: Don't manually query and insert data. The
+1. **Check `needsPersist` flag**: Always check the second return value to know
+   if you need to save the database to disk. This avoids unnecessary backup
+   operations when the database is already up-to-date.
+
+2. **Use in-memory for migrations**: Run migrations on an in-memory database
+   first, then save to disk if needed. This is faster and safer than migrating
+   directly on disk.
+
+3. **Always use `copyTable`**: Don't manually query and insert data. The
    `copyTable` helper handles pagination automatically.
 
-2. **Transform data carefully**: When adding non-nullable columns, provide
+4. **Transform data carefully**: When adding non-nullable columns, provide
    default values in the transform function.
 
-3. **Test migrations**: Always test migrations with a copy of production data
+5. **Test migrations**: Always test migrations with a copy of production data
    before applying them.
 
-4. **Keep migrations immutable**: Once a migration is deployed, don't modify it.
+6. **Keep migrations immutable**: Once a migration is deployed, don't modify it.
    Add new steps instead.
 
-5. **Export final schema**: Export `migration.schema` so your application always
+7. **Export final schema**: Export `migration.schema` so your application always
    uses the latest schema definition.
 
-6. **Backup first**: Always backup your database before running migrations in
+8. **Backup first**: Always backup your database before running migrations in
    production.
 
 ### Complete Migration Example
@@ -1169,8 +1194,15 @@ const migration = Migration.init(
 export const schema = migration.schema;
 
 // Apply migrations
-const db = new Database("my-database.db");
-const migratedDb = await migration.apply(db);
+const inMemoryDb = new Database(":memory:");
+const [migratedDb, needsPersist] = await migration.apply(inMemoryDb);
+
+// Save to disk if migrations were applied
+if (needsPersist) {
+  const diskDb = new Database("my-database.db");
+  migratedDb.backup(diskDb, "main", -1);
+  diskDb.close();
+}
 ```
 
 ## Drivers
@@ -1209,8 +1241,16 @@ export const MyDriver = Driver.createDriverFromPrepare<Database>({
   exec: (db, sql) => db.exec(sql),
   prepare: (db, sql) => db.prepare(sql),
   createDatabase: () => new Database(":memory:"),
+  closeDatabase: (db) => db.close(),
 });
 ```
+
+The driver requires four methods:
+
+- `exec` - Execute SQL statements without returning results
+- `prepare` - Prepare statements for parameterized queries
+- `createDatabase` - Create new database instances (used by migrations)
+- `closeDatabase` - Close database connections and release resources
 
 The driver expects `prepare()` to return an object with:
 
@@ -1276,6 +1316,8 @@ export const CustomDriver: TDriver<Database> = {
   },
 
   createDatabase: () => new Database(":memory:"),
+
+  closeDatabase: (db) => db.close(),
 };
 ```
 

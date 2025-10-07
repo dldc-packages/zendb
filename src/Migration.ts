@@ -6,6 +6,9 @@ import { createInvalidUserVersion } from "./ZendbErreur.ts";
 
 import * as Expr from "./expr/Expr.ts";
 
+/**
+ * Function that transforms a schema from one version to the next.
+ */
 export type TUpdateSchema<
   PrevSchema extends TAnySchema,
   NewSchema extends TAnySchema,
@@ -13,15 +16,26 @@ export type TUpdateSchema<
   prev: PrevSchema,
 ) => NewSchema;
 
+/**
+ * Parameters passed to migration execution functions.
+ */
 export interface TMigrationExecParams<
   Db,
   PrevSchema extends TAnySchema,
   Schema extends TAnySchema,
 > {
+  /** The new schema after this migration step */
   schema: Schema;
+  /** The schema from the previous migration step */
   previousSchema: PrevSchema;
+  /** The new database instance for this migration step */
   database: Db;
+  /** The database instance from the previous migration step */
   previousDatabase: Db;
+  /**
+   * Helper function to copy data from a table in the previous schema
+   * to a table in the new schema, with optional transformation.
+   */
   copyTable: <
     FromName extends keyof PrevSchema["tables"],
     ToName extends keyof Schema["tables"],
@@ -34,6 +48,10 @@ export interface TMigrationExecParams<
   ) => void;
 }
 
+/**
+ * Function that executes a migration step, copying and transforming data.
+ * Can optionally return a database instance to use instead of the one created.
+ */
 export type TMigrationExecFn<
   Db,
   PrevSchema extends TAnySchema,
@@ -42,6 +60,10 @@ export type TMigrationExecFn<
   params: TMigrationExecParams<Db, PrevSchema, Schema>,
 ) => void | Db | Promise<void | Db>;
 
+/**
+ * Function that executes the initial migration step (seeding initial data).
+ * Similar to TMigrationExecFn but without previous schema/database since this is the first step.
+ */
 export type TMigrationInitExecFn<Db, Schema extends TAnySchema> = (
   params: Omit<
     TMigrationExecParams<Db, never, Schema>,
@@ -92,16 +114,34 @@ export interface TMigration<
    * This method is idempotent - it only runs migrations that haven't been applied yet.
    * The system uses SQLite's user_version pragma to track which migrations have been applied.
    *
-   * @param currentDatabase - The database instance to migrate
-   * @returns The migrated database instance
+   * **Resource Management:**
+   * - Automatically closes intermediate databases created during migration steps
+   * - Closes the input database if migrations start from version 0 and create a new database
+   * - Never closes the returned database - the caller is responsible for closing it
+   * - If no migrations are needed (already up-to-date), returns the input database unclosed
+   *
+   * @param currentDatabase - The database instance to migrate. May be closed by this method if migrations are applied from version 0.
+   * @returns A tuple containing:
+   *   - The migrated database instance (caller must close this)
+   *   - A boolean indicating whether the database needs to be persisted (true if migrations were applied, false if already up-to-date)
    *
    * @example
    * ```ts
-   * const db = new Database("my-app.db");
-   * const migratedDb = await migration.apply(db);
+   * const db = new Database(":memory:");
+   * const [migratedDb, needsPersist] = await migration.apply(db);
+   * // db may be closed at this point if migrations were applied
+   *
+   * if (needsPersist) {
+   *   // Save the migrated database to disk
+   *   const diskDb = new Database("my-app.db");
+   *   migratedDb.backup(diskDb, "main", -1);
+   *   diskDb.close();
+   * }
+   *
+   * migratedDb.close(); // Always close the returned database when done
    * ```
    */
-  apply(currentDatabase: Db): Promise<Db>;
+  apply(currentDatabase: Db): Promise<[database: Db, needsPersist: boolean]>;
 }
 
 /**
@@ -186,7 +226,7 @@ function createMigration<Db, Schema extends TAnySchema>(
 
     async apply(
       currentDatabase: Db,
-    ): Promise<Db> {
+    ): Promise<[database: Db, needsPersist: boolean]> {
       const currentUserVersion = internals.driver.exec(
         currentDatabase,
         userVersion(),
@@ -198,18 +238,10 @@ function createMigration<Db, Schema extends TAnySchema>(
           internals.steps.length,
         );
       }
-      if (currentUserVersion === 0) {
-        // Init schema
-        const initSchema = internals.steps[0].schema;
-        internals.driver.execMany(
-          currentDatabase,
-          createTables(initSchema.tables),
-        );
-      }
 
       // Check if no steps to run
       if (currentUserVersion === internals.steps.length) {
-        return currentDatabase;
+        return [currentDatabase, false];
       }
       const stepsToRun = internals.steps.slice(currentUserVersion);
       const previousStep = currentUserVersion === 0
@@ -219,6 +251,9 @@ function createMigration<Db, Schema extends TAnySchema>(
       let previousUserVersion = currentUserVersion;
       let previousSchema: TAnySchema = previousStep?.schema || (null as any);
       let previousDatabase = currentDatabase;
+      const databasesToClose: Db[] = [];
+      // Track if currentDatabase needs to be closed (when migrations start from version 0)
+      const shouldCloseInitialDatabase = currentUserVersion === 0;
 
       // Run each steps
       for (const step of stepsToRun) {
@@ -242,7 +277,23 @@ function createMigration<Db, Schema extends TAnySchema>(
               transform,
             }),
         });
-        previousDatabase = resultDb ?? nextDatabase;
+        const newDatabase = resultDb ?? nextDatabase;
+
+        // Close the previous database if it's not the original input database
+        // and it's not the new database we just created
+        if (
+          previousDatabase !== currentDatabase &&
+          previousDatabase !== newDatabase
+        ) {
+          databasesToClose.push(previousDatabase);
+        }
+
+        // If a different database was returned from exec, close the nextDatabase
+        if (resultDb && resultDb !== nextDatabase) {
+          databasesToClose.push(nextDatabase);
+        }
+
+        previousDatabase = newDatabase;
         // Save new user version
         previousUserVersion++;
         internals.driver.exec(
@@ -252,11 +303,24 @@ function createMigration<Db, Schema extends TAnySchema>(
         previousSchema = schema;
       }
 
-      return previousDatabase;
+      // Close the initial database if migrations started from version 0
+      if (shouldCloseInitialDatabase && currentDatabase !== previousDatabase) {
+        await internals.driver.closeDatabase(currentDatabase);
+      }
+
+      // Close all intermediate databases
+      await Promise.all(
+        databasesToClose.map((db) => internals.driver.closeDatabase(db)),
+      );
+
+      return [previousDatabase, true];
     },
   };
 }
 
+/**
+ * Options for copying data from one table to another during migrations.
+ */
 export interface TCopyTableOptions<
   Db,
   FromTable extends TTable<any, any, any>,
@@ -273,6 +337,31 @@ export interface TCopyTableOptions<
   pageSize?: number;
 }
 
+/**
+ * Copies data from one table to another with optional transformation.
+ *
+ * This is a low-level utility used internally by migrations. You typically won't
+ * call this directly - instead use the `copyTable` function provided in migration
+ * step callbacks.
+ *
+ * **Features:**
+ * - Automatically handles pagination for large tables
+ * - Supports data transformation during copy
+ * - Type-safe source and destination tables
+ *
+ * @param options - Configuration for the table copy operation
+ *
+ * @example
+ * ```ts
+ * // This is typically used within a migration step:
+ * .step((schema) => newSchema)(({ copyTable }) => {
+ *   copyTable("users", "users", (user) => ({
+ *     ...user,
+ *     newColumn: "default value"
+ *   }));
+ * });
+ * ```
+ */
 export function copyTable<
   Db,
   FromTable extends TTable<any, any, any>,
