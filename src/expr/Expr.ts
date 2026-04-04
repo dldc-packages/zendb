@@ -5,7 +5,7 @@ import type { TTableQuery, TTableQueryDependency } from "../Query.types.ts";
 import * as Random from "../Random.ts";
 import { PRIV, TYPES } from "../utils/constants.ts";
 import { appendDependencies } from "../utils/dependencies.ts";
-import { expectNever, mapObject, maybeParseJson } from "../utils/functions.ts";
+import { expectNever, mapObject } from "../utils/functions.ts";
 import type { ExprResultFrom, ExprsNullables } from "../utils/types.ts";
 import * as ExprUtils from "./ExprUtils.ts";
 
@@ -24,20 +24,15 @@ export type TExprUnknow = TExpr<any, boolean>;
 // Any value but not nullable
 export type TExprAny = TExpr<any, false>;
 
-// json option is set to true when the expression was already JSON parsed
-export type TExprParser = (raw: any, json: boolean, nullable: boolean) => any;
-
 export type TJsonMode = "JsonExpr" | "JsonRef" | undefined;
 
 // Data attached to [PRIV] on ast nodes that represent external values
 export type TExprAstParam = { readonly name?: string; readonly value: any };
 
 export interface TExprInternal {
-  readonly parse: TExprParser;
-  readonly nullable: boolean;
-  // JsonExpr is transformed to JsonRef when converted to a ref
-  // JsonRef is wrapped in a json() function when unsed in other json functions
+  readonly datatype: Datatype.TDatatypeAny;
   readonly jsonMode?: TJsonMode;
+  readonly nullable: boolean;
   // Used for X in (select X from ...) where the target is a CTE that needs to be defined
   readonly dependencies?: Array<TTableQueryDependency>;
 }
@@ -80,7 +75,7 @@ export function add<
   right: L,
 ): TExpr<number, ExprsNullables<[L, R]>> {
   return create(builder.Operations.add(left.ast, right.ast), {
-    parse: Datatype.number.parse,
+    datatype: Datatype.number,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -105,7 +100,7 @@ export function equal<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, L[TYPES]["nullable"] | R[TYPES]["nullable"]> {
   return create(builder.Operations.equal(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -140,7 +135,7 @@ export function different<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.different(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -151,7 +146,7 @@ export function like<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.like(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -181,7 +176,7 @@ export function or<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.or(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -211,7 +206,7 @@ export function and<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.and(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -221,7 +216,7 @@ export function not<E extends TExprUnknow>(
   expr: E,
 ): TExpr<boolean, E[TYPES]["nullable"]> {
   return create(builder.Operations.not(expr.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: expr[PRIV].nullable,
     dependencies: expr[PRIV].dependencies,
   });
@@ -229,7 +224,7 @@ export function not<E extends TExprUnknow>(
 
 export function notNull(expr: TExprUnknow): TExpr<boolean, false> {
   return create(builder.Operations.notNull(expr.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: false,
   });
 }
@@ -239,7 +234,7 @@ export function lowerThan<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.lowerThan(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -250,7 +245,7 @@ export function lowerThanOrEqual<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.lowerThanOrEqual(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -261,7 +256,7 @@ export function greaterThan<L extends TExprUnknow, R extends TExprUnknow>(
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.greaterThan(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -275,7 +270,7 @@ export function greaterThanOrEqual<
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
   return create(builder.Operations.greaterThanOrEqual(left.ast, right.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -289,7 +284,7 @@ export function concatenate<
   right: R,
 ): TExpr<string, ExprsNullables<[L, R]>> {
   return create(builder.Operations.concatenate(left.ast, right.ast), {
-    parse: Datatype.text.parse,
+    datatype: Datatype.text,
     nullable: ExprUtils.someNullable(left, right),
     dependencies: ExprUtils.mergeExprDependencies(left, right),
   });
@@ -297,7 +292,7 @@ export function concatenate<
 
 export function isNull(expr: TExprUnknow): TExpr<boolean, false> {
   return create(builder.Operations.isNull(expr.ast), {
-    parse: Datatype.boolean.parse,
+    datatype: Datatype.boolean,
     nullable: false,
     dependencies: expr[PRIV].dependencies,
   });
@@ -314,7 +309,7 @@ export function inList(
     ),
     {
       nullable: false,
-      parse: Datatype.boolean.parse,
+      datatype: Datatype.boolean,
       dependencies: ExprUtils.mergeExprDependencies(left, ...items),
     },
   );
@@ -331,7 +326,7 @@ export function notInList(
     ),
     {
       nullable: false,
-      parse: Datatype.boolean.parse,
+      datatype: Datatype.boolean,
       dependencies: ExprUtils.mergeExprDependencies(left, ...items),
     },
   );
@@ -345,7 +340,7 @@ export function inSubquery<RTable extends TTableQuery<any, any>>(
     builder.Operations.inTableName(expr.ast, subquery[PRIV].name),
     {
       nullable: false,
-      parse: Datatype.boolean.parse,
+      datatype: Datatype.boolean,
       dependencies: appendDependencies(
         expr[PRIV].dependencies ?? [],
         subquery[PRIV],
@@ -362,7 +357,7 @@ export function notInSubquery<RTable extends TTableQuery<any, any>>(
     builder.Operations.notInTableName(expr.ast, subquery[PRIV].name),
     {
       nullable: false,
-      parse: Datatype.boolean.parse,
+      datatype: Datatype.boolean,
       dependencies: appendDependencies(
         expr[PRIV].dependencies ?? [],
         subquery[PRIV],
@@ -405,7 +400,7 @@ export function external<Val extends string | number | boolean | null>(
     [PRIV]: param,
   });
   return create(ast, {
-    parse: Datatype.fromLiteral(val).parse,
+    datatype: Datatype.fromLiteral(val),
     nullable: val === null,
   });
 }
@@ -429,14 +424,15 @@ export function jsonGroupArray<Val, Nullable extends boolean>(
       params: wrapInJson(expr).ast,
     }),
     {
-      parse: (raw, json, nullable) => {
-        if (nullable && raw === null) {
-          return null;
-        }
-        const arr: any[] = json ? raw : maybeParseJson(raw);
-        return arr.map((item: any) => ExprUtils.parseExpr(expr, item, true));
-      },
-      jsonMode: "JsonExpr",
+      // TODO
+      // parse: (raw, json, nullable) => {
+      //   if (nullable && raw === null) {
+      //     return null;
+      //   }
+      //   const arr: any[] = json ? raw : maybeParseJson(raw);
+      //   return arr.map((item: any) => ExprUtils.parseExpr(expr, item, true));
+      // },
+      datatype: Datatype.jsonGroupArray(expr[PRIV].datatype),
       nullable: expr[PRIV].nullable,
     },
   );
@@ -457,13 +453,16 @@ export function jsonObj<Items extends Record<string, TExprUnknow>>(
         .flat(),
     ),
     {
-      parse: (raw, json) => {
-        const obj = json ? raw : maybeParseJson(raw);
-        return mapObject(
-          items,
-          (name, expr) => ExprUtils.parseExpr(expr, obj[name], true),
-        );
-      },
+      // parse: (raw, json) => {
+      //   const obj = json ? raw : maybeParseJson(raw);
+      //   return mapObject(
+      //     items,
+      //     (name, expr) => ExprUtils.parseExpr(expr, obj[name], true),
+      //   );
+      // },
+      datatype: Datatype.jsonObj(
+        mapObject(items, (_name, expr) => expr[PRIV].datatype),
+      ),
       jsonMode: "JsonExpr",
       nullable: false,
     },
@@ -485,8 +484,7 @@ export function json<Val, Nullable extends boolean>(
   expr: TExpr<Val, Nullable>,
 ): TExpr<Val, Nullable> {
   return create(builder.Functions.json(expr.ast), {
-    parse: expr[PRIV].parse,
-    jsonMode: "JsonExpr",
+    datatype: expr[PRIV].datatype,
     nullable: expr[PRIV].nullable,
   });
 }
@@ -495,7 +493,7 @@ export function createLiteral<Val extends string | number | boolean | null>(
   val: Val,
 ): TExpr<Val, [null] extends [Val] ? true : false> {
   return create(builder.Literal.literal(val), {
-    parse: Datatype.fromLiteral(val).parse,
+    datatype: Datatype.fromLiteral(val),
     nullable: val === null,
   });
 }

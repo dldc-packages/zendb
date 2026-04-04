@@ -1,5 +1,6 @@
 import { expect } from "@std/expect";
 import { Expr, Random } from "../mod.ts";
+import { allDatatypesDb } from "./utils/allDatatypesDb.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 
@@ -119,4 +120,65 @@ Deno.test("Filter multiple values", () => {
   `);
 
   expect(query.params).toEqual({ _id0: "john@example.com" });
+});
+
+Deno.test("Filter datatype primitive columns", () => {
+  setup();
+
+  const query = allDatatypesDb.tables.datatype.query().andFilterEqual({
+    id: "1",
+    text: "test",
+    integer: 42,
+    boolean: true,
+    number: 3.14,
+  }).one();
+
+  expect(format(query.sql)).toEqual(sql`
+    SELECT datatype.*
+    FROM datatype
+    WHERE
+      (
+       (
+         (
+           datatype.id == :_id0
+           AND datatype.text == :_id1
+         )
+         AND datatype.integer == :_id2
+       )
+       AND datatype.boolean == :_id3
+     )
+     AND datatype.number == :_id4
+  `);
+
+  expect(query.params).toEqual({
+    _id0: "1",
+    _id1: "test",
+    _id2: 42,
+    _id3: 1,
+    _id4: 3.14,
+  });
+});
+
+Deno.test("Filter datatype date and json columns", () => {
+  setup();
+
+  const date = new Date(1663075512250);
+  const data = { foo: "bar", baz: true };
+
+  const query = allDatatypesDb.tables.datatype.query().andFilterEqual({
+    date,
+    json: data,
+  }).one();
+
+  expect(format(query.sql)).toEqual(sql`
+    SELECT datatype.*
+    FROM datatype
+    WHERE
+      datatype.date == :_id0 AND datatype.json == :_id1
+  `);
+
+  expect(query.params).toEqual({
+    _id0: 1663075512250,
+    _id1: '{"foo":"bar","baz":true}',
+  });
 });

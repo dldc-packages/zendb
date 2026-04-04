@@ -57,12 +57,13 @@ export function queryFrom<
     // if there are no state, there is no need to create a CTE
     return query as any;
   }
+
   const colsRef = mapObject(internal.outputColsRefs, (key, col) => {
     const jsonMode: TJsonMode | undefined = col[PRIV].jsonMode === undefined
       ? undefined
       : "JsonRef";
     return Expr.column(internal.name, key, {
-      parse: col[PRIV].parse,
+      datatype: col[PRIV].datatype,
       jsonMode,
       nullable: col[PRIV].nullable,
     });
@@ -409,7 +410,7 @@ function createQuery<
         return rows.map((row) =>
           mapObject(
             internal.outputColsRefs,
-            (key, col) => ExprUtils.parseExpr(col, row[key], false),
+            (key, col) => ExprUtils.parseExpr(col, row[key]),
           )
         );
       },
@@ -636,7 +637,7 @@ function exprsToRefs(table: Ast.Identifier, exprs: ExprRecord): ExprRecord {
         ? "JsonRef"
         : undefined;
     return Expr.column(table, col, {
-      parse: expr[PRIV].parse,
+      datatype: expr[PRIV].datatype,
       jsonMode,
       nullable: expr[PRIV].nullable,
     });

@@ -10,7 +10,7 @@ export const count = <Expr extends TExprUnknow>(
   return create(
     builder.Aggregate.count({ params: expr.ast }),
     {
-      parse: Datatype.number.parse,
+      datatype: Datatype.number,
       nullable: false,
       dependencies: expr[PRIV].dependencies,
     },
@@ -22,7 +22,7 @@ export const countStar = (): TExpr<number, false> => {
   return create(
     builder.Aggregate.aggregateFunctionInvocation("count", "*"),
     {
-      parse: Datatype.number.parse,
+      datatype: Datatype.number,
       nullable: false,
     },
   );
@@ -35,7 +35,7 @@ export const avg = <Expr extends TExpr<number, boolean>>(
   return create(
     builder.Aggregate.avg({ params: expr.ast }),
     {
-      parse: Datatype.number.parse,
+      datatype: Datatype.number,
       nullable: true,
       dependencies: expr[PRIV].dependencies,
     },
@@ -48,7 +48,7 @@ export const sum = <Expr extends TExpr<number, boolean>>(
   return create(
     builder.Aggregate.sum({ params: expr.ast }),
     {
-      parse: Datatype.number.parse,
+      datatype: Datatype.number,
       nullable: true,
       dependencies: expr[PRIV].dependencies,
     },
@@ -61,7 +61,7 @@ export const min = <Expr extends TExprUnknow>(
   return create(
     builder.Aggregate.min({ params: expr.ast }),
     {
-      parse: expr[PRIV].parse,
+      datatype: expr[PRIV].datatype,
       nullable: true,
       dependencies: expr[PRIV].dependencies,
     },
@@ -74,7 +74,7 @@ export const max = <Expr extends TExprUnknow>(
   return create(
     builder.Aggregate.max({ params: expr.ast }),
     {
-      parse: expr[PRIV].parse,
+      datatype: expr[PRIV].datatype,
       nullable: true,
       dependencies: expr[PRIV].dependencies,
     },

@@ -1,5 +1,6 @@
 import * as Expr from "../expr/Expr.ts";
 import { accessColFlatKey } from "./accessColFlatKey.ts";
+import { PRIV } from "./constants.ts";
 import type { ExprRecordNested, FilterEqualCols } from "./types.ts";
 
 export function whereEqual<Cols extends ExprRecordNested>(
@@ -11,7 +12,10 @@ export function whereEqual<Cols extends ExprRecordNested>(
     if (value === null) {
       return Expr.isNull(col);
     }
-    return Expr.equal(col, Expr.external(value as any));
+    return Expr.equal(
+      col,
+      Expr.external(col[PRIV].datatype.serialize(value as any)),
+    );
   });
   if (filterExprs.length === 0) {
     return Expr.literal(true);

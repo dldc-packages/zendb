@@ -5,13 +5,12 @@ import type { TExpr, TExprUnknow } from "./Expr.ts";
 export function parseExpr<Val, Nullable extends boolean>(
   expr: TExpr<Val, Nullable>,
   raw: any,
-  json: boolean,
 ): [Nullable] extends [true] ? (Val | null) : Val {
-  const { nullable, parse } = expr[PRIV];
+  const { nullable, datatype } = expr[PRIV];
   if (nullable && raw === null) {
     return null as any;
   }
-  return parse(raw, json, nullable);
+  return datatype.parse(raw);
 }
 
 export function someNullable(...exprs: TExprUnknow[]): boolean {

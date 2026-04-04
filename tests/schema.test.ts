@@ -8,7 +8,7 @@ Deno.test("Init empty schema", () => {
 
 Deno.test("Init simple schema", () => {
   const schema = Schema.declare({
-    users: ({ email: Column.text().primary(), username: Column.text() }),
+    users: { email: Column.text().primary(), username: Column.text() },
   });
 
   const res = Schema.createTables(schema.tables);
@@ -25,7 +25,7 @@ Deno.test("Init simple schema", () => {
 
 Deno.test("Drop table", () => {
   const schema = Schema.declare({
-    users: ({ email: Column.text().primary(), username: Column.text() }),
+    users: { email: Column.text().primary(), username: Column.text() },
   });
 
   const res = schema.tables.users.schema.drop();
@@ -41,7 +41,7 @@ Deno.test("Drop table", () => {
 
 Deno.test("Drop table if exist", () => {
   const schema = Schema.declare({
-    users: ({ email: Column.text().primary(), username: Column.text() }),
+    users: { email: Column.text().primary(), username: Column.text() },
   });
 
   const res = schema.tables.users.schema.drop({ ifExists: true });
@@ -57,10 +57,10 @@ Deno.test("Drop table if exist", () => {
 
 Deno.test("Boolean column", () => {
   const schema = Schema.declare({
-    settings: ({
+    settings: {
       id: Column.text().primary(),
       isActive: Column.boolean(),
-    }),
+    },
   });
 
   const res = Schema.createTables(schema.tables);

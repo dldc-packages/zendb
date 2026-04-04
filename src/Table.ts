@@ -115,7 +115,7 @@ function getTableInfos<Columns extends ColumnsBase>(
   const tableIdentifier = b.Expr.identifier(table);
   const columnsRefs = mapObject(columns, (key, colDef): TExprUnknow => {
     return Expr.column(tableIdentifier, key, {
-      parse: colDef[PRIV].datatype.parse,
+      datatype: colDef[PRIV].datatype,
       jsonMode: colDef[PRIV].datatype.isJson ? "JsonRef" : undefined,
       nullable: colDef[PRIV].nullable,
     });

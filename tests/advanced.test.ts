@@ -1,16 +1,17 @@
 import { Database } from "@db/sqlite";
 import { expect } from "@std/expect";
-import { Expr, Random, Schema } from "../mod.ts";
+import { Column, Expr, Random, Schema } from "../mod.ts";
+import { queryFrom } from "../src/Query.ts";
 import type { TTableTypes } from "../src/Table.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 import { TestDriver } from "./utils/TestDriver.ts";
 
-let nextRandomId = 0;
-
 let db: Database;
 
 function setupDatabase() {
+  let nextRandomId = 0;
+
   db = new Database(":memory:");
 
   // disable random suffix for testing
@@ -412,5 +413,71 @@ Deno.test("Find all users with no tasks", () => {
       groupId: "1",
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     },
+  ]);
+});
+
+Deno.test("Datatypes inside json", () => {
+  db = new Database(":memory:");
+  // disable random suffix for testing
+  let nextRandomId = 0;
+  Random.setCreateId(() => `id${nextRandomId++}`);
+
+  const schema = Schema.declare({
+    items: {
+      id: Column.text().primary(),
+      value: Column.boolean().nullable(),
+    },
+  });
+
+  TestDriver.execMany(db, Schema.createTables(schema.tables));
+
+  TestDriver.exec(
+    db,
+    schema.tables.items.insertMany([
+      { id: "1", value: true },
+      { id: "2", value: false },
+      { id: "3", value: null },
+    ]),
+  );
+
+  const query1Base = schema.tables.items.query()
+    .select(({ id, value }) => ({ obj: Expr.jsonObj({ id, value }) }));
+
+  const query1 = query1Base.all();
+
+  expect(format(query1.sql)).toEqual(sql`
+    SELECT
+      json_object('id', items.id, 'value', items.value) AS obj
+    FROM items
+  `);
+
+  const result1 = TestDriver.exec(db, query1);
+  expect(result1).toEqual([
+    { obj: { id: "1", value: true } },
+    { obj: { id: "2", value: false } },
+    { obj: { id: "3", value: false } },
+  ]);
+
+  const query2 = queryFrom(query1Base).all();
+
+  expect(format(query2.sql)).toEqual(sql`
+    WITH
+      cte_id6 AS (
+        SELECT
+          json_object('id', items.id, 'value', items.value) AS obj
+        FROM
+          items
+      )
+    SELECT
+      cte_id6.*
+    FROM
+      cte_id6
+  `);
+
+  const result2 = TestDriver.exec(db, query2);
+  expect(result2).toEqual([
+    { obj: { id: "1", value: true } },
+    { obj: { id: "2", value: false } },
+    { obj: { id: "3", value: false } },
   ]);
 });
