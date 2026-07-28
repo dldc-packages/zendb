@@ -44,11 +44,26 @@ export interface TDriver<Db> {
   createDatabase: () => Promise<Db> | Db;
 
   /**
+   * Creates a new database instance (used internally by migrations).
+   *
+   * @returns A new database instance
+   */
+  createDatabaseSync?: () => Db;
+
+  /**
    * Closes a database instance and releases associated resources.
    *
    * @param db - The database instance to close
    */
   closeDatabase: (db: Db) => Promise<void> | void;
+
+  /**
+   * Closes a database instance and releases associated resources.
+   *
+   * @param db - The database instance to close
+   * @returns
+   */
+  closeDatabaseSync?: (db: Db) => void;
 }
 
 /**

@@ -142,6 +142,12 @@ export interface TMigration<
    * ```
    */
   apply(currentDatabase: Db): Promise<[database: Db, needsPersist: boolean]>;
+
+  /**
+   * Same as `apply()` but synchronous. Only works if all migration steps are synchronous, otherwise throws an error.
+   * @param currentDatabase
+   */
+  applySync(currentDatabase: Db): [database: Db, needsPersist: boolean];
 }
 
 /**
@@ -312,6 +318,113 @@ function createMigration<Db, Schema extends TAnySchema>(
       await Promise.all(
         databasesToClose.map((db) => internals.driver.closeDatabase(db)),
       );
+
+      return [previousDatabase, true];
+    },
+
+    applySync(
+      currentDatabase: Db,
+    ): [database: Db, needsPersist: boolean] {
+      if (
+        !internals.driver.createDatabaseSync ||
+        !internals.driver.closeDatabaseSync
+      ) {
+        throw new Error(
+          "Driver does not support synchronous database operations. Use apply() instead.",
+        );
+      }
+      const createDatabaseSync = internals.driver.createDatabaseSync;
+      const closeDatabaseSync = internals.driver.closeDatabaseSync;
+
+      const currentUserVersion = internals.driver.exec(
+        currentDatabase,
+        userVersion(),
+      );
+      // If user version is higher than the number of steps, we cannot migrate
+      if (currentUserVersion > internals.steps.length) {
+        throw createInvalidUserVersion(
+          currentUserVersion,
+          internals.steps.length,
+        );
+      }
+
+      // Check if no steps to run
+      if (currentUserVersion === internals.steps.length) {
+        return [currentDatabase, false];
+      }
+      const stepsToRun = internals.steps.slice(currentUserVersion);
+      const previousStep = currentUserVersion === 0
+        ? null
+        : internals.steps[currentUserVersion - 1];
+
+      let previousUserVersion = currentUserVersion;
+      let previousSchema: TAnySchema = previousStep?.schema || (null as any);
+      let previousDatabase = currentDatabase;
+      const databasesToClose: Db[] = [];
+      // Track if currentDatabase needs to be closed (when migrations start from version 0)
+      const shouldCloseInitialDatabase = currentUserVersion === 0;
+
+      // Run each steps
+      for (const step of stepsToRun) {
+        const { exec, schema } = step;
+        // Create new database
+        const nextDatabase = createDatabaseSync();
+        // Init schema in database
+        internals.driver.execMany(nextDatabase, createTables(schema.tables));
+        const resultDb = exec({
+          schema: schema as any,
+          previousSchema,
+          database: nextDatabase,
+          previousDatabase,
+          copyTable: (fromName, toName, transform) =>
+            copyTable({
+              driver: internals.driver,
+              fromDb: previousDatabase,
+              toDb: nextDatabase,
+              fromTable: previousSchema.tables[fromName],
+              toTable: schema.tables[toName],
+              transform,
+            }),
+        });
+        if (Promise.resolve(resultDb) === resultDb) {
+          throw new Error(
+            "Migration step returned a Promise in applySync(). Use apply() for async migrations.",
+          );
+        }
+
+        const newDatabase = resultDb ?? nextDatabase;
+
+        // Close the previous database if it's not the original input database
+        // and it's not the new database we just created
+        if (
+          previousDatabase !== currentDatabase &&
+          previousDatabase !== newDatabase
+        ) {
+          databasesToClose.push(previousDatabase);
+        }
+
+        // If a different database was returned from exec, close the nextDatabase
+        if (resultDb && resultDb !== nextDatabase) {
+          databasesToClose.push(nextDatabase);
+        }
+
+        previousDatabase = newDatabase;
+        // Save new user version
+        previousUserVersion++;
+        internals.driver.exec(
+          previousDatabase,
+          setUserVersion(previousUserVersion),
+        );
+        previousSchema = schema;
+      }
+
+      // Close the initial database if migrations started from version 0
+      if (shouldCloseInitialDatabase && currentDatabase !== previousDatabase) {
+        closeDatabaseSync(currentDatabase);
+      }
+
+      // Close all intermediate databases
+      databasesToClose.forEach((db) => closeDatabaseSync(db));
 
       return [previousDatabase, true];
     },
