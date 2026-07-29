@@ -24,6 +24,13 @@ Deno.test("create database", () => {
   expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
 });
 
+Deno.test("Count tasks on empty table", () => {
+  setup();
+
+  const res = TestDriver.exec(db, tasksDb.tables.tasks.query().count());
+  expect(res).toEqual(0);
+});
+
 Deno.test("insert tasks", () => {
   setup();
 
@@ -42,6 +49,13 @@ Deno.test("insert tasks", () => {
     completed: false,
     description: "First task",
   });
+});
+
+Deno.test("Count tasks on non-empty table", () => {
+  setup();
+
+  const res = TestDriver.exec(db, tasksDb.tables.tasks.query().count());
+  expect(res).toEqual(1);
 });
 
 Deno.test("find tasks", () => {
@@ -360,47 +374,3 @@ Deno.test("Update task", () => {
     title: "Task 1",
   });
 });
-
-// Deno.test('tasks grouped by userId', () => {
-setup();
-
-//   const op = tasksDb.tables.joinUsersTasks
-//     .query()
-//     .groupBy((c) => [c.user_id])
-//     .join(
-//       tasksDb.tables.tasks.query(),
-//       (l, r) => Expr.equal(l.task_id, r.id),
-//       (l, r) => ({ user_id: l.user_id, tasks: Expr.AggregateFunctions.json_group_array(Expr.ScalarFunctions.json_object(r)) })
-//     )
-//     .all();
-
-//   const res = db.exec(op);
-
-//   expect(res).toEqual([{ user_id: '1', tasks: [{ completed: false, description: 'First task', id: '1', title: 'Task 1' }] }]);
-// });
-
-// Deno.test('find tasks for user email', () => {
-setup();
-
-//   const tasksByUserId = tasksDb.tables.joinUsersTasks
-//     .query()
-//     .groupBy((c) => [c.user_id])
-//     .join(
-//       tasksDb.tables.tasks.query(),
-//       (l, r) => Expr.equal(l.task_id, r.id),
-//       (l, r) => ({ user_id: l.user_id, tasks: Expr.AggregateFunctions.json_group_array(Expr.ScalarFunctions.json_object(r)) })
-//     );
-
-//   const op = tasksDb.tables.users
-//     .query()
-//     .where((c) => Expr.equal(c.email, Expr.literal('john@example.com')))
-//     .join(
-//       tasksByUserId,
-//       (l, r) => Expr.equal(l.id, r.user_id),
-//       (l, r) => ({ id: l.id, name: l.name, tasks: r.tasks })
-//     )
-//     .all();
-
-//   const res = db.exec(op);
-//   expect(res).toEqual([{ id: '1', name: 'John', tasks: [{ completed: false, description: 'First task', id: '1', title: 'Task 1' }] }]);
-// });
