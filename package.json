@@ -1,6 +1,6 @@
 {
   "name": "@dldc/zendb",
-  "version": "12.2.0",
+  "version": "12.2.1",
   "description": "Type safe SQL builder and query engine for SQLite",
   "license": "MIT",
   "repository": {
