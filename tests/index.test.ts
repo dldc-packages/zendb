@@ -1,4 +1,4 @@
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { Expr, queryFrom, Random } from "../mod.ts";
 import { allDatatypesDb } from "./utils/allDatatypesDb.ts";
 import { format, sql } from "./utils/sql.ts";
@@ -12,7 +12,7 @@ function setup() {
   nextRandomId = 0;
 }
 
-Deno.test("Insert", () => {
+test("Insert", () => {
   setup();
 
   const result = tasksDb.tables.users.insert({
@@ -46,39 +46,32 @@ Deno.test("Insert", () => {
   `);
 });
 
-Deno.test("Delete", () => {
+test("Delete", () => {
   setup();
 
-  const result = tasksDb.tables.users.delete((cols) =>
-    Expr.equal(cols.id, Expr.literal("1"))
-  );
+  const result = tasksDb.tables.users.delete((cols) => Expr.equal(cols.id, Expr.literal("1")));
   expect(result).toMatchObject({ kind: "Delete", params: null });
-  expect(format(result.sql)).toEqual(
-    sql`DELETE FROM users WHERE users.id == '1'`,
-  );
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == '1'`);
 });
 
-Deno.test("Delete with external value", () => {
+test("Delete with external value", () => {
   setup();
 
   const result = tasksDb.tables.users.delete((cols) =>
-    Expr.equal(cols.id, Expr.external("1", "delete_id"))
+    Expr.equal(cols.id, Expr.external("1", "delete_id")),
   );
   expect(result).toMatchObject({
     kind: "Delete",
     params: { delete_id_id0: "1" },
   });
-  expect(format(result.sql)).toEqual(
-    sql`DELETE FROM users WHERE users.id == :delete_id_id0`,
-  );
+  expect(format(result.sql)).toEqual(sql`DELETE FROM users WHERE users.id == :delete_id_id0`);
 });
 
-Deno.test("Update", () => {
+test("Update", () => {
   setup();
 
-  const result = tasksDb.tables.users.update(
-    { name: "Paul" },
-    (cols) => Expr.equal(cols.id, Expr.literal("1234")),
+  const result = tasksDb.tables.users.update({ name: "Paul" }, (cols) =>
+    Expr.equal(cols.id, Expr.literal("1234")),
   );
   expect(result).toMatchObject({
     kind: "Update",
@@ -89,12 +82,11 @@ Deno.test("Update", () => {
   );
 });
 
-Deno.test("Update with external", () => {
+test("Update with external", () => {
   setup();
 
-  const result = tasksDb.tables.users.update(
-    { name: "Paul" },
-    (cols) => Expr.equal(cols.id, Expr.external("1234", "filter_id")),
+  const result = tasksDb.tables.users.update({ name: "Paul" }, (cols) =>
+    Expr.equal(cols.id, Expr.external("1234", "filter_id")),
   );
   expect(result).toMatchObject({
     kind: "Update",
@@ -105,12 +97,15 @@ Deno.test("Update with external", () => {
   );
 });
 
-Deno.test("Update date", () => {
+test("Update date", () => {
   setup();
 
-  const result = tasksDb.tables.users.update({
-    updatedAt: new Date("2023-12-25T22:30:12.250Z"),
-  }, (cols) => Expr.equal(cols.id, Expr.literal("1234")));
+  const result = tasksDb.tables.users.update(
+    {
+      updatedAt: new Date("2023-12-25T22:30:12.250Z"),
+    },
+    (cols) => Expr.equal(cols.id, Expr.literal("1234")),
+  );
   expect(result).toMatchObject({
     kind: "Update",
     params: { updatedAt_id0: 1703543412250 },
@@ -120,20 +115,18 @@ Deno.test("Update date", () => {
   );
 });
 
-Deno.test("Query", () => {
+test("Query", () => {
   setup();
 
   const result = tasksDb.tables.users
     .query()
     .select((cols) => ({ id: cols.id, email: cols.email }))
     .all();
-  expect(format(result.sql)).toEqual(
-    sql`SELECT users.id AS id, users.email AS email FROM users`,
-  );
+  expect(format(result.sql)).toEqual(sql`SELECT users.id AS id, users.email AS email FROM users`);
   expect(result.params).toEqual(null);
 });
 
-Deno.test("Query select twice (override)", () => {
+test("Query select twice (override)", () => {
   setup();
 
   const result = tasksDb.tables.users
@@ -150,7 +143,7 @@ Deno.test("Query select twice (override)", () => {
   expect(result.params).toEqual(null);
 });
 
-Deno.test(`Query groupBy`, () => {
+test(`Query groupBy`, () => {
   setup();
 
   const result = tasksDb.tables.users
@@ -164,7 +157,7 @@ Deno.test(`Query groupBy`, () => {
   expect(result.params).toEqual(null);
 });
 
-Deno.test(`Query groupBy reverse order (same result)`, () => {
+test(`Query groupBy reverse order (same result)`, () => {
   setup();
 
   const result = tasksDb.tables.users
@@ -178,7 +171,7 @@ Deno.test(`Query groupBy reverse order (same result)`, () => {
   expect(result.params).toEqual(null);
 });
 
-Deno.test("read and write datatypes", () => {
+test("read and write datatypes", () => {
   setup();
 
   const result = allDatatypesDb.tables.datatype.insert({
@@ -191,8 +184,7 @@ Deno.test("read and write datatypes", () => {
     json: { foo: "bar", baz: true },
   });
   expect(result).toMatchObject({
-    sql:
-      "INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (:id_id0, :text_id1, :integer_id2, :boolean_id3, :date_id4, :json_id5, :number_id6)",
+    sql: "INSERT INTO datatype (id, text, integer, boolean, date, json, number) VALUES (:id_id0, :text_id1, :integer_id2, :boolean_id3, :date_id4, :json_id5, :number_id6)",
     params: {
       boolean_id3: 1,
       date_id4: 1663075512250,
@@ -222,8 +214,7 @@ Deno.test("read and write datatypes", () => {
     json: { foo: "bar", baz: true },
   });
   expect(update).toMatchObject({
-    sql:
-      "UPDATE datatype SET id = :id_id7, text = :text_id8, integer = :integer_id9, boolean = :boolean_id10, date = :date_id11, json = :json_id12, number = :number_id13",
+    sql: "UPDATE datatype SET id = :id_id7, text = :text_id8, integer = :integer_id9, boolean = :boolean_id10, date = :date_id11, json = :json_id12, number = :number_id13",
     params: {
       boolean_id10: 1,
       date_id11: 1663075512250,
@@ -236,7 +227,7 @@ Deno.test("read and write datatypes", () => {
   });
 });
 
-Deno.test("Query simple CTE", () => {
+test("Query simple CTE", () => {
   setup();
 
   const query1 = tasksDb.tables.users
@@ -260,7 +251,7 @@ Deno.test("Query simple CTE", () => {
   expect(result.params).toEqual(null);
 });
 
-Deno.test("Query CTE", () => {
+test("Query CTE", () => {
   setup();
 
   const query1 = tasksDb.tables.users
@@ -289,7 +280,7 @@ Deno.test("Query CTE", () => {
   expect(result.params).toEqual(null);
 });
 
-Deno.test("Query add select column", () => {
+test("Query add select column", () => {
   setup();
 
   const result = tasksDb.tables.users
@@ -304,16 +295,12 @@ Deno.test("Query add select column", () => {
   `);
 });
 
-Deno.test("Query with json", () => {
+test("Query with json", () => {
   setup();
 
   const result = tasksDb.tables.joinUsersTasks
     .query()
-    .innerJoin(
-      tasksDb.tables.tasks.query(),
-      "tasks",
-      (c) => Expr.equal(c.task_id, c.tasks.id),
-    )
+    .innerJoin(tasksDb.tables.tasks.query(), "tasks", (c) => Expr.equal(c.task_id, c.tasks.id))
     .select((c) => ({ userId: c.user_id, task: Expr.jsonObj(c.tasks) }))
     .all();
 

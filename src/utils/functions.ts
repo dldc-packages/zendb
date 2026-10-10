@@ -1,7 +1,4 @@
-export function mapObject<
-  In extends Record<string, any>,
-  Out extends Record<keyof In, any>,
->(
+export function mapObject<In extends Record<string, any>, Out extends Record<keyof In, any>>(
   obj: In,
   mapper: (key: string, value: In[keyof In]) => Out[keyof In],
 ): Out {
@@ -30,8 +27,7 @@ export function dotCol(table: string, col: string): string {
   return `${table}__${col}`;
 }
 
-const urlAlphabet =
-  "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
+const urlAlphabet = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
 
 export function nanoid(size = 21) {
   let id = "";

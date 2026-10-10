@@ -1,5 +1,5 @@
-import { Database } from "@db/sqlite";
-import { expect } from "@std/expect";
+import BetterSqlite3 from "better-sqlite3";
+import { expect, test } from "vite-plus/test";
 import { Column, Expr, Random, Schema } from "../mod.ts";
 import { queryFrom } from "../src/Query.ts";
 import type { TTableTypes } from "../src/Table.ts";
@@ -7,12 +7,12 @@ import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
 import { TestDriver } from "./utils/TestDriver.ts";
 
-let db: Database;
+let db: BetterSqlite3.Database;
 
 function setupDatabase() {
   let nextRandomId = 0;
 
-  db = new Database(":memory:");
+  db = new BetterSqlite3(":memory:");
 
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
@@ -89,26 +89,12 @@ function setupDatabase() {
     },
   ];
 
-  tasks.forEach((task) =>
-    TestDriver.exec(db, tasksDb.tables.tasks.insert(task))
-  );
+  tasks.forEach((task) => TestDriver.exec(db, tasksDb.tables.tasks.insert(task)));
 
-  TestDriver.exec(
-    db,
-    tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }),
-  );
-  TestDriver.exec(
-    db,
-    tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "2" }),
-  );
-  TestDriver.exec(
-    db,
-    tasksDb.tables.joinUsersTasks.insert({ user_id: "2", task_id: "3" }),
-  );
-  TestDriver.exec(
-    db,
-    tasksDb.tables.joinUsersTasks.insert({ user_id: "3", task_id: "1" }),
-  );
+  TestDriver.exec(db, tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "1" }));
+  TestDriver.exec(db, tasksDb.tables.joinUsersTasks.insert({ user_id: "1", task_id: "2" }));
+  TestDriver.exec(db, tasksDb.tables.joinUsersTasks.insert({ user_id: "2", task_id: "3" }));
+  TestDriver.exec(db, tasksDb.tables.joinUsersTasks.insert({ user_id: "3", task_id: "1" }));
 
   nextRandomId = 0;
 }
@@ -117,16 +103,12 @@ type UserInput = TTableTypes<(typeof tasksDb.tables)["users"]>["input"];
 
 type TasksInput = TTableTypes<(typeof tasksDb.tables)["tasks"]>["input"];
 
-Deno.test("Find all user with their linked tasks", () => {
+test("Find all user with their linked tasks", () => {
   setupDatabase();
   const allUsers = tasksDb.tables.users.query();
   const tasksByUserId = tasksDb.tables.joinUsersTasks
     .query()
-    .innerJoin(
-      tasksDb.tables.tasks.query(),
-      "task",
-      (c) => Expr.equal(c.task_id, c.task.id),
-    )
+    .innerJoin(tasksDb.tables.tasks.query(), "task", (c) => Expr.equal(c.task_id, c.task.id))
     .groupBy((c) => [c.user_id])
     .select((c) => ({
       userId: c.user_id,
@@ -179,21 +161,25 @@ Deno.test("Find all user with their linked tasks", () => {
     },
     {
       userId: "2",
-      tasks: [{
-        completed: true,
-        description: "Third Task",
-        id: "3",
-        title: "Third Task",
-      }],
+      tasks: [
+        {
+          completed: true,
+          description: "Third Task",
+          id: "3",
+          title: "Third Task",
+        },
+      ],
     },
     {
       userId: "3",
-      tasks: [{
-        completed: false,
-        description: "First Task",
-        id: "1",
-        title: "First Task",
-      }],
+      tasks: [
+        {
+          completed: false,
+          description: "First Task",
+          id: "1",
+          title: "First Task",
+        },
+      ],
     },
   ]);
 
@@ -265,12 +251,14 @@ Deno.test("Find all user with their linked tasks", () => {
       id: "2",
       groupId: "1",
       name: "Jane Doe",
-      tasks: [{
-        completed: true,
-        description: "Third Task",
-        id: "3",
-        title: "Third Task",
-      }],
+      tasks: [
+        {
+          completed: true,
+          description: "Third Task",
+          id: "3",
+          title: "Third Task",
+        },
+      ],
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     },
     {
@@ -279,12 +267,14 @@ Deno.test("Find all user with their linked tasks", () => {
       id: "3",
       groupId: "1",
       name: "Jack Doe",
-      tasks: [{
-        completed: false,
-        description: "First Task",
-        id: "1",
-        title: "First Task",
-      }],
+      tasks: [
+        {
+          completed: false,
+          description: "First Task",
+          id: "1",
+          title: "First Task",
+        },
+      ],
       updatedAt: new Date("2023-12-24T22:30:12.250Z"),
     },
     {
@@ -299,19 +289,15 @@ Deno.test("Find all user with their linked tasks", () => {
   ]);
 });
 
-Deno.test("Find all users with only task 1 & 2 using subquery in expression", () => {
+test("Find all users with only task 1 & 2 using subquery in expression", () => {
   setupDatabase();
 
   const subQuery = tasksDb.tables.joinUsersTasks
     .query()
-    .where((c) =>
-      Expr.inList(c.task_id, [Expr.literal("1"), Expr.literal("2")])
-    )
+    .where((c) => Expr.inList(c.task_id, [Expr.literal("1"), Expr.literal("2")]))
     .groupBy((c) => [c.user_id])
     .select((c) => ({ id: c.user_id }))
-    .having((c) =>
-      Expr.equal(Expr.Aggregate.count(c.task_id), Expr.literal(2))
-    );
+    .having((c) => Expr.equal(Expr.Aggregate.count(c.task_id), Expr.literal(2)));
 
   const subQueryOp = subQuery.all();
 
@@ -371,7 +357,7 @@ Deno.test("Find all users with only task 1 & 2 using subquery in expression", ()
   ]);
 });
 
-Deno.test("Find all users with no tasks", () => {
+test("Find all users with no tasks", () => {
   setupDatabase();
 
   const usersWithTasks = tasksDb.tables.joinUsersTasks
@@ -416,8 +402,8 @@ Deno.test("Find all users with no tasks", () => {
   ]);
 });
 
-Deno.test("Datatypes inside json", () => {
-  db = new Database(":memory:");
+test("Datatypes inside json", () => {
+  db = new BetterSqlite3(":memory:");
   // disable random suffix for testing
   let nextRandomId = 0;
   Random.setCreateId(() => `id${nextRandomId++}`);
@@ -440,7 +426,8 @@ Deno.test("Datatypes inside json", () => {
     ]),
   );
 
-  const query1Base = schema.tables.items.query()
+  const query1Base = schema.tables.items
+    .query()
     .select(({ id, value }) => ({ obj: Expr.jsonObj({ id, value }) }));
 
   const query1 = query1Base.all();

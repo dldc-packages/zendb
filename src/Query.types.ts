@@ -71,32 +71,19 @@ export type SelectFn<
   InColsRef extends ExprRecordNested,
   CurrentColsRefs extends ExprRecordNested,
   Result,
-> = (
-  cols: InColsRef,
-  current: CurrentColsRefs,
-) => Result;
+> = (cols: InColsRef, current: CurrentColsRefs) => Result;
 
-export type ColsFn<InColsRef extends ExprRecordNested, Result> = (
-  cols: InColsRef,
-) => Result;
+export type ColsFn<InColsRef extends ExprRecordNested, Result> = (cols: InColsRef) => Result;
 export type ColsFnOrRes<InColsRef extends ExprRecordNested, Result> =
   | ColsFn<InColsRef, Result>
   | Result;
 
-export type AllColsFn<
-  InCols extends ExprRecordNested,
-  OutCols extends ExprRecord,
-  Result,
-> = (
+export type AllColsFn<InCols extends ExprRecordNested, OutCols extends ExprRecord, Result> = (
   inCols: InCols,
   outCols: OutCols,
 ) => Result;
 
-export type AllColsFnOrRes<
-  InCols extends ExprRecordNested,
-  OutCols extends AnyRecord,
-  Result,
-> =
+export type AllColsFnOrRes<InCols extends ExprRecordNested, OutCols extends AnyRecord, Result> =
   | AllColsFn<InCols, OutCols, Result>
   | Result;
 
@@ -104,26 +91,19 @@ export type ColsRefInnerJoined<
   Base extends ExprRecordNested,
   RTable extends TTableQuery<any, any>,
   Alias extends string,
-> =
-  & Base
-  & {
-    [K in Alias]: RTable[TYPES];
-  };
+> = Base & {
+  [K in Alias]: RTable[TYPES];
+};
 
 export type ColsRefLeftJoined<
   Base extends ExprRecordNested,
   RTable extends TTableQuery<any, any>,
   Alias extends string,
-> =
-  & Base
-  & {
-    [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
-  };
+> = Base & {
+  [K in Alias]: ExprRecord_MakeNullable<RTable[TYPES]>;
+};
 
-export interface TTableQuery<
-  InCols extends ExprRecordNested,
-  OutCols extends ExprRecord,
-> {
+export interface TTableQuery<InCols extends ExprRecordNested, OutCols extends ExprRecord> {
   readonly [TYPES]: OutCols;
   readonly [PRIV]: TTableQueryInternal<InCols, OutCols>;
 
@@ -143,25 +123,19 @@ export interface TTableQuery<
    * .andWhere() shortcut to filter on equality, values passed wiil be injected as variables (Expr.external)
    * @param filters An object with the columns to filter
    */
-  andFilterEqual(
-    filters: Prettify<FilterEqualCols<InCols>>,
-  ): TTableQuery<InCols, OutCols>;
+  andFilterEqual(filters: Prettify<FilterEqualCols<InCols>>): TTableQuery<InCols, OutCols>;
 
   /**
    * Set the GROUP BY clause, this will replace any previous GROUP BY clause
    * @param groupFn An expression function that should return an array of expressions
    */
-  groupBy(
-    groupFn: ColsFn<InCols, Array<TExprUnknow>>,
-  ): TTableQuery<InCols, OutCols>;
+  groupBy(groupFn: ColsFn<InCols, Array<TExprUnknow>>): TTableQuery<InCols, OutCols>;
 
   /**
    * Add items to GROUP BY clause expression list
    * @param groupFn An expression function that should return an array of expressions
    */
-  andGroupBy(
-    groupFn: ColsFn<InCols, Array<TExprUnknow>>,
-  ): TTableQuery<InCols, OutCols>;
+  andGroupBy(groupFn: ColsFn<InCols, Array<TExprUnknow>>): TTableQuery<InCols, OutCols>;
 
   /**
    * Set the HAVING clause, this will replace any previous HAVING clause.
@@ -173,9 +147,7 @@ export interface TTableQuery<
    * Add conditions to the HAVING clause using en AND operator
    * @param havingFn An expression function that should return an expression
    */
-  andHaving(
-    havingFn: ColsFn<InCols, TExprUnknow>,
-  ): TTableQuery<InCols, OutCols>;
+  andHaving(havingFn: ColsFn<InCols, TExprUnknow>): TTableQuery<InCols, OutCols>;
 
   /**
    * Set the selected columns, this will replace any previous select clause
@@ -190,9 +162,7 @@ export interface TTableQuery<
    * For most use cases, you should use `andSortAsc` or `andSortDesc` instead
    * @param orderByFn An expression function that should return an array of OrderingTerm objects (also accept the OrderingTerm array directly)
    */
-  orderBy(
-    orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>,
-  ): TTableQuery<InCols, OutCols>;
+  orderBy(orderByFn: AllColsFnOrRes<InCols, OutCols, OrderingTerms>): TTableQuery<InCols, OutCols>;
 
   /**
    * Add a `expression ASC` to the existing ORDER BY clause
@@ -204,25 +174,19 @@ export interface TTableQuery<
    * Add a `expression DESC` to the existing ORDER BY clause
    * @param exprFn An expression function that should return an expression, usually `c => c.myColumn`
    */
-  andSortDesc(
-    exprFn: ColsFn<InCols, TExprUnknow>,
-  ): TTableQuery<InCols, OutCols>;
+  andSortDesc(exprFn: ColsFn<InCols, TExprUnknow>): TTableQuery<InCols, OutCols>;
 
   /**
    * Set the LIMIT clause, this will replace any previous LIMIT clause
    * @param limitFn An expression function that should return an expression, usually `Expr.external(myLimit)`
    */
-  limit(
-    limitFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
-  ): TTableQuery<InCols, OutCols>;
+  limit(limitFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>): TTableQuery<InCols, OutCols>;
 
   /**
    * Set the OFFSET clause, this will replace any previous OFFSET clause
    * @param offsetFn An expression function that should return an expression, usually `Expr.external(myOffset)`
    */
-  offset(
-    offsetFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>,
-  ): TTableQuery<InCols, OutCols>;
+  offset(offsetFn: AllColsFnOrRes<InCols, OutCols, TExprUnknow>): TTableQuery<InCols, OutCols>;
 
   /**
    * Create an INNER JOIN with another table.

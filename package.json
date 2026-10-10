@@ -1,0 +1,68 @@
+{
+  "name": "@dldc/zendb",
+  "version": "12.2.0",
+  "description": "Type safe SQL builder and query engine for SQLite",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dldc-packages/zendb.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/mod.d.mts",
+      "default": "./dist/mod.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "test": "vp test run",
+    "test:run": "vp test run",
+    "test:watch": "vp test",
+    "test:coverage": "vp test run --coverage",
+    "check": "vp check",
+    "lint": "vp lint",
+    "format": "vp fmt",
+    "pack": "vp pack",
+    "release:check": "vp check && vp test run && vp pack",
+    "release": "bumpp --execute \"npm run release:check\""
+  },
+  "dependencies": {
+    "@dldc/erreur": "^7.1.1",
+    "@dldc/sqlite": "^3.1.1"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "^0.18.5",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "better-sqlite3": "^13.0.3",
+    "bumpp": "^12.3.0",
+    "dedent": "^1.7.2",
+    "sql-formatter": "^15.8.2",
+    "typescript": "^6.0.3",
+    "vite-plus": "^1.1.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "warn"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "26.11.1",
+      "onFail": "warn"
+    }
+  },
+  "engines": {
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0"
+  }
+}

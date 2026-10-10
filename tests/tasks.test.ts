@@ -1,5 +1,5 @@
-import { Database } from "@db/sqlite";
-import { expect } from "@std/expect";
+import BetterSqlite3 from "better-sqlite3";
+import { expect, test } from "vite-plus/test";
 import { Expr, Random, Schema, Utils } from "../mod.ts";
 import { TestDriver } from "./utils/TestDriver.ts";
 import { format, sql } from "./utils/sql.ts";
@@ -13,9 +13,9 @@ function setup() {
   nextRandomId = 0;
 }
 
-const db = new Database(":memory:");
+const db = new BetterSqlite3(":memory:");
 
-Deno.test("create database", () => {
+test("create database", () => {
   setup();
 
   const res = TestDriver.execMany(db, Schema.createTables(tasksDb.tables));
@@ -24,14 +24,14 @@ Deno.test("create database", () => {
   expect(tables).toEqual(["tasks", "users", "joinUsersTasks", "groups"]);
 });
 
-Deno.test("Count tasks on empty table", () => {
+test("Count tasks on empty table", () => {
   setup();
 
   const res = TestDriver.exec(db, tasksDb.tables.tasks.query().count());
   expect(res).toEqual(0);
 });
 
-Deno.test("insert tasks", () => {
+test("insert tasks", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -51,14 +51,14 @@ Deno.test("insert tasks", () => {
   });
 });
 
-Deno.test("Count tasks on non-empty table", () => {
+test("Count tasks on non-empty table", () => {
   setup();
 
   const res = TestDriver.exec(db, tasksDb.tables.tasks.query().count());
   expect(res).toEqual(1);
 });
 
-Deno.test("find tasks", () => {
+test("find tasks", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -71,7 +71,7 @@ Deno.test("find tasks", () => {
   expect(res).toEqual([{ id: "1", title: "Task 1" }]);
 });
 
-Deno.test("create user", () => {
+test("create user", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -95,7 +95,7 @@ Deno.test("create user", () => {
   });
 });
 
-Deno.test("link task and user", () => {
+test("link task and user", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -105,7 +105,7 @@ Deno.test("link task and user", () => {
   expect(res).toEqual({ user_id: "1", task_id: "1" });
 });
 
-Deno.test("Query tasks as object", () => {
+test("Query tasks as object", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -121,18 +121,20 @@ Deno.test("Query tasks as object", () => {
   res.forEach((r) => {
     expect(typeof r.data.completed).toBe("boolean");
   });
-  expect(res).toEqual([{
-    data: {
-      completed: false,
-      description: "First task",
+  expect(res).toEqual([
+    {
+      data: {
+        completed: false,
+        description: "First task",
+        id: "1",
+        title: "Task 1",
+      },
       id: "1",
-      title: "Task 1",
     },
-    id: "1",
-  }]);
+  ]);
 });
 
-Deno.test("Query users as object", () => {
+test("Query users as object", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -160,7 +162,7 @@ Deno.test("Query users as object", () => {
   ]);
 });
 
-Deno.test("Concatenate nullable should return nullable", () => {
+test("Concatenate nullable should return nullable", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -176,7 +178,7 @@ Deno.test("Concatenate nullable should return nullable", () => {
   expect(res).toEqual({ id: "1", name: null });
 });
 
-Deno.test("Find user by email", () => {
+test("Find user by email", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -197,7 +199,7 @@ Deno.test("Find user by email", () => {
   });
 });
 
-Deno.test("Find user by email using compare", () => {
+test("Find user by email using compare", () => {
   setup();
 
   const res = TestDriver.exec(
@@ -218,13 +220,12 @@ Deno.test("Find user by email using compare", () => {
   });
 });
 
-Deno.test("Find user by email using filterEqual", () => {
+test("Find user by email using filterEqual", () => {
   setup();
 
   const res = TestDriver.exec(
     db,
-    tasksDb.tables.users.query().andFilterEqual({ email: "john@example.com" })
-      .first(),
+    tasksDb.tables.users.query().andFilterEqual({ email: "john@example.com" }).first(),
   );
   expect(res).toEqual({
     id: "1",
@@ -236,20 +237,16 @@ Deno.test("Find user by email using filterEqual", () => {
   });
 });
 
-Deno.test("Find tasks with user", () => {
+test("Find tasks with user", () => {
   setup();
 
   const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
-    .leftJoin(
-      tasksDb.tables.tasks.query(),
-      "task",
-      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    .leftJoin(tasksDb.tables.tasks.query(), "task", (cols) =>
+      Expr.equal(cols.task_id, cols.task.id),
     )
-    .leftJoin(
-      tasksDb.tables.users.query(),
-      "user",
-      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    .leftJoin(tasksDb.tables.users.query(), "user", (cols) =>
+      Expr.equal(cols.user_id, cols.user.id),
     )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
@@ -277,29 +274,26 @@ Deno.test("Find tasks with user", () => {
   ]);
 });
 
-Deno.test("Find task by user email", () => {
+test("Find task by user email", () => {
   setup();
 
   const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
-    .leftJoin(
-      tasksDb.tables.tasks.query(),
-      "task",
-      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    .leftJoin(tasksDb.tables.tasks.query(), "task", (cols) =>
+      Expr.equal(cols.task_id, cols.task.id),
     )
-    .leftJoin(
-      tasksDb.tables.users.query(),
-      "user",
-      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    .leftJoin(tasksDb.tables.users.query(), "user", (cols) =>
+      Expr.equal(cols.user_id, cols.user.id),
     )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.andFilterEqual({
-    "user.email": "john@example.com",
-  })
+  const query = tasksWithUser
+    .andFilterEqual({
+      "user.email": "john@example.com",
+    })
     .one();
 
   expect(format(query.sql)).toEqual(sql`
@@ -352,21 +346,15 @@ Deno.test("Find task by user email", () => {
   });
 });
 
-Deno.test("Update task", () => {
+test("Update task", () => {
   setup();
 
   const res = TestDriver.exec(
     db,
-    tasksDb.tables.tasks.update(
-      { completed: true },
-      (c) => Expr.equal(c.id, Expr.literal("1")),
-    ),
+    tasksDb.tables.tasks.update({ completed: true }, (c) => Expr.equal(c.id, Expr.literal("1"))),
   );
   expect(res).toEqual({ updated: 1 });
-  const task = TestDriver.exec(
-    db,
-    tasksDb.tables.tasks.query().first(),
-  );
+  const task = TestDriver.exec(db, tasksDb.tables.tasks.query().first());
   expect(task).toEqual({
     completed: true,
     description: "First task",

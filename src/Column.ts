@@ -4,11 +4,7 @@ import type { ColumnInputValue, ColumnOutputValue } from "./utils/types.ts";
 
 export type DefaultValueBase = (() => any) | null;
 
-interface TColumnInternal<
-  DtExt,
-  Nullable extends boolean,
-  DefaultValue extends DefaultValueBase,
-> {
+interface TColumnInternal<DtExt, Nullable extends boolean, DefaultValue extends DefaultValueBase> {
   datatype: Datatype.TDatatype<DtExt, any>;
   nullable: Nullable;
   defaultValue: DefaultValue;
@@ -18,26 +14,17 @@ interface TColumnInternal<
 
 export type TColumnAny = TColumn<any, boolean, DefaultValueBase>;
 
-export interface TColumn<
-  DtExt,
-  Nullable extends boolean,
-  DefaultValue extends DefaultValueBase,
-> {
+export interface TColumn<DtExt, Nullable extends boolean, DefaultValue extends DefaultValueBase> {
   readonly [PRIV]: TColumnInternal<DtExt, Nullable, DefaultValue>;
   nullable(): TColumn<DtExt, true, DefaultValue>;
   defaultValue<DefaultValue extends DtExt>(
     defaultValue: () => DefaultValue,
   ): TColumn<DtExt, Nullable, () => DefaultValue>;
   primary(): TColumn<DtExt, Nullable, DefaultValue>;
-  unique(
-    constraintName?: string | null,
-  ): TColumn<DtExt, Nullable, DefaultValue>;
+  unique(constraintName?: string | null): TColumn<DtExt, Nullable, DefaultValue>;
 }
 
-export function parse<Col extends TColumnAny>(
-  column: Col,
-  output: any,
-): ColumnOutputValue<Col> {
+export function parse<Col extends TColumnAny>(column: Col, output: any): ColumnOutputValue<Col> {
   const { nullable, datatype } = column[PRIV];
   if (nullable && output === null) {
     return null as any;
@@ -45,10 +32,7 @@ export function parse<Col extends TColumnAny>(
   return datatype.parse(output);
 }
 
-export function serialize<Col extends TColumnAny>(
-  column: Col,
-  input: ColumnInputValue<Col>,
-): any {
+export function serialize<Col extends TColumnAny>(column: Col, input: ColumnInputValue<Col>): any {
   const { defaultValue, nullable, datatype } = column[PRIV];
   if (defaultValue && input === undefined) {
     return serialize(column, defaultValue());
@@ -71,18 +55,13 @@ export function declare<DtExt>(
   });
 }
 
-function createInternal<
-  DtExt,
-  Nullable extends boolean,
-  DefaultValue extends DefaultValueBase,
->(
+function createInternal<DtExt, Nullable extends boolean, DefaultValue extends DefaultValueBase>(
   internal: TColumnInternal<DtExt, Nullable, DefaultValue>,
 ): TColumn<DtExt, Nullable, DefaultValue> {
   return {
     [PRIV]: internal,
     nullable: () => createInternal({ ...internal, nullable: true }),
-    defaultValue: (defaultValue) =>
-      createInternal({ ...internal, defaultValue }),
+    defaultValue: (defaultValue) => createInternal({ ...internal, defaultValue }),
     primary: () => createInternal({ ...internal, primary: true }),
     unique: (constraintName = null) =>
       createInternal({

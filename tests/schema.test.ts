@@ -1,12 +1,12 @@
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { Column, Schema } from "../mod.ts";
 
-Deno.test("Init empty schema", () => {
+test("Init empty schema", () => {
   const db = Schema.declare({});
   expect(Schema.createTables(db.tables)).toEqual([]);
 });
 
-Deno.test("Init simple schema", () => {
+test("Init simple schema", () => {
   const schema = Schema.declare({
     users: { email: Column.text().primary(), username: Column.text() },
   });
@@ -17,45 +17,40 @@ Deno.test("Init simple schema", () => {
     {
       kind: "CreateTable",
       params: null,
-      sql:
-        "CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL) STRICT",
+      sql: "CREATE TABLE users (email TEXT NOT NULL PRIMARY KEY, username TEXT NOT NULL) STRICT",
     },
   ]);
 });
 
-Deno.test("Drop table", () => {
+test("Drop table", () => {
   const schema = Schema.declare({
     users: { email: Column.text().primary(), username: Column.text() },
   });
 
   const res = schema.tables.users.schema.drop();
 
-  expect(res).toMatchObject(
-    {
-      kind: "DropTable",
-      sql: "DROP TABLE users",
-      params: null,
-    },
-  );
+  expect(res).toMatchObject({
+    kind: "DropTable",
+    sql: "DROP TABLE users",
+    params: null,
+  });
 });
 
-Deno.test("Drop table if exist", () => {
+test("Drop table if exist", () => {
   const schema = Schema.declare({
     users: { email: Column.text().primary(), username: Column.text() },
   });
 
   const res = schema.tables.users.schema.drop({ ifExists: true });
 
-  expect(res).toMatchObject(
-    {
-      kind: "DropTable",
-      sql: "DROP TABLE IF EXISTS users",
-      params: null,
-    },
-  );
+  expect(res).toMatchObject({
+    kind: "DropTable",
+    sql: "DROP TABLE IF EXISTS users",
+    params: null,
+  });
 });
 
-Deno.test("Boolean column", () => {
+test("Boolean column", () => {
   const schema = Schema.declare({
     settings: {
       id: Column.text().primary(),
@@ -69,8 +64,7 @@ Deno.test("Boolean column", () => {
     {
       kind: "CreateTable",
       params: null,
-      sql:
-        "CREATE TABLE settings (id TEXT NOT NULL PRIMARY KEY, isActive INT NOT NULL) STRICT",
+      sql: "CREATE TABLE settings (id TEXT NOT NULL PRIMARY KEY, isActive INT NOT NULL) STRICT",
     },
   ]);
 });

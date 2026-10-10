@@ -1,9 +1,5 @@
 import { Ast, builder as b, printNode } from "@dldc/sqlite";
-import type {
-  TListTablesOperation,
-  TPragmaOperation,
-  TPragmaSetOperation,
-} from "./Operation.ts";
+import type { TListTablesOperation, TPragmaOperation, TPragmaSetOperation } from "./Operation.ts";
 
 /**
  * Creates an operation to list all table names in the database.
@@ -20,10 +16,7 @@ export function listTables(): TListTablesOperation {
   const query = b.SelectStmt.build({
     resultColumns: [b.ResultColumn.column("name")],
     from: b.SelectStmt.FromTable("sqlite_master"),
-    where: b.Operations.equal(
-      b.Expr.column("type"),
-      b.Literal.literal("table"),
-    ),
+    where: b.Operations.equal(b.Expr.column("type"), b.Literal.literal("table")),
   });
   return {
     kind: "ListTables",

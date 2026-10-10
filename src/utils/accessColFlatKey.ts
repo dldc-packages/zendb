@@ -7,10 +7,7 @@ import type { ExprRecordNested } from "./types.ts";
  * @param cols
  * @param flatKey A flatten key, e.g. 'a.b.c'
  */
-export function accessColFlatKey(
-  cols: ExprRecordNested,
-  flatKey: string,
-): TExprUnknow {
+export function accessColFlatKey(cols: ExprRecordNested, flatKey: string): TExprUnknow {
   const parts = flatKey.split(".");
   let current: ExprRecordNested | TExprUnknow = cols;
   for (const part of parts) {

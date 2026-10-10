@@ -63,22 +63,19 @@
 
 ## Installation
 
-This package is published on [JSR](https://jsr.io/@dldc/zendb):
+This package is published on [npm](https://www.npmjs.com/package/@dldc/zendb):
 
 ```bash
-# npm
-npx jsr add @dldc/zendb
-# deno
-deno add @dldc/zendb
+npm install @dldc/zendb
 ```
 
 You'll also need a driver for your environment:
 
 ```bash
-# Deno
-deno add @dldc/zendb-db-sqlite
 # Node.js
 npm install @dldc/zendb-better-sqlite3
+# Deno
+deno add @dldc/zendb-db-sqlite
 # Browser
 npm install @dldc/zendb-sqljs
 ```

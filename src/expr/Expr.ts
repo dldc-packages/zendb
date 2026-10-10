@@ -67,10 +67,7 @@ export function literal<Val extends string | number | boolean | null>(
   return createLiteral<Val>(val);
 }
 
-export function add<
-  L extends TExpr<number, boolean>,
-  R extends TExpr<number, boolean>,
->(
+export function add<L extends TExpr<number, boolean>, R extends TExpr<number, boolean>>(
   left: L,
   right: L,
 ): TExpr<number, ExprsNullables<[L, R]>> {
@@ -212,9 +209,7 @@ export function and<L extends TExprUnknow, R extends TExprUnknow>(
   });
 }
 
-export function not<E extends TExprUnknow>(
-  expr: E,
-): TExpr<boolean, E[TYPES]["nullable"]> {
+export function not<E extends TExprUnknow>(expr: E): TExpr<boolean, E[TYPES]["nullable"]> {
   return create(builder.Operations.not(expr.ast), {
     datatype: Datatype.boolean,
     nullable: expr[PRIV].nullable,
@@ -262,10 +257,7 @@ export function greaterThan<L extends TExprUnknow, R extends TExprUnknow>(
   });
 }
 
-export function greaterThanOrEqual<
-  L extends TExprUnknow,
-  R extends TExprUnknow,
->(
+export function greaterThanOrEqual<L extends TExprUnknow, R extends TExprUnknow>(
   left: L,
   right: R,
 ): TExpr<boolean, ExprsNullables<[L, R]>> {
@@ -276,10 +268,7 @@ export function greaterThanOrEqual<
   });
 }
 
-export function concatenate<
-  L extends TExpr<string, boolean>,
-  R extends TExpr<string, boolean>,
->(
+export function concatenate<L extends TExpr<string, boolean>, R extends TExpr<string, boolean>>(
   left: L,
   right: R,
 ): TExpr<string, ExprsNullables<[L, R]>> {
@@ -298,15 +287,9 @@ export function isNull(expr: TExprUnknow): TExpr<boolean, false> {
   });
 }
 
-export function inList(
-  left: TExprUnknow,
-  items: TExprUnknow[],
-): TExpr<boolean, false> {
+export function inList(left: TExprUnknow, items: TExprUnknow[]): TExpr<boolean, false> {
   return create(
-    builder.Operations.inList(
-      left.ast,
-      Utils.arrayToNonEmptyArray(items.map((item) => item.ast)),
-    ),
+    builder.Operations.inList(left.ast, Utils.arrayToNonEmptyArray(items.map((item) => item.ast))),
     {
       nullable: false,
       datatype: Datatype.boolean,
@@ -315,10 +298,7 @@ export function inList(
   );
 }
 
-export function notInList(
-  left: TExprUnknow,
-  items: TExprUnknow[],
-): TExpr<boolean, false> {
+export function notInList(left: TExprUnknow, items: TExprUnknow[]): TExpr<boolean, false> {
   return create(
     builder.Operations.notInList(
       left.ast,
@@ -336,34 +316,22 @@ export function inSubquery<RTable extends TTableQuery<any, any>>(
   expr: TExprUnknow,
   subquery: RTable,
 ): TExpr<boolean, false> {
-  return create(
-    builder.Operations.inTableName(expr.ast, subquery[PRIV].name),
-    {
-      nullable: false,
-      datatype: Datatype.boolean,
-      dependencies: appendDependencies(
-        expr[PRIV].dependencies ?? [],
-        subquery[PRIV],
-      ),
-    },
-  );
+  return create(builder.Operations.inTableName(expr.ast, subquery[PRIV].name), {
+    nullable: false,
+    datatype: Datatype.boolean,
+    dependencies: appendDependencies(expr[PRIV].dependencies ?? [], subquery[PRIV]),
+  });
 }
 
 export function notInSubquery<RTable extends TTableQuery<any, any>>(
   expr: TExprUnknow,
   subquery: RTable,
 ): TExpr<boolean, false> {
-  return create(
-    builder.Operations.notInTableName(expr.ast, subquery[PRIV].name),
-    {
-      nullable: false,
-      datatype: Datatype.boolean,
-      dependencies: appendDependencies(
-        expr[PRIV].dependencies ?? [],
-        subquery[PRIV],
-      ),
-    },
-  );
+  return create(builder.Operations.notInTableName(expr.ast, subquery[PRIV].name), {
+    nullable: false,
+    datatype: Datatype.boolean,
+    dependencies: appendDependencies(expr[PRIV].dependencies ?? [], subquery[PRIV]),
+  });
 }
 
 /**
@@ -410,10 +378,7 @@ export function column<Val, Nullable extends boolean>(
   column: string,
   internal: TExprInternal,
 ): TExpr<Val, Nullable> {
-  return create(
-    builder.Expr.column({ column, table: table ? { table } : undefined }),
-    internal,
-  );
+  return create(builder.Expr.column({ column, table: table ? { table } : undefined }), internal);
 }
 
 export function jsonGroupArray<Val, Nullable extends boolean>(
@@ -444,9 +409,7 @@ export function jsonObj<Items extends Record<string, TExprUnknow>>(
   return create(
     builder.Functions.json_object(
       ...Object.entries(items)
-        .map((
-          [name, value],
-        ): [Ast.Expr, Ast.Expr] => [
+        .map(([name, value]): [Ast.Expr, Ast.Expr] => [
           builder.Literal.literal(name),
           wrapInJson(value).ast,
         ])
@@ -460,9 +423,7 @@ export function jsonObj<Items extends Record<string, TExprUnknow>>(
       //     (name, expr) => ExprUtils.parseExpr(expr, obj[name], true),
       //   );
       // },
-      datatype: Datatype.jsonObj(
-        mapObject(items, (_name, expr) => expr[PRIV].datatype),
-      ),
+      datatype: Datatype.jsonObj(mapObject(items, (_name, expr) => expr[PRIV].datatype)),
       jsonMode: "JsonExpr",
       nullable: false,
     },

@@ -1,4 +1,4 @@
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { Expr, Random } from "../mod.ts";
 import { allDatatypesDb } from "./utils/allDatatypesDb.ts";
 import { format, sql } from "./utils/sql.ts";
@@ -12,7 +12,7 @@ function setup() {
   nextRandomId = 0;
 }
 
-Deno.test("Simple filter", () => {
+test("Simple filter", () => {
   setup();
 
   const query = tasksDb.tables.tasks.query().andFilterEqual({ id: "1" }).one();
@@ -25,13 +25,16 @@ Deno.test("Simple filter", () => {
   `);
 });
 
-Deno.test("Filter twice", () => {
+test("Filter twice", () => {
   setup();
 
-  const query = tasksDb.tables.tasks.query().andFilterEqual({ id: "1" })
+  const query = tasksDb.tables.tasks
+    .query()
+    .andFilterEqual({ id: "1" })
     .andFilterEqual({
       id: "2",
-    }).one();
+    })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT tasks.*
@@ -41,29 +44,26 @@ Deno.test("Filter twice", () => {
   `);
 });
 
-Deno.test("Find task by user email", () => {
+test("Find task by user email", () => {
   setup();
 
   const tasksWithUser = tasksDb.tables.joinUsersTasks
     .query()
-    .leftJoin(
-      tasksDb.tables.tasks.query(),
-      "task",
-      (cols) => Expr.equal(cols.task_id, cols.task.id),
+    .leftJoin(tasksDb.tables.tasks.query(), "task", (cols) =>
+      Expr.equal(cols.task_id, cols.task.id),
     )
-    .leftJoin(
-      tasksDb.tables.users.query(),
-      "user",
-      (cols) => Expr.equal(cols.user_id, cols.user.id),
+    .leftJoin(tasksDb.tables.users.query(), "user", (cols) =>
+      Expr.equal(cols.user_id, cols.user.id),
     )
     .select((cols) => ({
       user: Expr.jsonObj(cols.user),
       task: Expr.jsonObj(cols.task),
     }));
 
-  const query = tasksWithUser.andFilterEqual({
-    "user.email": "john@example.com",
-  })
+  const query = tasksWithUser
+    .andFilterEqual({
+      "user.email": "john@example.com",
+    })
     .one();
 
   expect(format(query.sql)).toEqual(sql`
@@ -90,12 +90,14 @@ Deno.test("Find task by user email", () => {
   expect(query.params).toEqual({ _id5: "john@example.com" });
 });
 
-Deno.test("Filter null value", () => {
+test("Filter null value", () => {
   setup();
 
-  const query = tasksDb.tables.users.query().andFilterEqual({
-    displayName: null,
-  })
+  const query = tasksDb.tables.users
+    .query()
+    .andFilterEqual({
+      displayName: null,
+    })
     .one();
 
   expect(format(query.sql)).toEqual(sql`
@@ -105,13 +107,16 @@ Deno.test("Filter null value", () => {
   `);
 });
 
-Deno.test("Filter multiple values", () => {
+test("Filter multiple values", () => {
   setup();
 
-  const query = tasksDb.tables.users.query().andFilterEqual({
-    displayName: null,
-    email: "john@example.com",
-  }).one();
+  const query = tasksDb.tables.users
+    .query()
+    .andFilterEqual({
+      displayName: null,
+      email: "john@example.com",
+    })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT users.*
@@ -122,16 +127,19 @@ Deno.test("Filter multiple values", () => {
   expect(query.params).toEqual({ _id0: "john@example.com" });
 });
 
-Deno.test("Filter datatype primitive columns", () => {
+test("Filter datatype primitive columns", () => {
   setup();
 
-  const query = allDatatypesDb.tables.datatype.query().andFilterEqual({
-    id: "1",
-    text: "test",
-    integer: 42,
-    boolean: true,
-    number: 3.14,
-  }).one();
+  const query = allDatatypesDb.tables.datatype
+    .query()
+    .andFilterEqual({
+      id: "1",
+      text: "test",
+      integer: 42,
+      boolean: true,
+      number: 3.14,
+    })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT datatype.*
@@ -159,16 +167,19 @@ Deno.test("Filter datatype primitive columns", () => {
   });
 });
 
-Deno.test("Filter datatype date and json columns", () => {
+test("Filter datatype date and json columns", () => {
   setup();
 
   const date = new Date(1663075512250);
   const data = { foo: "bar", baz: true };
 
-  const query = allDatatypesDb.tables.datatype.query().andFilterEqual({
-    date,
-    json: data,
-  }).one();
+  const query = allDatatypesDb.tables.datatype
+    .query()
+    .andFilterEqual({
+      date,
+      json: data,
+    })
+    .one();
 
   expect(format(query.sql)).toEqual(sql`
     SELECT datatype.*

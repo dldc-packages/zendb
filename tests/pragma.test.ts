@@ -1,16 +1,16 @@
-import { Database } from "@db/sqlite";
-import { expect } from "@std/expect";
+import BetterSqlite3 from "better-sqlite3";
+import { expect, test } from "vite-plus/test";
 import { Utils } from "../mod.ts";
 import { TestDriver } from "./utils/TestDriver.ts";
 
-const db = new Database(":memory:");
+const db = new BetterSqlite3(":memory:");
 
-Deno.test("read pragma", () => {
+test("read pragma", () => {
   const res = TestDriver.exec(db, Utils.userVersion());
   expect(res).toEqual(0);
 });
 
-Deno.test("write pragma", () => {
+test("write pragma", () => {
   const res = TestDriver.exec(db, Utils.setUserVersion(42));
   expect(res).toEqual(null);
   const version = TestDriver.exec(db, Utils.userVersion());

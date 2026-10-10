@@ -46,13 +46,10 @@ export interface TDropTableOptions {
 
 export type TAnyTables = Record<string, TTable<any, any, any>>;
 
-export type TTableTypes<Table extends TTable<any, any, any>> = Table extends
-  TTable<
-    any,
-    infer Input,
-    infer OutputCols
-  > ? { input: Input; output: Prettify<ExprRecordOutput<OutputCols>> }
-  : { input: never; output: never };
+export type TTableTypes<Table extends TTable<any, any, any>> =
+  Table extends TTable<any, infer Input, infer OutputCols>
+    ? { input: Input; output: Prettify<ExprRecordOutput<OutputCols>> }
+    : { input: never; output: never };
 
 export interface TTable<
   Definition extends ColumnsBase,
@@ -65,18 +62,11 @@ export interface TTable<
     drop(options?: TDropTableOptions): TDropTableOperation;
   };
   query(): TTableQuery<OutputCols, OutputCols>;
-  insert(
-    data: InputData,
-  ): TInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
-  insertMany(
-    data: InputData[],
-  ): TInsertManyOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  insert(data: InputData): TInsertOperation<Prettify<ExprRecordOutput<OutputCols>>>;
+  insertMany(data: InputData[]): TInsertManyOperation<Prettify<ExprRecordOutput<OutputCols>>>;
   delete(condition: ExprFnFromTable<OutputCols>): TDeleteOperation;
   deleteEqual(filters: Prettify<FilterEqualCols<OutputCols>>): TDeleteOperation;
-  update(
-    data: Partial<InputData>,
-    where?: ExprFnFromTable<OutputCols>,
-  ): TUpdateOperation;
+  update(data: Partial<InputData>, where?: ExprFnFromTable<OutputCols>): TUpdateOperation;
   updateEqual(
     data: Partial<InputData>,
     where: Prettify<FilterEqualCols<OutputCols>>,
@@ -130,9 +120,9 @@ export function createTable<Columns extends ColumnsBase>(
 ): TCreateTableOperation {
   const { ifNotExists = false, strict = true } = options;
   const columnsEntries = Object.entries(columns);
-  const primaryKeys = columnsEntries.filter(([, column]) =>
-    column[PRIV].primary
-  ).map(([columnName]) => columnName);
+  const primaryKeys = columnsEntries
+    .filter(([, column]) => column[PRIV].primary)
+    .map(([columnName]) => columnName);
   if (primaryKeys.length === 0) {
     throw createMissingPrimaryKey(table);
   }
@@ -152,11 +142,7 @@ export function createTable<Columns extends ColumnsBase>(
   uniqueEntries.forEach(([constraintName, columns]) => {
     if (columns.length > 1) {
       uniqueTableContraints.push(
-        b.CreateTableStmt.TableUnique(
-          columns,
-          undefined,
-          constraintName ?? undefined,
-        ),
+        b.CreateTableStmt.TableUnique(columns, undefined, constraintName ?? undefined),
       );
       return;
     }
@@ -168,9 +154,7 @@ export function createTable<Columns extends ColumnsBase>(
   });
 
   const tableConstraints = [
-    ...(multiPrimaryKey
-      ? [b.CreateTableStmt.TablePrimaryKey(primaryKeys)]
-      : []),
+    ...(multiPrimaryKey ? [b.CreateTableStmt.TablePrimaryKey(primaryKeys)] : []),
     ...uniqueTableContraints,
   ];
 
@@ -193,9 +177,7 @@ export function createTable<Columns extends ColumnsBase>(
     {
       strict: strict === true ? true : undefined,
       ifNotExists: ifNotExists === true ? true : undefined,
-      tableConstraints: tableConstraints.length > 0
-        ? tableConstraints
-        : undefined,
+      tableConstraints: tableConstraints.length > 0 ? tableConstraints : undefined,
     },
   );
 
@@ -207,10 +189,7 @@ export function createTable<Columns extends ColumnsBase>(
   };
 }
 
-export function dropTable(
-  table: string,
-  options: TDropTableOptions = {},
-): TDropTableOperation {
+export function dropTable(table: string, options: TDropTableOptions = {}): TDropTableOperation {
   const { ifExists = false } = options;
   const node = b.DropTableStmt.build(table, {
     ifExists: ifExists === true ? true : undefined,
@@ -228,11 +207,7 @@ export function insert<Columns extends ColumnsBase>(
   columns: Columns,
   data: ColumnsToInput<Columns>,
 ): TInsertOperation<ExprRecordOutput<ColumnsToExprRecord<Columns>>> {
-  const { insertStatement, params, parsedData } = prepareInsert(
-    table,
-    columns,
-    [data],
-  );
+  const { insertStatement, params, parsedData } = prepareInsert(table, columns, [data]);
   return {
     kind: "Insert",
     sql: insertStatement,
@@ -249,11 +224,7 @@ function insertMany<Columns extends ColumnsBase>(
   if (data.length === 0) {
     throw createCannotInsertEmptyArray(table);
   }
-  const { insertStatement, params, parsedData } = prepareInsert(
-    table,
-    columns,
-    data,
-  );
+  const { insertStatement, params, parsedData } = prepareInsert(table, columns, data);
   return {
     kind: "InsertMany",
     sql: insertStatement,
@@ -290,25 +261,19 @@ export function update<Columns extends ColumnsBase>(
   data: Partial<ColumnsToInput<Columns>>,
   where?: ExprFnFromTable<ColumnsToExprRecord<Columns>>,
 ): TUpdateOperation {
-  const columnsEntries: Array<[string, TColumnAny]> = Object.entries(columns)
-    .filter(([name]) => {
-      const input = (data as any)[name];
-      return input !== undefined;
-    });
+  const columnsEntries: Array<[string, TColumnAny]> = Object.entries(columns).filter(([name]) => {
+    const input = (data as any)[name];
+    return input !== undefined;
+  });
   const resolvedData: Record<string, any> = {};
   columnsEntries.forEach(([name, column]) => {
     const input = (data as any)[name];
     const serialized = Column.serialize(column, input);
     resolvedData[name] = serialized;
   });
-  const setItems = columnsEntries.map(
-    ([name]): b.UpdateStmt.SetItem => {
-      return b.UpdateStmt.ColumnName(
-        name,
-        Expr.external(resolvedData[name], name).ast,
-      );
-    },
-  );
+  const setItems = columnsEntries.map(([name]): b.UpdateStmt.SetItem => {
+    return b.UpdateStmt.ColumnName(name, Expr.external(resolvedData[name], name).ast);
+  });
   const { columnsRefs } = getTableInfos(table, columns);
   const queryNode = b.UpdateStmt.build(table, {
     where: where ? where(columnsRefs).ast : undefined,
@@ -325,22 +290,14 @@ export function updateEqual<Columns extends ColumnsBase>(
   data: Partial<ColumnsToInput<Columns>>,
   where: Prettify<FilterEqualCols<ColumnsToExprRecord<Columns>>>,
 ): TUpdateOperation {
-  return update(
-    table,
-    columns,
-    data,
-    where ? (cols) => whereEqual(cols, where) : undefined,
-  );
+  return update(table, columns, data, where ? (cols) => whereEqual(cols, where) : undefined);
 }
 
 export function query<Columns extends ColumnsBase>(
   table: string,
   columns: Columns,
 ): TTableQuery<ColumnsToExprRecord<Columns>, ColumnsToExprRecord<Columns>> {
-  const { table: tableIdentifier, columnsRefs } = getTableInfos(
-    table,
-    columns,
-  );
+  const { table: tableIdentifier, columnsRefs } = getTableInfos(table, columns);
   return queryFromTable(tableIdentifier, columnsRefs);
 }
 
@@ -362,9 +319,7 @@ function prepareInsert<Columns extends ColumnsBase>(
       resolvedItem[name] = serialized;
       parsedItem[name] = Column.parse(column, serialized);
     });
-    const itemValues = columnsEntries.map(([name]) =>
-      Expr.external(resolvedItem[name], name)
-    );
+    const itemValues = columnsEntries.map(([name]) => Expr.external(resolvedItem[name], name));
     resolvedData.push(resolvedItem);
     parsedData.push(parsedItem);
     values.push(itemValues);
@@ -372,9 +327,7 @@ function prepareInsert<Columns extends ColumnsBase>(
   const cols = columnsEntries.map(([name]) => b.Expr.identifier(name));
   const queryNode = b.InsertStmt.build(table, {
     columnNames: cols,
-    data: b.InsertStmt.InsertValues(
-      values.map((values) => values.map((e) => e.ast)),
-    ),
+    data: b.InsertStmt.InsertValues(values.map((values) => values.map((e) => e.ast))),
   });
   const params = extractParams(queryNode);
   const insertStatement = printNode(queryNode);

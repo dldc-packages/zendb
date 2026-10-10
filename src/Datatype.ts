@@ -83,9 +83,7 @@ export function fromLiteral<Val extends string | number | boolean | null>(
   throw createInvalidLiteral(val);
 }
 
-export function jsonGroupArray<Item>(
-  innerDatatype: TDatatype<Item, any>,
-): TDatatype<Item[]> {
+export function jsonGroupArray<Item>(innerDatatype: TDatatype<Item, any>): TDatatype<Item[]> {
   return create({
     name: "jsonGroupArray",
     type: "TEXT",
@@ -100,26 +98,20 @@ export function jsonGroupArray<Item>(
   });
 }
 
-export function jsonObj<Items extends Record<string, any>>(
-  innerDatatypes: { [K in keyof Items]: TDatatype<Items[K]> },
-): TDatatype<Items> {
+export function jsonObj<Items extends Record<string, any>>(innerDatatypes: {
+  [K in keyof Items]: TDatatype<Items[K]>;
+}): TDatatype<Items> {
   return create({
     name: "jsonObj",
     type: "TEXT",
     isJson: true,
     parse: (value) => {
       const obj = maybeParseJson(value) as Record<string, any>;
-      return mapObject(
-        obj,
-        (name, item) => innerDatatypes[name].parse(item),
-      );
+      return mapObject(obj, (name, item) => innerDatatypes[name].parse(item));
     },
     serialize: (obj) => {
       return JSON.stringify(
-        mapObject(
-          obj,
-          (name, item) => innerDatatypes[name].serialize(item as any),
-        ),
+        mapObject(obj, (name, item) => innerDatatypes[name].serialize(item as any)),
       );
     },
   });

@@ -1,4 +1,4 @@
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { Expr, queryFrom, Random } from "../mod.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
@@ -11,7 +11,7 @@ function setup() {
   nextRandomId = 0;
 }
 
-Deno.test("Basic json function", () => {
+test("Basic json function", () => {
   setup();
 
   const res = tasksDb.tables.tasks
@@ -36,7 +36,7 @@ Deno.test("Basic json function", () => {
   `);
 });
 
-Deno.test("Nested json object", () => {
+test("Nested json object", () => {
   setup();
 
   const res = tasksDb.tables.tasks
@@ -66,7 +66,7 @@ Deno.test("Nested json object", () => {
   `);
 });
 
-Deno.test("Json in json", () => {
+test("Json in json", () => {
   setup();
 
   const base = tasksDb.tables.tasks.query().select((c) => ({

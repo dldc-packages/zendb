@@ -9,10 +9,7 @@ import * as Expr from "./expr/Expr.ts";
 /**
  * Function that transforms a schema from one version to the next.
  */
-export type TUpdateSchema<
-  PrevSchema extends TAnySchema,
-  NewSchema extends TAnySchema,
-> = (
+export type TUpdateSchema<PrevSchema extends TAnySchema, NewSchema extends TAnySchema> = (
   prev: PrevSchema,
 ) => NewSchema;
 
@@ -36,10 +33,7 @@ export interface TMigrationExecParams<
    * Helper function to copy data from a table in the previous schema
    * to a table in the new schema, with optional transformation.
    */
-  copyTable: <
-    FromName extends keyof PrevSchema["tables"],
-    ToName extends keyof Schema["tables"],
-  >(
+  copyTable: <FromName extends keyof PrevSchema["tables"], ToName extends keyof Schema["tables"]>(
     fromTableName: FromName,
     toTableName: ToName,
     transform: (
@@ -52,11 +46,7 @@ export interface TMigrationExecParams<
  * Function that executes a migration step, copying and transforming data.
  * Can optionally return a database instance to use instead of the one created.
  */
-export type TMigrationExecFn<
-  Db,
-  PrevSchema extends TAnySchema,
-  Schema extends TAnySchema,
-> = (
+export type TMigrationExecFn<Db, PrevSchema extends TAnySchema, Schema extends TAnySchema> = (
   params: TMigrationExecParams<Db, PrevSchema, Schema>,
 ) => void | Db | Promise<void | Db>;
 
@@ -65,16 +55,10 @@ export type TMigrationExecFn<
  * Similar to TMigrationExecFn but without previous schema/database since this is the first step.
  */
 export type TMigrationInitExecFn<Db, Schema extends TAnySchema> = (
-  params: Omit<
-    TMigrationExecParams<Db, never, Schema>,
-    "previousSchema" | "previousDatabase"
-  >,
+  params: Omit<TMigrationExecParams<Db, never, Schema>, "previousSchema" | "previousDatabase">,
 ) => void | Db | Promise<void | Db>;
 
-export interface TMigration<
-  Db,
-  Schema extends TAnySchema,
-> {
+export interface TMigration<Db, Schema extends TAnySchema> {
   /**
    * Final schema after all migration steps. Export this for use in your application.
    */
@@ -104,9 +88,7 @@ export interface TMigration<
    */
   step<NewSchema extends TAnySchema>(
     updater: TUpdateSchema<Schema, NewSchema>,
-  ): (
-    execFn: TMigrationExecFn<Db, Schema, NewSchema>,
-  ) => TMigration<Db, NewSchema>;
+  ): (execFn: TMigrationExecFn<Db, Schema, NewSchema>) => TMigration<Db, NewSchema>;
 
   /**
    * Applies all pending migrations to the database.
@@ -191,10 +173,12 @@ export function init<Db, Schema extends TAnySchema>(
 ): TMigration<Db, Schema> {
   return createMigration({
     driver,
-    steps: [{
-      schema: initSchema,
-      exec: initExec as any,
-    }],
+    steps: [
+      {
+        schema: initSchema,
+        exec: initExec as any,
+      },
+    ],
   });
 }
 
@@ -215,34 +199,27 @@ function createMigration<Db, Schema extends TAnySchema>(
     schema: schema as Schema,
     step<NewSchema extends TAnySchema>(
       updater: TUpdateSchema<Schema, NewSchema>,
-    ): (
-      execFn: TMigrationExecFn<Db, Schema, NewSchema>,
-    ) => TMigration<Db, NewSchema> {
+    ): (execFn: TMigrationExecFn<Db, Schema, NewSchema>) => TMigration<Db, NewSchema> {
       return (execFn) => {
         const newSchema = updater(schema as any);
         return createMigration<Db, NewSchema>({
           ...internals,
-          steps: [...internals.steps, {
-            schema: newSchema,
-            exec: execFn as any,
-          }],
+          steps: [
+            ...internals.steps,
+            {
+              schema: newSchema,
+              exec: execFn as any,
+            },
+          ],
         });
       };
     },
 
-    async apply(
-      currentDatabase: Db,
-    ): Promise<[database: Db, needsPersist: boolean]> {
-      const currentUserVersion = internals.driver.exec(
-        currentDatabase,
-        userVersion(),
-      );
+    async apply(currentDatabase: Db): Promise<[database: Db, needsPersist: boolean]> {
+      const currentUserVersion = internals.driver.exec(currentDatabase, userVersion());
       // If user version is higher than the number of steps, we cannot migrate
       if (currentUserVersion > internals.steps.length) {
-        throw createInvalidUserVersion(
-          currentUserVersion,
-          internals.steps.length,
-        );
+        throw createInvalidUserVersion(currentUserVersion, internals.steps.length);
       }
 
       // Check if no steps to run
@@ -250,9 +227,8 @@ function createMigration<Db, Schema extends TAnySchema>(
         return [currentDatabase, false];
       }
       const stepsToRun = internals.steps.slice(currentUserVersion);
-      const previousStep = currentUserVersion === 0
-        ? null
-        : internals.steps[currentUserVersion - 1];
+      const previousStep =
+        currentUserVersion === 0 ? null : internals.steps[currentUserVersion - 1];
 
       let previousUserVersion = currentUserVersion;
       let previousSchema: TAnySchema = previousStep?.schema || (null as any);
@@ -287,10 +263,7 @@ function createMigration<Db, Schema extends TAnySchema>(
 
         // Close the previous database if it's not the original input database
         // and it's not the new database we just created
-        if (
-          previousDatabase !== currentDatabase &&
-          previousDatabase !== newDatabase
-        ) {
+        if (previousDatabase !== currentDatabase && previousDatabase !== newDatabase) {
           databasesToClose.push(previousDatabase);
         }
 
@@ -302,10 +275,7 @@ function createMigration<Db, Schema extends TAnySchema>(
         previousDatabase = newDatabase;
         // Save new user version
         previousUserVersion++;
-        internals.driver.exec(
-          previousDatabase,
-          setUserVersion(previousUserVersion),
-        );
+        internals.driver.exec(previousDatabase, setUserVersion(previousUserVersion));
         previousSchema = schema;
       }
 
@@ -315,20 +285,13 @@ function createMigration<Db, Schema extends TAnySchema>(
       }
 
       // Close all intermediate databases
-      await Promise.all(
-        databasesToClose.map((db) => internals.driver.closeDatabase(db)),
-      );
+      await Promise.all(databasesToClose.map((db) => internals.driver.closeDatabase(db)));
 
       return [previousDatabase, true];
     },
 
-    applySync(
-      currentDatabase: Db,
-    ): [database: Db, needsPersist: boolean] {
-      if (
-        !internals.driver.createDatabaseSync ||
-        !internals.driver.closeDatabaseSync
-      ) {
+    applySync(currentDatabase: Db): [database: Db, needsPersist: boolean] {
+      if (!internals.driver.createDatabaseSync || !internals.driver.closeDatabaseSync) {
         throw new Error(
           "Driver does not support synchronous database operations. Use apply() instead.",
         );
@@ -336,16 +299,10 @@ function createMigration<Db, Schema extends TAnySchema>(
       const createDatabaseSync = internals.driver.createDatabaseSync;
       const closeDatabaseSync = internals.driver.closeDatabaseSync;
 
-      const currentUserVersion = internals.driver.exec(
-        currentDatabase,
-        userVersion(),
-      );
+      const currentUserVersion = internals.driver.exec(currentDatabase, userVersion());
       // If user version is higher than the number of steps, we cannot migrate
       if (currentUserVersion > internals.steps.length) {
-        throw createInvalidUserVersion(
-          currentUserVersion,
-          internals.steps.length,
-        );
+        throw createInvalidUserVersion(currentUserVersion, internals.steps.length);
       }
 
       // Check if no steps to run
@@ -353,9 +310,8 @@ function createMigration<Db, Schema extends TAnySchema>(
         return [currentDatabase, false];
       }
       const stepsToRun = internals.steps.slice(currentUserVersion);
-      const previousStep = currentUserVersion === 0
-        ? null
-        : internals.steps[currentUserVersion - 1];
+      const previousStep =
+        currentUserVersion === 0 ? null : internals.steps[currentUserVersion - 1];
 
       let previousUserVersion = currentUserVersion;
       let previousSchema: TAnySchema = previousStep?.schema || (null as any);
@@ -396,10 +352,7 @@ function createMigration<Db, Schema extends TAnySchema>(
 
         // Close the previous database if it's not the original input database
         // and it's not the new database we just created
-        if (
-          previousDatabase !== currentDatabase &&
-          previousDatabase !== newDatabase
-        ) {
+        if (previousDatabase !== currentDatabase && previousDatabase !== newDatabase) {
           databasesToClose.push(previousDatabase);
         }
 
@@ -411,10 +364,7 @@ function createMigration<Db, Schema extends TAnySchema>(
         previousDatabase = newDatabase;
         // Save new user version
         previousUserVersion++;
-        internals.driver.exec(
-          previousDatabase,
-          setUserVersion(previousUserVersion),
-        );
+        internals.driver.exec(previousDatabase, setUserVersion(previousUserVersion));
         previousSchema = schema;
       }
 
@@ -444,9 +394,7 @@ export interface TCopyTableOptions<
   toDb: Db;
   fromTable: FromTable;
   toTable: ToTable;
-  transform: (
-    row: TTableTypes<FromTable>["output"],
-  ) => TTableTypes<ToTable>["input"];
+  transform: (row: TTableTypes<FromTable>["output"]) => TTableTypes<ToTable>["input"];
   pageSize?: number;
 }
 
@@ -479,17 +427,15 @@ export function copyTable<
   Db,
   FromTable extends TTable<any, any, any>,
   ToTable extends TTable<any, any, any>,
->(
-  {
-    driver,
-    fromDb,
-    toDb,
-    fromTable,
-    toTable,
-    transform,
-    pageSize = 100,
-  }: TCopyTableOptions<Db, FromTable, ToTable>,
-) {
+>({
+  driver,
+  fromDb,
+  toDb,
+  fromTable,
+  toTable,
+  transform,
+  pageSize = 100,
+}: TCopyTableOptions<Db, FromTable, ToTable>) {
   const count = driver.exec(fromDb, fromTable.query().count());
   if (count === 0) {
     return;
@@ -498,8 +444,7 @@ export function copyTable<
   while (done < count) {
     const rows = driver.exec(
       fromDb,
-      fromTable.query().limit(Expr.literal(pageSize)).offset(Expr.literal(done))
-        .all(),
+      fromTable.query().limit(Expr.literal(pageSize)).offset(Expr.literal(done)).all(),
     );
     if (rows.length === 0) {
       break;

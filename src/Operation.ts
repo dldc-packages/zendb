@@ -84,13 +84,22 @@ export type TOperationKind = TOperation["kind"];
 
 export type TOperationResult<T extends TOperation> = T extends TDeleteOperation
   ? { deleted: number }
-  : T extends TUpdateOperation ? { updated: number }
-  : T extends TInsertOperation<infer Inserted> ? Inserted
-  : T extends TInsertManyOperation<infer Inserted> ? Inserted[]
-  : T extends TQueryOperation<infer Result> ? Result
-  : T extends TCreateTableOperation ? null
-  : T extends TDropTableOperation ? null
-  : T extends TListTablesOperation ? Array<string>
-  : T extends TPragmaOperation<infer Value> ? Value
-  : T extends TPragmaSetOperation ? null
-  : never;
+  : T extends TUpdateOperation
+    ? { updated: number }
+    : T extends TInsertOperation<infer Inserted>
+      ? Inserted
+      : T extends TInsertManyOperation<infer Inserted>
+        ? Inserted[]
+        : T extends TQueryOperation<infer Result>
+          ? Result
+          : T extends TCreateTableOperation
+            ? null
+            : T extends TDropTableOperation
+              ? null
+              : T extends TListTablesOperation
+                ? Array<string>
+                : T extends TPragmaOperation<infer Value>
+                  ? Value
+                  : T extends TPragmaSetOperation
+                    ? null
+                    : never;

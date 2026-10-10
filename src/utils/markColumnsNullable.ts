@@ -10,10 +10,10 @@ export function markColumnsNullable<Cols extends ExprRecord>(
     cols,
     // mark columns as nullable
     (_, col: Expr.TExprUnknow): any => {
-      return ({
+      return {
         ...col,
         [PRIV]: { ...col[PRIV], nullable: true },
-      });
+      };
     },
   );
 }

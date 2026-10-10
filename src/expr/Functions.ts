@@ -10,13 +10,10 @@ export function simpleFunctionInvocation<Exprs extends TExprUnknow[], Res>(
   ...params: Exprs
 ): TExpr<Res, ExprsNullables<Exprs>> {
   const nullable = params.some((p) => p[PRIV].nullable);
-  return create(
-    builder.Functions.simpleFunctionInvocation(
-      name,
-      ...params.map((e) => e.ast),
-    ),
-    { datatype, nullable },
-  );
+  return create(builder.Functions.simpleFunctionInvocation(name, ...params.map((e) => e.ast)), {
+    datatype,
+    nullable,
+  });
 }
 
 export function random(): TExpr<number, false> {

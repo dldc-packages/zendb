@@ -1,10 +1,10 @@
-import { Database } from "@db/sqlite";
+import BetterSqlite3 from "better-sqlite3";
 import { Column, Expr, queryFrom, Random, Schema, Utils } from "@dldc/zendb";
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { TestDriver } from "./utils/TestDriver.ts";
 import { format, sql } from "./utils/sql.ts";
 
-Deno.test("Run code from README example", () => {
+test("Run code from README example", () => {
   let nextRandomId = 0;
   // disable random suffix for testing
   Random.setCreateId(() => `id${nextRandomId++}`);
@@ -34,7 +34,7 @@ Deno.test("Run code from README example", () => {
     },
   });
 
-  const db = new Database(":memory:");
+  const db = new BetterSqlite3(":memory:");
 
   const tables = TestDriver.exec(db, Utils.listTables());
   if (tables.length === 0) {
@@ -45,24 +45,22 @@ Deno.test("Run code from README example", () => {
     );
   }
 
-  const userQueryOp = schema.tables.users.query().andFilterEqual({
-    id: "my-id",
-  })
+  const userQueryOp = schema.tables.users
+    .query()
+    .andFilterEqual({
+      id: "my-id",
+    })
     .maybeOne();
   const result = TestDriver.exec(db, userQueryOp);
   expect(result).toEqual(null);
 
-  const query = schema.tables.tasks.query()
-    .andFilterEqual({ completed: false })
-    .all();
+  const query = schema.tables.tasks.query().andFilterEqual({ completed: false }).all();
   const tasks = TestDriver.exec(db, query);
   expect(tasks).toEqual([]);
 
   // External
 
-  const query2 = schema.tables.tasks.query()
-    .limit(Expr.external(10))
-    .all();
+  const query2 = schema.tables.tasks.query().limit(Expr.external(10)).all();
 
   expect(query2).toMatchObject({
     kind: "Query",
@@ -72,12 +70,10 @@ Deno.test("Run code from README example", () => {
 
   // Expression functions
 
-  const meOrYou = schema.tables.users.query()
+  const meOrYou = schema.tables.users
+    .query()
     .where((c) =>
-      Expr.or(
-        Expr.equal(c.id, Expr.external("me")),
-        Expr.equal(c.id, Expr.external("you")),
-      )
+      Expr.or(Expr.equal(c.id, Expr.external("me")), Expr.equal(c.id, Expr.external("you"))),
     )
     .maybeOne();
 
@@ -86,17 +82,17 @@ Deno.test("Run code from README example", () => {
 
   // .select()
 
-  const userQuery = schema.tables.users.query()
+  const userQuery = schema.tables.users
+    .query()
     .select((c) => ({
       id: c.id,
       name: c.name,
     }))
     .all();
-  expect(userQuery.sql).toEqual(
-    `SELECT users.id AS id, users.name AS name FROM users`,
-  );
+  expect(userQuery.sql).toEqual(`SELECT users.id AS id, users.name AS name FROM users`);
 
-  const userQueryConcat = schema.tables.users.query()
+  const userQueryConcat = schema.tables.users
+    .query()
     .select((c) => ({ id: c.id, name: Expr.concatenate(c.name, c.email) }))
     .all();
   expect(userQueryConcat.sql).toEqual(
@@ -108,11 +104,10 @@ Deno.test("Run code from README example", () => {
 
   // Join
 
-  const usersWithGroups = schema.tables.users.query()
-    .innerJoin(
-      schema.tables.groups.query(),
-      "groupAlias",
-      (c) => Expr.equal(c.groupId, c.groupAlias.id),
+  const usersWithGroups = schema.tables.users
+    .query()
+    .innerJoin(schema.tables.groups.query(), "groupAlias", (c) =>
+      Expr.equal(c.groupId, c.groupAlias.id),
     )
     .select((c) => ({
       id: c.id,

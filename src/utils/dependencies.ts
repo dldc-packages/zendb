@@ -1,7 +1,4 @@
-import type {
-  TTableQueryDependency,
-  TTableQueryInternal,
-} from "../Query.types.ts";
+import type { TTableQueryDependency, TTableQueryInternal } from "../Query.types.ts";
 import { isStateEmpty } from "./isStateEmpty.ts";
 
 export function appendDependencies(

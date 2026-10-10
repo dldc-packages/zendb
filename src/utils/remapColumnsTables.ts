@@ -20,10 +20,7 @@ export function remapColumnsTables<Cols extends ExprRecord>(
         throw new Error("Expected column");
       }
       const internal = col[PRIV];
-      return Expr.create(
-        { ...col.ast, table: { name: tableAlias } },
-        internal,
-      );
+      return Expr.create({ ...col.ast, table: { name: tableAlias } }, internal);
     },
   );
 }

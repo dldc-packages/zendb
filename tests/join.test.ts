@@ -1,4 +1,4 @@
-import { expect } from "@std/expect";
+import { expect, test } from "vite-plus/test";
 import { Expr, Random } from "../mod.ts";
 import { format, sql } from "./utils/sql.ts";
 import { tasksDb } from "./utils/tasksDb.ts";
@@ -11,15 +11,13 @@ function setup() {
   nextRandomId = 0;
 }
 
-Deno.test("Query innerJoin", () => {
+test("Query innerJoin", () => {
   setup();
 
   const result = tasksDb.tables.users
     .query()
-    .innerJoin(
-      tasksDb.tables.joinUsersTasks.query(),
-      "usersTasks",
-      (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
+    .innerJoin(tasksDb.tables.joinUsersTasks.query(), "usersTasks", (cols) =>
+      Expr.equal(cols.usersTasks.user_id, cols.id),
     )
     .select((cols) => ({
       id: cols.id,
@@ -38,20 +36,16 @@ Deno.test("Query innerJoin", () => {
   `);
 });
 
-Deno.test("Query joins", () => {
+test("Query joins", () => {
   setup();
 
   const result = tasksDb.tables.users
     .query()
-    .innerJoin(
-      tasksDb.tables.joinUsersTasks.query(),
-      "usersTasks",
-      (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
+    .innerJoin(tasksDb.tables.joinUsersTasks.query(), "usersTasks", (cols) =>
+      Expr.equal(cols.usersTasks.user_id, cols.id),
     )
-    .innerJoin(
-      tasksDb.tables.tasks.query(),
-      "tasks",
-      (cols) => Expr.equal(cols.tasks.id, cols.usersTasks.task_id),
+    .innerJoin(tasksDb.tables.tasks.query(), "tasks", (cols) =>
+      Expr.equal(cols.tasks.id, cols.usersTasks.task_id),
     )
     .select((cols) => ({
       id: cols.id,
@@ -71,25 +65,26 @@ Deno.test("Query joins", () => {
   `);
 });
 
-Deno.test("Join on aggregate should use CTE", () => {
+test("Join on aggregate should use CTE", () => {
   setup();
 
-  const countUsersByGroup = tasksDb.tables.users.query()
+  const countUsersByGroup = tasksDb.tables.users
+    .query()
     .select(({ id, groupId }) => ({
       groupId,
       usersCount: Expr.Aggregate.count(id),
     }))
     .groupBy((c) => [c.groupId]);
 
-  const groupsWithUsersCount = tasksDb.tables.groups.query().innerJoin(
-    countUsersByGroup,
-    "users",
-    (c) => Expr.equal(c.id, c.users.groupId),
-  ).select(({ id, name, users }) => ({
-    id,
-    name,
-    usersCount: users.usersCount,
-  })).all();
+  const groupsWithUsersCount = tasksDb.tables.groups
+    .query()
+    .innerJoin(countUsersByGroup, "users", (c) => Expr.equal(c.id, c.users.groupId))
+    .select(({ id, name, users }) => ({
+      id,
+      name,
+      usersCount: users.usersCount,
+    }))
+    .all();
 
   expect(format(groupsWithUsersCount.sql)).toEqual(sql`
     WITH cte_id1 AS (
@@ -108,21 +103,22 @@ Deno.test("Join on aggregate should use CTE", () => {
   `);
 });
 
-Deno.test("Join on table with select should use CTE", () => {
+test("Join on table with select should use CTE", () => {
   setup();
 
-  const usersWithSelect = tasksDb.tables.users.query()
+  const usersWithSelect = tasksDb.tables.users
+    .query()
     .select(({ id, email }) => ({ id, userEmail: email }));
 
-  const groupsWithUsersCount = tasksDb.tables.groups.query().innerJoin(
-    usersWithSelect,
-    "users",
-    (c) => Expr.equal(c.id, c.users.userEmail),
-  ).select(({ id, name, users }) => ({
-    id,
-    name,
-    userEmail: users.userEmail,
-  })).all();
+  const groupsWithUsersCount = tasksDb.tables.groups
+    .query()
+    .innerJoin(usersWithSelect, "users", (c) => Expr.equal(c.id, c.users.userEmail))
+    .select(({ id, name, users }) => ({
+      id,
+      name,
+      userEmail: users.userEmail,
+    }))
+    .all();
 
   expect(format(groupsWithUsersCount.sql)).toEqual(sql`
     WITH cte_id0 AS (
@@ -140,19 +136,16 @@ Deno.test("Join on table with select should use CTE", () => {
   `);
 });
 
-Deno.test("Joining the same table twice should work", () => {
+test("Joining the same table twice should work", () => {
   setup();
 
-  const result = tasksDb.tables.users.query()
-    .innerJoin(
-      tasksDb.tables.joinUsersTasks.query(),
-      "usersTasks",
-      (cols) => Expr.equal(cols.usersTasks.user_id, cols.id),
+  const result = tasksDb.tables.users
+    .query()
+    .innerJoin(tasksDb.tables.joinUsersTasks.query(), "usersTasks", (cols) =>
+      Expr.equal(cols.usersTasks.user_id, cols.id),
     )
-    .innerJoin(
-      tasksDb.tables.joinUsersTasks.query(),
-      "usersTasks2",
-      (cols) => Expr.equal(cols.usersTasks2.user_id, cols.id),
+    .innerJoin(tasksDb.tables.joinUsersTasks.query(), "usersTasks2", (cols) =>
+      Expr.equal(cols.usersTasks2.user_id, cols.id),
     )
     .select((cols) => ({
       id: cols.id,

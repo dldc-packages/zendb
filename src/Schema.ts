@@ -1,14 +1,6 @@
 import type { TCreateTableOperation } from "./Operation.ts";
-import {
-  declare as declareTable,
-  type TCreateTableOptions,
-  type TTable,
-} from "./Table.ts";
-import type {
-  ColumnsBase,
-  ColumnsToExprRecord,
-  ColumnsToInput,
-} from "./utils/types.ts";
+import { declare as declareTable, type TCreateTableOptions, type TTable } from "./Table.ts";
+import type { ColumnsBase, ColumnsToExprRecord, ColumnsToInput } from "./utils/types.ts";
 
 export interface TSchema<Tables extends Record<string, ColumnsBase>> {
   readonly definition: Tables;
@@ -50,9 +42,10 @@ export function declare<Tables extends Record<string, ColumnsBase>>(
   return {
     definition: tables,
     tables: Object.fromEntries(
-      Object.entries(tables).map((
-        [tableName, columns],
-      ) => [tableName, declareTable(tableName, columns)]),
+      Object.entries(tables).map(([tableName, columns]) => [
+        tableName,
+        declareTable(tableName, columns),
+      ]),
     ) as any,
   };
 }
@@ -73,9 +66,7 @@ export function declare<Tables extends Record<string, ColumnsBase>>(
  * driver.execMany(db, operations);
  * ```
  */
-export function createTables<
-  Tables extends Record<string, TTable<any, any, any>>,
->(
+export function createTables<Tables extends Record<string, TTable<any, any, any>>>(
   tables: Tables,
   options?: TCreateTableOptions,
 ): Array<TCreateTableOperation> {

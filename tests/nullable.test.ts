@@ -1,5 +1,5 @@
-import { Database } from "@db/sqlite";
-import { expect } from "@std/expect";
+import BetterSqlite3 from "better-sqlite3";
+import { expect, test } from "vite-plus/test";
 import { Column, Datatype, Random, Schema, Utils } from "../mod.ts";
 import { TestDriver } from "./utils/TestDriver.ts";
 
@@ -11,9 +11,9 @@ function setup() {
   nextRandomId = 0;
 }
 
-const db = new Database(":memory:");
+const db = new BetterSqlite3(":memory:");
 
-Deno.test("create database", () => {
+test("create database", () => {
   setup();
 
   const customDt = Datatype.create<string[], string>({
@@ -55,18 +55,16 @@ Deno.test("create database", () => {
       text: null,
     }),
   );
-  expect(insertedNull).toEqual(
-    {
-      id: "1",
-      boolean: null,
-      custom: null,
-      date: null,
-      integer: null,
-      json: null,
-      number: null,
-      text: null,
-    },
-  );
+  expect(insertedNull).toEqual({
+    id: "1",
+    boolean: null,
+    custom: null,
+    date: null,
+    integer: null,
+    json: null,
+    number: null,
+    text: null,
+  });
 
   const date = new Date();
   const insertedNotNull = TestDriver.exec(
@@ -82,14 +80,41 @@ Deno.test("create database", () => {
       text: "text",
     }),
   );
-  expect(insertedNotNull).toEqual(
+  expect(insertedNotNull).toEqual({
+    boolean: true,
+    custom: ["a", "b"],
+    date,
+    id: "2",
+    integer: 1,
+    json: {
+      num: 1,
+    },
+    number: 1,
+    text: "text",
+  });
+
+  const rawData = db.prepare("SELECT * FROM demo").raw().all();
+  expect(rawData).toEqual([
+    ["1", null, null, null, null, null, null, null],
+    ["2", date.getTime(), "text", 1, '{"num":1}', 1, 1, "a,b"],
+  ]);
+
+  const all = TestDriver.exec(db, schema.tables.demo.query().all());
+  expect(all).toEqual([
+    {
+      id: "1",
+      boolean: null,
+      custom: null,
+      date: null,
+      integer: null,
+      json: null,
+      number: null,
+      text: null,
+    },
     {
       boolean: true,
-      custom: [
-        "a",
-        "b",
-      ],
-      date,
+      custom: ["a", "b"],
+      date: date,
       id: "2",
       integer: 1,
       json: {
@@ -98,62 +123,5 @@ Deno.test("create database", () => {
       number: 1,
       text: "text",
     },
-  );
-
-  const rawData = db.prepare("SELECT * FROM demo").values();
-  expect(rawData).toEqual(
-    [
-      [
-        "1",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-      ],
-      [
-        "2",
-        date.getTime(),
-        "text",
-        1,
-        '{"num":1}',
-        1,
-        1,
-        "a,b",
-      ],
-    ],
-  );
-
-  const all = TestDriver.exec(db, schema.tables.demo.query().all());
-  expect(all).toEqual(
-    [
-      {
-        id: "1",
-        boolean: null,
-        custom: null,
-        date: null,
-        integer: null,
-        json: null,
-        number: null,
-        text: null,
-      },
-      {
-        boolean: true,
-        custom: [
-          "a",
-          "b",
-        ],
-        date: date,
-        id: "2",
-        integer: 1,
-        json: {
-          num: 1,
-        },
-        number: 1,
-        text: "text",
-      },
-    ],
-  );
+  ]);
 });
