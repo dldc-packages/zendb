@@ -21,5 +21,3 @@ dist
 # Vitest artifacts
 .vitest/
 *.tgz
-
-pnpm-workspace.yaml
